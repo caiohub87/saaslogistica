@@ -1,0 +1,25 @@
+# Sistema operacional
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store
+
+# Editores / IDE
+.vscode/
+.idea/
+*.code-workspace
+
+# Claude Code (local)
+.claude/
+
+# Relatórios / planilhas de dados (não versionar dados reais)
+*.xlsx
+*.xlsm
+*.xls
+*.csv
+!xlsx.full.min.js
+
+# Logs e temporários
+*.log
+*.tmp
+npm-debug.log*
