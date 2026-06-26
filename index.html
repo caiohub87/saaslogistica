@@ -99,6 +99,13 @@
   .spill.on{border-color:var(--accent);background:linear-gradient(135deg, rgba(255,196,0,.16), rgba(0,93,168,.28)), var(--panel2);color:var(--txt)}
   .spill .n{font-weight:700}
   .spill.act{background:transparent;font-weight:600}
+  .an-main{cursor:pointer} .an-main:hover{background:var(--panel2)}
+  .an-main.open{background:var(--panel2)} .an-main .exp{color:var(--accent);font-weight:700;text-align:center;user-select:none}
+  .an-detail>td{background:rgba(0,0,0,.18);padding:0 0 6px 0}
+  .subtbl{width:100%;border-collapse:collapse;font-size:12.5px;margin:2px 0 4px}
+  .subtbl thead th{position:static;background:transparent;border:none;border-bottom:1px solid var(--line);padding:6px 10px;cursor:default}
+  .subtbl tbody td{padding:6px 10px;border-top:1px solid rgba(255,255,255,.06)}
+  .subtbl tbody tr:hover{background:rgba(255,255,255,.04)}
   .rrow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}
   .rrow b{color:var(--txt)} .rrow .v{white-space:nowrap;color:var(--accent);font-weight:700}
   .pay-tog{padding:3px 10px;border-radius:7px;font-weight:700;font-size:12px;border:1px solid var(--line);cursor:pointer}
@@ -126,8 +133,8 @@
       <button data-view="analise">📊 Análise de Entregas</button>
       <button data-view="produtividade">🎯 Produtividade</button>
       <div class="sep"></div>
-      <button data-view="reentregas">🔄 Reentregas <span class="tag">Etapa 2</span></button>
-      <button data-view="pagamento">💰 Pagamento <span class="tag">Etapa 2</span></button>
+      <button data-view="reentregas">🔄 Reentregas</button>
+      <button data-view="pagamento">💰 Pagamento</button>
       <button data-view="dashboard">📈 Dashboard <span class="tag">Etapa 3</span></button>
       <button data-view="cadastros">👥 Cadastros <span class="tag">Etapa 3</span></button>
       <button data-view="config">⚙️ Configurações <span class="tag">Etapa 3</span></button>
@@ -190,6 +197,7 @@
           </div>
           <div class="pad" style="padding-top:0"><div class="status-bar" id="anStatus"></div></div>
           <div class="tablewrap"><table id="anTbl"><thead><tr>
+            <th style="width:26px"></th>
             <th data-k="carga">Carga</th><th data-k="motorista">Motorista</th><th data-k="rota">Rota</th>
             <th class="num" data-k="ped">Ped.</th><th class="num" data-k="ent">Entr.</th>
             <th class="num" data-k="reent">Reent.</th><th class="num" data-k="dev">Dev.</th><th class="num" data-k="pend">Pend.</th>
@@ -394,10 +402,11 @@ function buildCargas(){
   for(const p of BASE){
     const id=p.carga||'(sem carga)';
     if(!map[id])map[id]={id,dataSaida:'',motorista:p.motorista,rota:p.rota,placa:p.placa,regiao:p.regiao,
-      ajudantes:new Set(),pedidos:0,peso:0,valor:0,
+      ajudantes:new Set(),pedidos:0,peso:0,valor:0,peds:[],
       cEnt:0,cReent:0,cDev:0,cPend:0, pesoProblema:0, valorProblema:0,
       falhaQtd:0,falhaPeso:0,status:{}};
     const c=map[id];
+    c.peds.push(p);
     if(!c.dataSaida&&p.dataSaida)c.dataSaida=p.dataSaida;
     if(!c.motorista&&p.motorista)c.motorista=p.motorista;
     if(!c.rota&&p.rota)c.rota=p.rota;
@@ -466,7 +475,18 @@ function renderHome(){
 }
 
 // ===================== ANÁLISE =====================
-let anSort='carga',anDir=1,STATUS_LIST=[],statusFilter=new Set();
+let anSort='carga',anDir=1,STATUS_LIST=[],statusFilter=new Set(),anExpanded=new Set();
+function pedStatusBadge(cat,label){const m={entregue:'b-green',reentrega:'b-orange',devolvido:'b-red',pendente:'b-blue'};return `<span class="badge ${m[cat]||'b-blue'}" style="font-size:11px">${label}</span>`;}
+function anDetailHtml(c){
+  const rows=c.peds.map(p=>`<tr>
+    <td class="muted">${p.pedido||'—'}</td><td>${p.cliente||'—'}</td><td class="muted">${p.cidade||'—'}</td>
+    <td class="muted">${p.rota||'—'}</td><td>${pedStatusBadge(p.cat,p.status)}</td>
+    <td class="muted">${p.motivo||'—'}</td><td class="num">${fmtKg(p.peso)}</td><td class="num">${fmtBRL(p.valor)}</td>
+  </tr>`).join('');
+  return `<table class="subtbl"><thead><tr>
+    <th>Pedido</th><th>Cliente</th><th>Cidade</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
+    </tr></thead><tbody>${rows}</tbody></table>`;
+}
 function buildStatusList(){
   const m={};
   BASE.forEach(p=>{ if(!m[p.stl])m[p.stl]={stl:p.stl,label:p.status||p.stl,count:0}; m[p.stl].count++; });
@@ -516,8 +536,10 @@ function renderAnalise(){
     <div class="kpi red"><div class="k">Devoluções</div><div class="v">${T.dev}</div></div>
     <div class="kpi blue"><div class="k">Pendentes</div><div class="v">${T.pend}</div></div>
     <div class="kpi accent"><div class="k">Valor com problema</div><div class="v" style="font-size:19px">${fmtBRL(T.vprob)}</div><div class="s">de ${fmtBRL(T.valor)}</div></div>`;
-  document.querySelector('#anTbl tbody').innerHTML=list.map(c=>`
-    <tr>
+  document.querySelector('#anTbl tbody').innerHTML=list.map(c=>{
+    const ex=anExpanded.has(c.id);
+    return `<tr class="an-main${ex?' open':''}" data-id="${c.id}">
+      <td class="exp">${ex?'▾':'▸'}</td>
       <td><b>${c.id}</b>${c.placa==='AGREG'?' <span class="pill">AGREG</span>':''}</td>
       <td>${c.motorista||'<span class=muted>—</span>'}</td><td class="muted">${c.rota||'—'}</td>
       <td class="num">${c.pedidos}</td><td class="num">${c.cEnt}</td>
@@ -526,7 +548,8 @@ function renderAnalise(){
       <td class="num">${fmtKg(c.peso)}</td><td class="num">${fmtBRL(c.valor)}</td>
       <td class="num">${c.valorProblema?fmtBRL(c.valorProblema):'—'}</td>
       <td class="num"><b>${fmtPct(c.pctEnt)}</b></td>
-    </tr>`).join('');
+    </tr>${ex?`<tr class="an-detail"><td></td><td colspan="12">${anDetailHtml(c)}</td></tr>`:''}`;
+  }).join('');
   document.getElementById('anCount').textContent=list.length+' cargas';
 }
 
@@ -780,6 +803,7 @@ document.getElementById('anStatus').addEventListener('click',e=>{
   renderStatusPills();renderAnalise();
 });
 document.querySelectorAll('#anTbl th[data-k]').forEach(th=>th.onclick=()=>{const k=th.dataset.k;if(anSort===k)anDir*=-1;else{anSort=k;anDir=1;}renderAnalise();});
+document.querySelector('#anTbl tbody').addEventListener('click',e=>{const tr=e.target.closest('tr.an-main');if(!tr)return;const id=tr.dataset.id;anExpanded.has(id)?anExpanded.delete(id):anExpanded.add(id);renderAnalise();});
 
 document.getElementById('prSearch').oninput=renderProd;
 document.getElementById('prFaixa').onchange=renderProd;
