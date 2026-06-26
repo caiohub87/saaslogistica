@@ -10,10 +10,17 @@ Nenhum dado é enviado para a internet — a planilha é lida localmente no nave
 
 | Página | Descrição |
 |--------|-----------|
+| [`sistema.html`](sistema.html) | **Sistema integrado** (novo hub) — carrega o relatório **uma vez** numa Base Tratada compartilhada e navega entre os módulos por um menu lateral: Início, Análise, Produtividade (Reentregas, Pagamento, Dashboard, Cadastros e Configurações em desenvolvimento). |
 | [`index.html`](index.html) | **Análise por lote** — agrupa pedidos por Carga ERP e filtra por status (reentregas, devoluções etc.). |
 | [`produtividade.html`](produtividade.html) | **Produtividade & Premiação** — calcula a produtividade por carga e a premiação por cargo. |
 
-As duas páginas se conectam por botões de navegação no topo.
+As páginas se conectam por botões de navegação no topo.
+
+### Roadmap do sistema integrado (`sistema.html`)
+
+- **Etapa 1 (pronta):** Base Tratada central + Início (resumo do dia) + Análise + Produtividade.
+- **Etapa 2:** Reentregas & Devoluções + Pagamento (premiação diária/semanal, PAGAR=SIM/NÃO).
+- **Etapa 3:** Dashboard (gráficos) + Cadastros (motorista→tipo de operação) + Configurações.
 
 ## 🧮 Regras de cálculo (Produtividade)
 
