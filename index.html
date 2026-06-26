@@ -202,7 +202,7 @@
             <th class="num" data-k="ped">Ped.</th><th class="num" data-k="ent">Entr.</th>
             <th class="num" data-k="reent">Reent.</th><th class="num" data-k="dev">Dev.</th><th class="num" data-k="pend">Pend.</th>
             <th class="num" data-k="peso">Peso(kg)</th><th class="num" data-k="valor">Valor</th>
-            <th class="num" data-k="vprob">Valor probl.</th><th class="num" data-k="pent">%Entr.</th>
+            <th class="num" data-k="vprob">Valor reent.</th><th class="num" data-k="pent">%Entr.</th>
           </tr></thead><tbody></tbody></table></div>
         </div>
       </div>
@@ -249,29 +249,20 @@
       <div id="reEmpty" class="empty">Carregue um relatório para ver as reentregas e devoluções.</div>
       <div id="reBody" style="display:none">
         <div class="kpis" id="reKpis"></div>
-        <div class="grid2">
-          <div class="card">
-            <h3>Pedidos com problema <span id="reCount" class="pill"></span></h3>
-            <div class="pad toolbar">
-              <input type="search" id="reSearch" placeholder="Buscar cliente, pedido, motorista...">
-              <select id="reMot"><option value="">Todos motoristas</option></select>
-              <select id="reRota"><option value="">Todas rotas</option></select>
-              <select id="reMotivo"><option value="">Todos motivos</option></select>
-              <button class="ghost" id="reExport">⬇️ Exportar</button>
-            </div>
-            <div class="pad" style="padding-top:0"><div class="status-bar" id="reStatus"></div></div>
-            <div class="tablewrap"><table id="reTbl"><thead><tr>
-              <th>Data</th><th>Carga</th><th>Romaneio</th><th>Motorista</th><th>Cliente</th>
-              <th>Pedido</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
-            </tr></thead><tbody></tbody></table></div>
+        <div class="card">
+          <h3>Pedidos com problema <span id="reCount" class="pill"></span></h3>
+          <div class="pad toolbar">
+            <input type="search" id="reSearch" placeholder="Buscar cliente, pedido, motorista...">
+            <select id="reMot"><option value="">Todos motoristas</option></select>
+            <select id="reRota"><option value="">Todas rotas</option></select>
+            <select id="reMotivo"><option value="">Todos motivos</option></select>
+            <button class="ghost" id="reExport">⬇️ Exportar</button>
           </div>
-          <div class="card" style="position:sticky;top:16px">
-            <h3>Resumos</h3>
-            <div class="pad">
-              <b>Por motivo</b><div id="reByMotivo" style="margin-top:6px"></div>
-              <b style="display:block;margin-top:14px">Por motorista</b><div id="reByMot" style="margin-top:6px"></div>
-            </div>
-          </div>
+          <div class="pad" style="padding-top:0"><div class="status-bar" id="reStatus"></div></div>
+          <div class="tablewrap"><table id="reTbl"><thead><tr>
+            <th>Data</th><th>Carga</th><th>Romaneio</th><th>Motorista</th><th>Cliente</th>
+            <th>Pedido</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
+          </tr></thead><tbody></tbody></table></div>
         </div>
       </div>
     </section>
@@ -414,7 +405,7 @@ function buildCargas(){
     c.pedidos++; c.peso+=p.peso; c.valor+=p.valor; c.status[p.stl]=(c.status[p.stl]||0)+1;
     if(p.cat==='entregue')c.cEnt++;
     else if(p.cat==='reentrega'){c.cReent++;c.pesoProblema+=p.peso;c.valorProblema+=p.valor;}
-    else if(p.cat==='devolvido'){c.cDev++;c.pesoProblema+=p.peso;c.valorProblema+=p.valor;}
+    else if(p.cat==='devolvido'){c.cDev++;c.pesoProblema+=p.peso;/* valor de devolução não conta: sistema não sabe quanto foi devolvido */}
     else c.cPend++;
     // produtividade: sucesso = só entregue; parcial = 50% peso e não conta na qtd
     const isEnt=p.stl==='entregue', isParc=p.stl==='devolvido parcial';
@@ -535,7 +526,7 @@ function renderAnalise(){
     <div class="kpi orange"><div class="k">Reentregas</div><div class="v">${T.reent}</div></div>
     <div class="kpi red"><div class="k">Devoluções</div><div class="v">${T.dev}</div></div>
     <div class="kpi blue"><div class="k">Pendentes</div><div class="v">${T.pend}</div></div>
-    <div class="kpi accent"><div class="k">Valor com problema</div><div class="v" style="font-size:19px">${fmtBRL(T.vprob)}</div><div class="s">de ${fmtBRL(T.valor)}</div></div>`;
+    <div class="kpi accent"><div class="k">Valor em reentrega</div><div class="v" style="font-size:19px">${fmtBRL(T.vprob)}</div><div class="s">devolução não conta valor</div></div>`;
   document.querySelector('#anTbl tbody').innerHTML=list.map(c=>{
     const ex=anExpanded.has(c.id);
     return `<tr class="an-main${ex?' open':''}" data-id="${c.id}">
@@ -672,28 +663,27 @@ function resumo(list,keyFn){
 }
 function renderRe(){
   const list=reList();
-  const valor=list.reduce((a,p)=>a+p.valor,0),peso=list.reduce((a,p)=>a+p.peso,0);
+  // Valor só conta para reentrega; em devolução o sistema não sabe quanto foi devolvido.
+  const valor=list.filter(p=>p.cat==='reentrega').reduce((a,p)=>a+p.valor,0),peso=list.reduce((a,p)=>a+p.peso,0);
   const nReent=list.filter(p=>p.cat==='reentrega').length,nDev=list.filter(p=>p.cat==='devolvido').length;
   document.getElementById('reKpis').innerHTML=`
     <div class="kpi red"><div class="k">Pedidos com problema</div><div class="v">${list.length}</div></div>
     <div class="kpi orange"><div class="k">Reentregas</div><div class="v">${nReent}</div></div>
     <div class="kpi red"><div class="k">Devoluções</div><div class="v">${nDev}</div></div>
     <div class="kpi"><div class="k">Peso com problema</div><div class="v" style="font-size:19px">${fmtKg(peso)}</div></div>
-    <div class="kpi accent"><div class="k">Valor com problema</div><div class="v" style="font-size:19px">${fmtBRL(valor)}</div></div>`;
+    <div class="kpi accent"><div class="k">Valor em reentrega</div><div class="v" style="font-size:19px">${fmtBRL(valor)}</div></div>`;
   document.querySelector('#reTbl tbody').innerHTML=list.map(p=>`
     <tr><td class="muted">${p.dataSaida||'—'}</td><td><b>${p.carga}</b></td><td class="muted">${p.romaneio||'—'}</td>
       <td>${p.motorista||'—'}</td><td>${p.cliente||'—'}</td><td class="muted">${p.pedido||'—'}</td><td class="muted">${p.rota||'—'}</td>
       <td><span class="badge ${p.cat==='reentrega'?'b-orange':'b-red'}">${p.status}</span></td>
-      <td class="muted">${p.motivo||'—'}</td><td class="num">${fmtKg(p.peso)}</td><td class="num">${fmtBRL(p.valor)}</td></tr>`).join('')
+      <td class="muted">${p.motivo||'—'}</td><td class="num">${fmtKg(p.peso)}</td><td class="num">${p.cat==='devolvido'?'<span class="muted">—</span>':fmtBRL(p.valor)}</td></tr>`).join('')
     || '<tr><td colspan="11" class="empty">Nenhum pedido com os filtros atuais.</td></tr>';
   document.getElementById('reCount').textContent=list.length+' pedidos';
-  document.getElementById('reByMotivo').innerHTML=resumo(list,p=>p.motivo).slice(0,12).map(x=>`<div class="rrow"><span>${x.k}</span><span class="v">${x.n} · ${fmtBRL(x.valor)}</span></div>`).join('')||'<div class="muted">—</div>';
-  document.getElementById('reByMot').innerHTML=resumo(list,p=>p.motorista).slice(0,12).map(x=>`<div class="rrow"><span>${x.k}</span><span class="v">${x.n} · ${fmtBRL(x.valor)}</span></div>`).join('')||'<div class="muted">—</div>';
 }
 function reExport(){
   const list=reList();if(!list.length){alert('Nada para exportar.');return;}
   const aoa=[['DATA SAIDA','CARGA','ROMANEIO','MOTORISTA','AJUDANTE 1','AJUDANTE 2','CLIENTE','PEDIDO','ROTA','STATUS','MOTIVO','PESO','VALOR']];
-  list.forEach(p=>aoa.push([p.dataSaida,p.carga,p.romaneio,p.motorista,p.aj1,p.aj2,p.cliente,p.pedido,p.rota,p.status,p.motivo,p.peso,p.valor]));
+  list.forEach(p=>aoa.push([p.dataSaida,p.carga,p.romaneio,p.motorista,p.aj1,p.aj2,p.cliente,p.pedido,p.rota,p.status,p.motivo,p.peso,p.cat==='devolvido'?'':p.valor]));
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:12},{wch:9},{wch:10},{wch:22},{wch:20},{wch:20},{wch:26},{wch:12},{wch:16},{wch:16},{wch:26},{wch:9},{wch:12}];
   for(let r=1;r<aoa.length;r++){const a=XLSX.utils.encode_cell({r,c:12});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='"R$" #,##0.00';}
