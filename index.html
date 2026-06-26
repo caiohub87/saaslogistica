@@ -106,6 +106,20 @@
   .subtbl thead th{position:static;background:transparent;border:none;border-bottom:1px solid var(--line);padding:6px 10px;cursor:default}
   .subtbl tbody td{padding:6px 10px;border-top:1px solid rgba(255,255,255,.06)}
   .subtbl tbody tr:hover{background:rgba(255,255,255,.04)}
+  .bar-row{display:grid;grid-template-columns:170px 1fr 92px;gap:10px;align-items:center;margin:5px 0;font-size:12.5px}
+  .bar-row .lbl{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--muted)}
+  .bar-track{background:rgba(255,255,255,.06);border-radius:6px;height:18px;overflow:hidden}
+  .bar-fill{height:100%;border-radius:6px;min-width:2px}
+  .bar-row .val{text-align:right;font-weight:700;white-space:nowrap}
+  .cfg-row{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0;border-bottom:1px dashed var(--line);max-width:520px}
+  .cfg-row label{color:var(--muted)}
+  .cad-row{display:grid;grid-template-columns:1fr 150px;gap:10px;align-items:center;padding:6px 0;border-bottom:1px dashed var(--line)}
+  .cad-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .cadwrap{max-height:60vh;overflow:auto}
+  .premio-tbl{width:100%;border-collapse:collapse}
+  .premio-tbl th,.premio-tbl td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:center;font-size:13px}
+  .premio-tbl th:first-child,.premio-tbl td:first-child{text-align:left;color:var(--txt)}
+  .premio-tbl input{width:62px;text-align:right;padding:4px 6px}
   .rrow{display:flex;justify-content:space-between;gap:10px;padding:6px 0;border-bottom:1px dashed var(--line);font-size:13px}
   .rrow b{color:var(--txt)} .rrow .v{white-space:nowrap;color:var(--accent);font-weight:700}
   .pay-tog{padding:3px 10px;border-radius:7px;font-weight:700;font-size:12px;border:1px solid var(--line);cursor:pointer}
@@ -292,9 +306,44 @@
         </div>
       </div>
     </section>
-    <section class="view" id="view-dashboard"><div class="soon"><div class="ic">📈</div><h2>Dashboard</h2><p>Módulo da <b>Etapa 3</b>. Gráficos de produtividade por motorista, ranking, reentregas por motivo, evolução diária e premiação por semana.</p></div></section>
-    <section class="view" id="view-cadastros"><div class="soon"><div class="ic">👥</div><h2>Cadastros</h2><p>Módulo da <b>Etapa 3</b>. Cadastro de motoristas e ajudantes com <b>tipo de operação</b> (Praça/Viagem/Agregado), tabela de valores e regras — para o sistema preencher os cargos automaticamente.</p></div></section>
-    <section class="view" id="view-config"><div class="soon"><div class="ic">⚙️</div><h2>Configurações</h2><p>Módulo da <b>Etapa 3</b>. Horário limite (17:30), metas (80/90/100%), sábado conta? e demais parâmetros.</p></div></section>
+    <!-- ===== DASHBOARD ===== -->
+    <section class="view" id="view-dashboard">
+      <div id="dashEmpty" class="empty">Carregue um relatório para ver o dashboard.</div>
+      <div id="dashBody" style="display:none">
+        <div class="kpis" id="dashKpis"></div>
+        <div class="card"><h3>Ranking de produtividade por motorista</h3><div class="pad" id="chartRank"></div></div>
+        <div class="grid2" style="margin-top:16px">
+          <div class="card"><h3>Reentregas/Devoluções por motivo</h3><div class="pad" id="chartMotivo"></div></div>
+          <div class="card"><h3>Entregas por rota</h3><div class="pad" id="chartRota"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CADASTROS ===== -->
+    <section class="view" id="view-cadastros">
+      <div class="card"><h3>Tabela de valores de premiação (editável) <span class="pill">R$ por cargo × faixa</span></h3><div class="pad" id="cadPremio"></div></div>
+      <div id="cadEmpty" class="empty">Carregue um relatório para listar motoristas e ajudantes.</div>
+      <div id="cadBody" style="display:none;margin-top:16px">
+        <div class="grid2">
+          <div class="card"><h3>Motoristas → tipo de operação <span id="cadMotCount" class="pill"></span></h3><div class="pad" id="cadMot"></div></div>
+          <div class="card"><h3>Ajudantes → tipo de operação <span id="cadAjuCount" class="pill"></span></h3><div class="pad" id="cadAju"></div></div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== CONFIGURAÇÕES ===== -->
+    <section class="view" id="view-config">
+      <div class="card"><h3>Parâmetros do sistema</h3>
+        <div class="pad" id="cfgBody">
+          <div class="cfg-row"><label>Horário limite de finalização</label><input type="text" id="cfgHorario" style="width:90px"></div>
+          <div class="cfg-row"><label>Meta — faixa azul (≥ %)</label><input type="number" id="cfgMeta90" min="0" max="100" step="0.01" style="width:90px"></div>
+          <div class="cfg-row"><label>Meta — faixa laranja (≥ %)</label><input type="number" id="cfgMeta80" min="0" max="100" step="0.01" style="width:90px"></div>
+          <div class="cfg-row"><label>Sábado conta na apuração?</label><input type="checkbox" id="cfgSabado" class="chk"></div>
+          <div class="cfg-row"><label>Pagamento ativo?</label><input type="checkbox" id="cfgPagAtivo" class="chk"></div>
+          <div class="muted" style="font-size:12px;margin-top:8px">As mudanças são salvas automaticamente e recalculam todos os módulos. 100% = excelência sempre fixa.</div>
+        </div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -325,18 +374,34 @@ function classify(stLow){
 }
 
 // premiação
-const PREMIO={
+const PREMIO_DEFAULT={
   'Motorista de Praça':[35,25,10,0],'Motorista de Viagem':[45,35,15,0],'Motorista Agregado':[20,0,0,0],
   'Ajudante de Praça':[15,10,5,0],'Ajudante de Viagem':[20,15,10,0],'Ajudante de Praça (Agregado)':[20,15,10,0],
 };
+let PREMIO=JSON.parse(JSON.stringify(PREMIO_DEFAULT));
 const CARGOS_MOT=['Motorista de Praça','Motorista de Viagem','Motorista Agregado'];
 const CARGOS_AJU=['Ajudante de Praça','Ajudante de Viagem','Ajudante de Praça (Agregado)'];
 const isAgregado=c=>/agregado/i.test(c);
-function faixaOf(pf){const p=pf*100;
+
+// ===== CONFIGURAÇÕES =====
+const CONFIG_DEFAULT={sabadoConta:false,meta90:90,meta80:80,horario:'17:30',pagamentoAtivo:true};
+let CONFIG=Object.assign({},CONFIG_DEFAULT);
+const LS_CONFIG='dilnor_config_v1',LS_PREMIO='dilnor_premio_v1',LS_AJUTIPO='dilnor_ajudante_tipo_v1';
+function loadConfig(){try{CONFIG=Object.assign({},CONFIG_DEFAULT,JSON.parse(localStorage.getItem(LS_CONFIG)||'{}'));}catch(e){CONFIG=Object.assign({},CONFIG_DEFAULT);}}
+function saveConfig(){try{localStorage.setItem(LS_CONFIG,JSON.stringify(CONFIG));}catch(e){}}
+function loadPremio(){try{const o=JSON.parse(localStorage.getItem(LS_PREMIO)||'null');if(o)Object.keys(PREMIO).forEach(k=>{if(o[k])PREMIO[k]=o[k];});}catch(e){}}
+function savePremio(){try{localStorage.setItem(LS_PREMIO,JSON.stringify(PREMIO));}catch(e){}}
+
+function faixaOf(pf){const p=pf*100,m9=CONFIG.meta90,m8=CONFIG.meta80;
   if(p>=99.995)return{k:'green',cls:'b-green',label:'🟢 100%',tier:0};
-  if(p>=90)return{k:'blue',cls:'b-blue',label:'🔵 90–99,99%',tier:1};
-  if(p>=80)return{k:'orange',cls:'b-orange',label:'🟠 80–89,99%',tier:2};
-  return{k:'red',cls:'b-red',label:'🔴 <80%',tier:3};}
+  if(p>=m9)return{k:'blue',cls:'b-blue',label:`🔵 ≥${m9}%`,tier:1};
+  if(p>=m8)return{k:'orange',cls:'b-orange',label:`🟠 ${m8}–${m9}%`,tier:2};
+  return{k:'red',cls:'b-red',label:`🔴 <${m8}%`,tier:3};}
+
+// ===== DATA / SÁBADO =====
+function parseBRDate(s){if(!s)return null;const m=String(s).trim().match(/(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})/);if(!m)return null;let y=+m[3];if(y<100)y+=2000;const dt=new Date(y,+m[2]-1,+m[1]);return isNaN(dt.getTime())?null:dt;}
+function isSaturday(p){const dt=parseBRDate(p.dataSaida);return dt?dt.getDay()===6:false;}
+function workBase(){return CONFIG.sabadoConta?BASE:BASE.filter(p=>!isSaturday(p));}
 
 // ===================== ESTADO =====================
 let BASE=[], CARGAS=[], byCarga={}, META={};
@@ -390,7 +455,7 @@ function clearBase(){ if(!confirm('Limpar a base carregada?'))return; localStora
 // ===================== AGREGAÇÃO POR CARGA =====================
 function buildCargas(){
   const map={};
-  for(const p of BASE){
+  for(const p of workBase()){
     const id=p.carga||'(sem carga)';
     if(!map[id])map[id]={id,dataSaida:'',motorista:p.motorista,rota:p.rota,placa:p.placa,regiao:p.regiao,
       ajudantes:new Set(),pedidos:0,peso:0,valor:0,peds:[],
@@ -437,9 +502,14 @@ function afterLoad(){
   document.getElementById('reBody').style.display=has?'block':'none';
   document.getElementById('payEmpty').style.display=has?'none':'block';
   document.getElementById('payBody').style.display=has?'block':'none';
+  document.getElementById('dashEmpty').style.display=has?'none':'block';
+  document.getElementById('dashBody').style.display=has?'block':'none';
+  document.getElementById('cadEmpty').style.display=has?'none':'block';
+  document.getElementById('cadBody').style.display=has?'block':'none';
+  renderConfigForm(); renderCadPremio();
   if(has){ buildCargas(); selected.clear(); cfg={}; payCfg={}; loadTipos();
     renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
-    fillReFilters(); renderRe(); renderPay(); }
+    fillReFilters(); renderRe(); renderPay(); renderDashboard(); renderCadastros(); }
 }
 function go(view){ document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
@@ -449,13 +519,15 @@ function go(view){ document.querySelectorAll('#nav button[data-view]').forEach(b
 
 // ===================== INÍCIO =====================
 function renderHome(){
-  const t={ped:BASE.length,ent:0,reent:0,dev:0,pend:0};
-  BASE.forEach(p=>{t[p.cat==='entregue'?'ent':p.cat==='reentrega'?'reent':p.cat==='devolvido'?'dev':'pend']++;});
+  const W=workBase();
+  const t={ped:W.length,ent:0,reent:0,dev:0,pend:0};
+  W.forEach(p=>{t[p.cat==='entregue'?'ent':p.cat==='reentrega'?'reent':p.cat==='devolvido'?'dev':'pend']++;});
   const prodMedia=CARGAS.length?CARGAS.reduce((a,c)=>a+c.prodFinal,0)/CARGAS.length:0;
   const premiados=CARGAS.filter(c=>c.faixa.tier<3).length, abaixo=CARGAS.filter(c=>c.faixa.tier===3).length;
-  const pc=n=>BASE.length?(n/BASE.length*100).toFixed(1)+'%':'0%';
+  const pc=n=>W.length?(n/W.length*100).toFixed(1)+'%':'0%';
+  const sabHidden=CONFIG.sabadoConta?'':(BASE.length-W.length);
   document.getElementById('homeKpis').innerHTML=`
-    <div class="kpi"><div class="k">Total de pedidos</div><div class="v">${t.ped}</div><div class="s">${CARGAS.length} cargas${META.loadedAt?' · '+new Date(META.loadedAt).toLocaleDateString('pt-BR'):''}</div></div>
+    <div class="kpi"><div class="k">Total de pedidos</div><div class="v">${t.ped}</div><div class="s">${CARGAS.length} cargas${sabHidden?' · '+sabHidden+' de sáb. ocultos':''}</div></div>
     <div class="kpi green"><div class="k">Entregues</div><div class="v">${t.ent}</div><div class="s">${pc(t.ent)}</div></div>
     <div class="kpi orange"><div class="k">Reentregas</div><div class="v">${t.reent}</div><div class="s">${pc(t.reent)}</div></div>
     <div class="kpi red"><div class="k">Devoluções</div><div class="v">${t.dev}</div><div class="s">${pc(t.dev)}</div></div>
@@ -629,7 +701,7 @@ function exportXLSX(){
 // ===================== REENTREGAS & DEVOLUÇÕES =====================
 const PROBLEM_STL=new Set(['reentrega','devolvido','devolvido parcial','entrega nao realizada']);
 let reStatusList=[],reStatusFilter=new Set();
-function problemPedidos(){ return BASE.filter(p=>PROBLEM_STL.has(p.stl)); }
+function problemPedidos(){ return workBase().filter(p=>PROBLEM_STL.has(p.stl)); }
 function fillReFilters(){
   const probs=problemPedidos();
   const mots=[...new Set(probs.map(p=>p.motorista).filter(Boolean))].sort();
@@ -691,25 +763,26 @@ function reExport(){
 }
 
 // ===================== PAGAMENTO =====================
-let payCfg={}, motoristaTipo={};
+let payCfg={}, motoristaTipo={}, ajudanteTipo={};
 const LS_TIPO='dilnor_motorista_tipo_v1';
-function loadTipos(){try{motoristaTipo=JSON.parse(localStorage.getItem(LS_TIPO)||'{}');}catch(e){motoristaTipo={};}}
-function saveTipos(){try{localStorage.setItem(LS_TIPO,JSON.stringify(motoristaTipo));}catch(e){}}
+function loadTipos(){try{motoristaTipo=JSON.parse(localStorage.getItem(LS_TIPO)||'{}');}catch(e){motoristaTipo={};}
+  try{ajudanteTipo=JSON.parse(localStorage.getItem(LS_AJUTIPO)||'{}');}catch(e){ajudanteTipo={};}}
+function saveTipos(){try{localStorage.setItem(LS_TIPO,JSON.stringify(motoristaTipo));localStorage.setItem(LS_AJUTIPO,JSON.stringify(ajudanteTipo));}catch(e){}}
 function motCargo(t){return t==='Viagem'?'Motorista de Viagem':t==='Agregado'?'Motorista Agregado':'Motorista de Praça';}
 function ajCargo(t){return t==='Viagem'?'Ajudante de Viagem':t==='Agregado'?'Ajudante de Praça (Agregado)':'Ajudante de Praça';}
+function defTipo(motorista,placa){return motoristaTipo[motorista]||(placa==='AGREG'?'Agregado':'Praça');}
 function ensurePay(id){
   const c=byCarga[id];
-  if(!payCfg[id]){
-    const t=motoristaTipo[c.motorista]||(c.placa==='AGREG'?'Agregado':'Praça');
-    payCfg[id]={tipo:t,pagar:true};
-  }
+  if(!payCfg[id]) payCfg[id]={tipo:defTipo(c.motorista,c.placa),pagar:true};
   return payCfg[id];
 }
 function payRow(c){
-  const p=ensurePay(c.id), aj=[...c.ajudantes], tier=c.faixa.tier;
-  const vMot=premioPessoa(motCargo(p.tipo),tier,p.pagar);
-  const vAj1=aj[0]?premioPessoa(ajCargo(p.tipo),tier,p.pagar):0;
-  const vAj2=aj[1]?premioPessoa(ajCargo(p.tipo),tier,p.pagar):0;
+  const p=ensurePay(c.id), aj=[...c.ajudantes], tier=c.faixa.tier, ativo=CONFIG.pagamentoAtivo;
+  const pg=p.pagar&&ativo;
+  const vMot=premioPessoa(motCargo(p.tipo),tier,pg);
+  // tipo do ajudante: cadastro do ajudante, senão o tipo da carga
+  const vAj1=aj[0]?premioPessoa(ajCargo(ajudanteTipo[aj[0]]||p.tipo),tier,pg):0;
+  const vAj2=aj[1]?premioPessoa(ajCargo(ajudanteTipo[aj[1]]||p.tipo),tier,pg):0;
   return {c,p,aj,vMot,vAj1,vAj2,total:vMot+vAj1+vAj2};
 }
 function payList(){
@@ -770,6 +843,75 @@ function payExport(){
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Pagamento');XLSX.writeFile(wb,'folha_pagamento.xlsx');
 }
 
+// ===================== DASHBOARD =====================
+const FAIXA_COLOR={green:'var(--green)',blue:'var(--blue)',orange:'var(--orange)',red:'var(--red)'};
+function barChart(el,data,opts){
+  opts=opts||{}; const max=Math.max(1,...data.map(d=>d.value));
+  el.innerHTML=data.length?data.map(d=>{
+    const w=(d.value/max*100).toFixed(1);
+    return `<div class="bar-row"><span class="lbl" title="${d.label}">${d.label}</span>
+      <span class="bar-track"><span class="bar-fill" style="width:${w}%;background:${d.color||'var(--accent2)'}"></span></span>
+      <span class="val">${opts.fmt?opts.fmt(d):d.value}</span></div>`;}).join(''):'<div class="muted">Sem dados.</div>';
+}
+function renderDashboard(){
+  const cnt={green:0,blue:0,orange:0,red:0};CARGAS.forEach(c=>cnt[c.faixa.k]++);
+  const prodMedia=CARGAS.length?CARGAS.reduce((a,c)=>a+c.prodFinal,0)/CARGAS.length:0;
+  const probs=problemPedidos();
+  document.getElementById('dashKpis').innerHTML=`
+    <div class="kpi"><div class="k">Cargas</div><div class="v">${CARGAS.length}</div></div>
+    <div class="kpi accent"><div class="k">Produtividade média</div><div class="v">${fmtPct(prodMedia)}</div></div>
+    <div class="kpi green"><div class="k">Premiadas (≥${CONFIG.meta80}%)</div><div class="v">${cnt.green+cnt.blue+cnt.orange}</div></div>
+    <div class="kpi red"><div class="k">Abaixo da meta</div><div class="v">${cnt.red}</div></div>
+    <div class="kpi orange"><div class="k">Pedidos c/ problema</div><div class="v">${probs.length}</div></div>`;
+  // Ranking por motorista (produtividade média ponderada por pedidos)
+  const mm={};
+  CARGAS.forEach(c=>{const m=c.motorista||'(sem)';if(!mm[m])mm[m]={m,somaProd:0,peds:0};mm[m].somaProd+=c.prodFinal*c.pedidos;mm[m].peds+=c.pedidos;});
+  const rank=Object.values(mm).map(x=>({label:x.m,prod:x.peds?x.somaProd/x.peds:0})).sort((a,b)=>b.prod-a.prod);
+  barChart(document.getElementById('chartRank'),
+    rank.map(x=>({label:x.label,value:x.prod*100,color:FAIXA_COLOR[faixaOf(x.prod).k]})),
+    {fmt:d=>fmtPct(d.value/100)});
+  // Reentregas por motivo
+  const motivos={};probs.forEach(p=>{const k=p.motivo||'(sem motivo)';motivos[k]=(motivos[k]||0)+1;});
+  barChart(document.getElementById('chartMotivo'),
+    Object.entries(motivos).map(([k,v])=>({label:k,value:v,color:'var(--orange)'})).sort((a,b)=>b.value-a.value).slice(0,12),
+    {fmt:d=>d.value+' ped'});
+  // Entregas por rota (pedidos)
+  const rotas={};workBase().forEach(p=>{const k=p.rota||'(sem rota)';if(!rotas[k])rotas[k]={n:0,valor:0};rotas[k].n++;rotas[k].valor+=p.valor;});
+  barChart(document.getElementById('chartRota'),
+    Object.entries(rotas).map(([k,v])=>({label:k,value:v.n,valor:v.valor,color:'var(--accent2)'})).sort((a,b)=>b.value-a.value).slice(0,12),
+    {fmt:d=>d.value+' ped'});
+}
+
+// ===================== CADASTROS =====================
+function renderCadPremio(){
+  const faixas=['100%','≥'+CONFIG.meta90+'%','≥'+CONFIG.meta80+'%','<'+CONFIG.meta80+'%'];
+  const cargos=[...CARGOS_MOT,...CARGOS_AJU];
+  document.getElementById('cadPremio').innerHTML=`<div style="overflow-x:auto"><table class="premio-tbl"><thead><tr><th>Cargo</th>${faixas.map(f=>`<th>${f}</th>`).join('')}</tr></thead><tbody>`+
+    cargos.map(cg=>`<tr><td>${cg}</td>${[0,1,2,3].map(i=>`<td><input type="number" min="0" step="1" data-cargo="${cg}" data-i="${i}" value="${PREMIO[cg][i]}"></td>`).join('')}</tr>`).join('')+
+    `</tbody></table></div><div style="margin-top:10px"><button class="ghost" id="premioReset">↺ Restaurar valores padrão</button></div>`;
+}
+function renderCadastros(){
+  renderCadPremio();
+  const mots=[...new Set(CARGAS.map(c=>c.motorista).filter(Boolean))].sort();
+  const ajus=[...new Set(workBase().flatMap(p=>[p.aj1,p.aj2,p.aj3,p.aj4]).filter(Boolean))].sort();
+  const sel=(nome,val)=>['Praça','Viagem','Agregado'].map(t=>`<option ${t===val?'selected':''}>${t}</option>`).join('');
+  document.getElementById('cadMot').innerHTML='<div class="cadwrap">'+(mots.map(m=>`<div class="cad-row"><span class="nm" title="${m}">${m}</span><select data-cadmot="${m.replace(/"/g,'&quot;')}">${sel(m,motoristaTipo[m]||'Praça')}</select></div>`).join('')||'<div class="muted">Nenhum motorista.</div>')+'</div>';
+  document.getElementById('cadAju').innerHTML='<div class="cadwrap">'+(ajus.map(a=>`<div class="cad-row"><span class="nm" title="${a}">${a}</span><select data-cadaju="${a.replace(/"/g,'&quot;')}">${sel(a,ajudanteTipo[a]||'Praça')}</select></div>`).join('')||'<div class="muted">Nenhum ajudante.</div>')+'</div>';
+  document.getElementById('cadMotCount').textContent=mots.length;
+  document.getElementById('cadAjuCount').textContent=ajus.length;
+}
+
+// ===================== CONFIGURAÇÕES =====================
+function renderConfigForm(){
+  document.getElementById('cfgHorario').value=CONFIG.horario;
+  document.getElementById('cfgMeta90').value=CONFIG.meta90;
+  document.getElementById('cfgMeta80').value=CONFIG.meta80;
+  document.getElementById('cfgSabado').checked=CONFIG.sabadoConta;
+  document.getElementById('cfgPagAtivo').checked=CONFIG.pagamentoAtivo;
+}
+function recalcAll(){ if(BASE.length){ buildCargas(); renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
+    fillReFilters(); renderRe(); renderPay(); renderDashboard(); renderCadastros(); } }
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -827,8 +969,24 @@ document.querySelector('#payTbl tbody').addEventListener('change',e=>{
 document.querySelector('#payTbl tbody').addEventListener('click',e=>{
   if(e.target.dataset.pag!==undefined){const p=ensurePay(e.target.dataset.pag);p.pagar=!p.pagar;renderPay();}});
 
+// cadastros: tipo motorista / ajudante
+document.getElementById('cadMot').addEventListener('change',e=>{if(e.target.dataset.cadmot!==undefined){const nome=e.target.dataset.cadmot;motoristaTipo[nome]=e.target.value;saveTipos();
+  CARGAS.forEach(c=>{if(c.motorista===nome&&payCfg[c.id])payCfg[c.id].tipo=e.target.value;});renderPay();}});
+document.getElementById('cadAju').addEventListener('change',e=>{if(e.target.dataset.cadaju!==undefined){ajudanteTipo[e.target.dataset.cadaju]=e.target.value;saveTipos();renderPay();}});
+// cadastros: tabela de valores
+document.getElementById('cadPremio').addEventListener('input',e=>{if(e.target.dataset.cargo!==undefined){const cg=e.target.dataset.cargo,i=+e.target.dataset.i,v=parseFloat(e.target.value);PREMIO[cg][i]=isNaN(v)?0:v;savePremio();renderProd();renderPay();}});
+document.getElementById('cadPremio').addEventListener('click',e=>{if(e.target.id==='premioReset'){PREMIO=JSON.parse(JSON.stringify(PREMIO_DEFAULT));savePremio();renderCadPremio();renderProd();renderPay();}});
+// configurações
+function onCfgChange(){CONFIG.horario=document.getElementById('cfgHorario').value||'17:30';
+  CONFIG.meta90=Math.min(100,Math.max(0,parseFloat(document.getElementById('cfgMeta90').value)||90));
+  CONFIG.meta80=Math.min(CONFIG.meta90,Math.max(0,parseFloat(document.getElementById('cfgMeta80').value)||80));
+  CONFIG.sabadoConta=document.getElementById('cfgSabado').checked;
+  CONFIG.pagamentoAtivo=document.getElementById('cfgPagAtivo').checked;
+  saveConfig(); recalcAll();}
+['cfgHorario','cfgMeta90','cfgMeta80','cfgSabado','cfgPagAtivo'].forEach(id=>{const el=document.getElementById(id);el.onchange=onCfgChange;});
+
 // ===================== INICIALIZAÇÃO =====================
-loadTipos();
+loadConfig(); loadPremio(); loadTipos(); renderConfigForm(); renderCadPremio();
 if(restore()) afterLoad();
 </script>
 </body>
