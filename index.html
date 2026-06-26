@@ -533,8 +533,8 @@ function renderHome(){
 // ===================== ANÁLISE =====================
 let anSort='carga',anDir=1,STATUS_LIST=[],statusFilter=new Set(),anExpanded=new Set();
 function pedStatusBadge(cat,label){const m={entregue:'b-green',reentrega:'b-orange',devolvido:'b-red',pendente:'b-blue'};return `<span class="badge ${m[cat]||'b-blue'}" style="font-size:11px">${label}</span>`;}
-function anDetailHtml(c){
-  const rows=c.peds.map(p=>`<tr>
+function anDetailHtml(peds){
+  const rows=peds.map(p=>`<tr>
     <td class="muted">${p.pedido||'—'}</td><td>${p.cliente||'—'}</td><td class="muted">${p.cidade||'—'}</td>
     <td class="muted">${p.rota||'—'}</td><td>${pedStatusBadge(p.cat,p.status)}</td>
     <td class="muted">${p.motivo||'—'}</td><td class="num">${fmtKg(p.peso)}</td><td class="num">${fmtBRL(p.valor)}</td>
@@ -542,6 +542,15 @@ function anDetailHtml(c){
   return `<table class="subtbl"><thead><tr>
     <th>Pedido</th><th>Cliente</th><th>Cidade</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
+}
+// agrega uma lista de pedidos nos campos exibidos na tabela de cargas
+function aggPeds(peds){
+  const a={pedidos:peds.length,peso:0,valor:0,cEnt:0,cReent:0,cDev:0,cPend:0,valorProblema:0};
+  peds.forEach(p=>{a.peso+=p.peso;a.valor+=p.valor;
+    if(p.cat==='entregue')a.cEnt++;
+    else if(p.cat==='reentrega'){a.cReent++;a.valorProblema+=p.valor;}
+    else if(p.cat==='devolvido')a.cDev++; else a.cPend++;});
+  a.pctEnt=a.pedidos?a.cEnt/a.pedidos:0; return a;
 }
 function renderStatusPills(){
   const el=document.getElementById('anStatus');
@@ -563,61 +572,53 @@ function analiseScope(){
     if(m&&c.motorista!==m)return false; if(r&&c.rota!==r)return false;
     if(q&&!low(c.id+' '+c.motorista+' '+c.rota).includes(q))return false; return true;});
 }
-function sortCargas(list){ list=[...list]; list.sort((a,b)=>{let va,vb;switch(anSort){
+// ordena as linhas {c, a, fp} pelo campo selecionado (a = agregados filtrados)
+function sortRows(rows){rows.sort((X,Y)=>{const a=X.c,b=Y.c,xa=X.a,ya=Y.a;let va,vb;switch(anSort){
     case 'carga':va=+a.id||0;vb=+b.id||0;break;case 'motorista':va=low(a.motorista);vb=low(b.motorista);break;
-    case 'rota':va=low(a.rota);vb=low(b.rota);break;case 'ped':va=a.pedidos;vb=b.pedidos;break;
-    case 'ent':va=a.cEnt;vb=b.cEnt;break;case 'reent':va=a.cReent;vb=b.cReent;break;case 'dev':va=a.cDev;vb=b.cDev;break;
-    case 'pend':va=a.cPend;vb=b.cPend;break;case 'peso':va=a.peso;vb=b.peso;break;case 'valor':va=a.valor;vb=b.valor;break;
-    case 'vprob':va=a.valorProblema;vb=b.valorProblema;break;default:va=a.pctEnt;vb=b.pctEnt;}
-    return va<vb?-anDir:va>vb?anDir:0;}); return list; }
+    case 'rota':va=low(a.rota);vb=low(b.rota);break;case 'ped':va=xa.pedidos;vb=ya.pedidos;break;
+    case 'ent':va=xa.cEnt;vb=ya.cEnt;break;case 'reent':va=xa.cReent;vb=ya.cReent;break;case 'dev':va=xa.cDev;vb=ya.cDev;break;
+    case 'pend':va=xa.cPend;vb=ya.cPend;break;case 'peso':va=xa.peso;vb=ya.peso;break;case 'valor':va=xa.valor;vb=ya.valor;break;
+    case 'vprob':va=xa.valorProblema;vb=ya.valorProblema;break;default:va=xa.pctEnt;vb=ya.pctEnt;}
+    return va<vb?-anDir:va>vb?anDir:0;}); return rows;}
 // contagem de status dentro do escopo atual (atualiza ao filtrar/buscar carga)
 function anStatusCounts(scope){const m={};
   scope.forEach(c=>c.peds.forEach(p=>{if(!m[p.stl])m[p.stl]={stl:p.stl,label:p.status||p.stl,count:0};m[p.stl].count++;}));
   return Object.values(m).sort((a,b)=>b.count-a.count);}
 const AN_THEAD_CARGA='<thead><tr><th style="width:26px"></th><th data-k="carga">Carga</th><th data-k="motorista">Motorista</th><th data-k="rota">Rota</th><th class="num" data-k="ped">Ped.</th><th class="num" data-k="ent">Entr.</th><th class="num" data-k="reent">Reent.</th><th class="num" data-k="dev">Dev.</th><th class="num" data-k="pend">Pend.</th><th class="num" data-k="peso">Peso(kg)</th><th class="num" data-k="valor">Valor</th><th class="num" data-k="vprob">Valor reent.</th><th class="num" data-k="pent">%Entr.</th></tr></thead>';
-const AN_THEAD_PED='<thead><tr><th>Carga</th><th>Data</th><th>Motorista</th><th>Cliente</th><th>Pedido</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th></tr></thead>';
-function anCargaRow(c){const ex=anExpanded.has(c.id);
+function anCargaRow(c,a,fp){const ex=anExpanded.has(c.id);
   return `<tr class="an-main${ex?' open':''}" data-id="${c.id}">
     <td class="exp">${ex?'▾':'▸'}</td>
     <td><b>${c.id}</b>${c.placa==='AGREG'?' <span class="pill">AGREG</span>':''}</td>
     <td>${c.motorista||'<span class=muted>—</span>'}</td><td class="muted">${c.rota||'—'}</td>
-    <td class="num">${c.pedidos}</td><td class="num">${c.cEnt}</td>
-    <td class="num" style="color:var(--orange)">${c.cReent||''}</td><td class="num" style="color:var(--red)">${c.cDev||''}</td>
-    <td class="num" style="color:var(--blue)">${c.cPend||''}</td>
-    <td class="num">${fmtKg(c.peso)}</td><td class="num">${fmtBRL(c.valor)}</td>
-    <td class="num">${c.valorProblema?fmtBRL(c.valorProblema):'—'}</td>
-    <td class="num"><b>${fmtPct(c.pctEnt)}</b></td>
-  </tr>${ex?`<tr class="an-detail"><td></td><td colspan="12">${anDetailHtml(c)}</td></tr>`:''}`;}
-function anPedRow(p,c){return `<tr>
-  <td><b>${c.id}</b></td><td class="muted">${p.dataSaida||'—'}</td><td>${p.motorista||c.motorista||'—'}</td>
-  <td>${p.cliente||'—'}</td><td class="muted">${p.pedido||'—'}</td><td class="muted">${p.rota||'—'}</td>
-  <td>${pedStatusBadge(p.cat,p.status)}</td><td class="muted">${p.motivo||'—'}</td>
-  <td class="num">${fmtKg(p.peso)}</td><td class="num">${p.cat==='devolvido'?'<span class="muted">—</span>':fmtBRL(p.valor)}</td></tr>`;}
+    <td class="num">${a.pedidos}</td><td class="num">${a.cEnt||''}</td>
+    <td class="num" style="color:var(--orange)">${a.cReent||''}</td><td class="num" style="color:var(--red)">${a.cDev||''}</td>
+    <td class="num" style="color:var(--blue)">${a.cPend||''}</td>
+    <td class="num">${fmtKg(a.peso)}</td><td class="num">${fmtBRL(a.valor)}</td>
+    <td class="num">${a.valorProblema?fmtBRL(a.valorProblema):'—'}</td>
+    <td class="num"><b>${fmtPct(a.pctEnt)}</b></td>
+  </tr>${ex?`<tr class="an-detail"><td></td><td colspan="12">${anDetailHtml(fp)}</td></tr>`:''}`;}
 function renderAnalise(){
   const scope=analiseScope();
   STATUS_LIST=anStatusCounts(scope);   // contadores refletem o escopo (carga/filtro atual)
   renderStatusPills();
+  const allStatus=STATUS_LIST.length>0&&STATUS_LIST.every(s=>statusFilter.has(s.stl));
+  // cada carga com os pedidos filtrados pelos status marcados; totais (peso/qtd/valor) recalculados
+  const rows=[];
+  scope.forEach(c=>{const fp=c.peds.filter(p=>statusFilter.has(p.stl)); if(fp.length)rows.push({c,fp,a:aggPeds(fp)});});
   const T={ped:0,ent:0,reent:0,dev:0,pend:0,peso:0,valor:0,vprob:0};
-  scope.forEach(c=>{T.ped+=c.pedidos;T.ent+=c.cEnt;T.reent+=c.cReent;T.dev+=c.cDev;T.pend+=c.cPend;T.peso+=c.peso;T.valor+=c.valor;T.vprob+=c.valorProblema;});
+  rows.forEach(({a})=>{T.ped+=a.pedidos;T.ent+=a.cEnt;T.reent+=a.cReent;T.dev+=a.cDev;T.pend+=a.cPend;T.peso+=a.peso;T.valor+=a.valor;T.vprob+=a.valorProblema;});
   document.getElementById('analiseKpis').innerHTML=`
-    <div class="kpi"><div class="k">Pedidos</div><div class="v">${T.ped}</div></div>
+    <div class="kpi"><div class="k">Pedidos${allStatus?'':' (filtro)'}</div><div class="v">${T.ped}</div></div>
+    <div class="kpi accent"><div class="k">Peso${allStatus?'':' (filtro)'} kg</div><div class="v" style="font-size:20px">${fmtKg(T.peso)}</div></div>
     <div class="kpi green"><div class="k">Entregues</div><div class="v">${T.ent}</div></div>
     <div class="kpi orange"><div class="k">Reentregas</div><div class="v">${T.reent}</div></div>
     <div class="kpi red"><div class="k">Devoluções</div><div class="v">${T.dev}</div></div>
     <div class="kpi blue"><div class="k">Pendentes</div><div class="v">${T.pend}</div></div>
-    <div class="kpi accent"><div class="k">Valor em reentrega</div><div class="v" style="font-size:19px">${fmtBRL(T.vprob)}</div><div class="s">devolução não conta valor</div></div>`;
-  // todos os status ligados = visão por carga; subconjunto = visão por pedido (só os status marcados)
-  const allStatus=STATUS_LIST.length>0&&STATUS_LIST.every(s=>statusFilter.has(s.stl));
+    <div class="kpi"><div class="k">Valor em reentrega</div><div class="v" style="font-size:18px">${fmtBRL(T.vprob)}</div></div>`;
+  sortRows(rows);
   const tbl=document.getElementById('anTbl');
-  if(allStatus){
-    const list=sortCargas(scope);
-    tbl.innerHTML=AN_THEAD_CARGA+'<tbody>'+list.map(anCargaRow).join('')+'</tbody>';
-    document.getElementById('anCount').textContent=list.length+' cargas';
-  }else{
-    const peds=[]; scope.forEach(c=>c.peds.forEach(p=>{if(statusFilter.has(p.stl))peds.push([p,c]);}));
-    tbl.innerHTML=AN_THEAD_PED+'<tbody>'+(peds.map(([p,c])=>anPedRow(p,c)).join('')||'<tr><td colspan="10" class="empty">Nenhum pedido com os status selecionados.</td></tr>')+'</tbody>';
-    document.getElementById('anCount').textContent=peds.length+' pedidos';
-  }
+  tbl.innerHTML=AN_THEAD_CARGA+'<tbody>'+(rows.map(r=>anCargaRow(r.c,r.a,r.fp)).join('')||'<tr><td colspan="13" class="empty">Nenhuma carga com os status selecionados.</td></tr>')+'</tbody>';
+  document.getElementById('anCount').textContent=rows.length+' cargas';
 }
 
 // ===================== PRODUTIVIDADE =====================
