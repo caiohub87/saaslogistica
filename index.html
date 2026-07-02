@@ -184,6 +184,7 @@
       <div class="sep"></div>
       <button data-view="reentregas">🔄 Reentregas</button>
       <button data-view="pagamento">💰 Pagamento</button>
+      <button data-view="salvos">🗄️ Salvos</button>
       <button data-view="dashboard">📈 Dashboard <span class="tag">Etapa 3</span></button>
       <button data-view="cadastros">👥 Cadastros <span class="tag">Etapa 3</span></button>
       <button data-view="config">⚙️ Configurações <span class="tag">Etapa 3</span></button>
@@ -401,6 +402,26 @@
         </div>
       </div>
     </section>
+
+    <!-- ===== SALVOS (admin) ===== -->
+    <section class="view" id="view-salvos">
+      <div class="card">
+        <h3>Premiações salvas no banco — <span id="svUnidade"></span></h3>
+        <div class="pad toolbar">
+          <label class="muted">De <input type="date" id="svIni"></label>
+          <label class="muted">Até <input type="date" id="svFim"></label>
+          <button class="yellow" id="svBuscar">🔍 Buscar</button>
+          <button id="svExcluirSel" style="background:var(--danger);border-color:var(--danger)">🗑️ Excluir selecionados</button>
+          <span class="muted" id="svMsg" style="margin-left:auto"></span>
+        </div>
+        <div class="tablewrap"><table id="svTbl"><thead><tr>
+          <th style="width:26px"><input type="checkbox" class="chk" id="svChkAll"></th>
+          <th>Data</th><th>Carga</th><th>Motorista</th><th>Ajud. 1</th><th>Ajud. 2</th>
+          <th class="num">Prod.</th><th>PAGAR</th>
+          <th class="num">Vlr Mot.</th><th class="num">Vlr Aj1</th><th class="num">Vlr Aj2</th><th></th>
+        </tr></thead><tbody></tbody></table></div>
+      </div>
+    </section>
   </main>
 </div>
 
@@ -571,6 +592,7 @@ function afterLoad(){
 function go(view){ document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
   document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
+  if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
   window.scrollTo(0,0);
 }
 
@@ -1016,9 +1038,10 @@ function applyAccess(){
   document.getElementById('btnLoad').style.display=isConsulta?'none':'';
   if(isConsulta){ document.getElementById('btnClear').style.display='none'; go('desempenho'); }
   else loadUnitData(); // carrega SÓ os dados da unidade logada
-  // desempenho precisa de banco
-  if(SESSION.offline){ document.querySelector('#nav button[data-view="desempenho"]').style.display='none'; }
-  else deInitDates();
+  // desempenho e salvos precisam de banco
+  if(SESSION.offline){ document.querySelector('#nav button[data-view="desempenho"]').style.display='none';
+    document.querySelector('#nav button[data-view="salvos"]').style.display='none'; }
+  else { deInitDates(); svInitDates(); }
 }
 function loadUnitData(){
   loadConfig(); loadPremio(); loadTipos();
@@ -1129,6 +1152,48 @@ function renderDesempenho(){
   }).join('')||'<div class="empty">Nenhum registro seu no período.</div>';
 }
 
+// ---------- salvos (admin: ver e excluir registros do banco) ----------
+let SV_ROWS=[];
+function svInitDates(){ const f=new Date(), i=new Date(Date.now()-14*864e5);
+  document.getElementById('svFim').value=f.toISOString().slice(0,10);
+  document.getElementById('svIni').value=i.toISOString().slice(0,10);
+  document.getElementById('svUnidade').textContent=SESSION.unidade||''; }
+async function svConsultar(){
+  const msg=document.getElementById('svMsg');
+  if(SESSION.offline||!supaReady()){msg.textContent='Banco não configurado.';return;}
+  msg.textContent='Buscando…';
+  const ini=document.getElementById('svIni').value, fim=document.getElementById('svFim').value;
+  let q=sb.from('premiacoes').select('*').eq('unidade',SESSION.unidade).order('data_saida',{ascending:false}).order('carga');
+  if(ini)q=q.gte('data_saida',ini); if(fim)q=q.lte('data_saida',fim);
+  const {data,error}=await q;
+  if(error){msg.textContent='❌ '+error.message;return;}
+  SV_ROWS=data||[]; msg.textContent=SV_ROWS.length+' registro(s)';
+  document.getElementById('svChkAll').checked=false;
+  renderSalvos();
+}
+function renderSalvos(){
+  document.querySelector('#svTbl tbody').innerHTML=SV_ROWS.map(r=>`
+    <tr data-id="${r.id}">
+      <td><input type="checkbox" class="chk svchk"></td>
+      <td class="muted">${deFmtData(r.data_saida)}</td><td><b>${r.carga}</b></td>
+      <td>${r.motorista||'—'}</td><td class="muted">${r.aj1||'—'}</td><td class="muted">${r.aj2||'—'}</td>
+      <td class="num"><span class="badge ${faixaOf(+r.prod_final||0).cls}">${fmtPct(+r.prod_final||0)}</span></td>
+      <td>${r.pagar?'<span class="badge b-green">SIM</span>':'<span class="badge b-red">NÃO</span>'}</td>
+      <td class="num">${fmtBRL(+r.valor_mot||0)}</td><td class="num">${fmtBRL(+r.valor_aj1||0)}</td><td class="num">${fmtBRL(+r.valor_aj2||0)}</td>
+      <td><button class="ghost svdel" title="Excluir este registro" style="padding:3px 9px">🗑️</button></td>
+    </tr>`).join('')||'<tr><td colspan="12" class="empty">Nenhum registro salvo no período.</td></tr>';
+}
+async function svExcluir(ids){
+  if(!ids.length){document.getElementById('svMsg').textContent='Selecione ao menos um registro.';return;}
+  const det=SV_ROWS.filter(r=>ids.includes(r.id)).slice(0,5).map(r=>deFmtData(r.data_saida)+' carga '+r.carga).join(', ');
+  if(!confirm('Excluir '+ids.length+' registro(s)?\n'+det+(ids.length>5?'…':'')+'\n\nIsso remove do banco e some do desempenho dos funcionários.'))return;
+  const msg=document.getElementById('svMsg'); msg.textContent='Excluindo…';
+  const {error}=await sb.from('premiacoes').delete().in('id',ids);
+  if(error){msg.textContent='❌ '+error.message;return;}
+  msg.textContent='✅ '+ids.length+' registro(s) excluído(s).';
+  svConsultar();
+}
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -1232,6 +1297,11 @@ document.getElementById('deHist').addEventListener('click',e=>{
   const b=d.querySelector('.body'),ex=d.querySelector('.exp');
   const open=b.style.display==='none'; b.style.display=open?'block':'none'; ex.textContent=open?'▾':'▸';
 });
+// salvos (admin)
+document.getElementById('svBuscar').onclick=svConsultar;
+document.getElementById('svChkAll').onchange=e=>{document.querySelectorAll('#svTbl .svchk').forEach(c=>c.checked=e.target.checked);};
+document.getElementById('svExcluirSel').onclick=()=>{const ids=[...document.querySelectorAll('#svTbl .svchk:checked')].map(c=>+c.closest('tr').dataset.id);svExcluir(ids);};
+document.querySelector('#svTbl tbody').addEventListener('click',e=>{if(e.target.classList.contains('svdel'))svExcluir([+e.target.closest('tr').dataset.id]);});
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
