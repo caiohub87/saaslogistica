@@ -12,6 +12,7 @@
       .then(()=>typeof XLSX!=='undefined').catch(()=>false);
   })();
 </script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 <style>
   :root{
     --bg:#071a2f; --panel:#0d2b4d; --panel2:#123f70; --line:rgba(255,255,255,.14);
@@ -127,6 +128,28 @@
   .pay-tog.nao{background:var(--red);color:#fff;border-color:var(--red)}
   .pay-tipo{padding:5px 8px;font-size:12.5px}
   .empty{color:var(--muted);text-align:center;padding:40px}
+  /* login */
+  #loginOverlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
+    background:radial-gradient(circle at 14% -8%, rgba(255,196,0,.16), transparent 32%),
+               radial-gradient(circle at 88% 8%, rgba(0,93,168,.32), transparent 30%), var(--bg)}
+  .login-box{background:linear-gradient(145deg, rgba(255,255,255,.05), rgba(0,93,168,.12)), var(--panel);
+    border:1px solid var(--line);border-radius:18px;box-shadow:var(--glow);padding:34px 36px;width:min(360px,92vw);
+    display:flex;flex-direction:column;gap:12px;text-align:center;animation:fadeUp .4s ease both}
+  .login-box .logo{width:190px;margin:0 auto 4px;background:#fff;border-radius:12px;padding:8px 12px}
+  .login-box h2{margin:0;font-size:19px}.login-box h2 span{color:var(--accent)}
+  .login-box select,.login-box input{width:100%;padding:11px 12px;font-size:15px}
+  .login-box button{padding:11px;font-size:15px}
+  .login-err{color:var(--red);font-size:13px;min-height:18px}
+  .login-off{font-size:12px;color:var(--muted)}
+  .userchip{margin-top:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.03);font-size:12px;color:var(--muted);text-align:center}
+  .userchip b{color:var(--accent);display:block;font-size:13px}
+  /* desempenho */
+  .de-day{border:1px solid var(--line);border-radius:12px;background:rgba(255,255,255,.03);margin-bottom:10px;overflow:hidden}
+  .de-day>.head{display:flex;align-items:center;gap:12px;padding:11px 14px;cursor:pointer;flex-wrap:wrap}
+  .de-day>.head:hover{background:var(--panel2)}
+  .de-day .dt{font-weight:700}.de-day .vl{margin-left:auto;font-weight:800;color:var(--green)}
+  .de-day .body{padding:4px 14px 12px;border-top:1px solid var(--line)}
+  .rank-me{outline:2px solid var(--accent);border-radius:8px}
   .soon{text-align:center;padding:50px 20px;color:var(--muted)}
   .soon .ic{font-size:46px}.soon h2{color:var(--txt);margin:10px 0 6px}
   .grid2{display:grid;grid-template-columns:1fr 440px;gap:18px;align-items:start}
@@ -137,6 +160,18 @@
 </style>
 </head>
 <body>
+<!-- ===== LOGIN ===== -->
+<div id="loginOverlay">
+  <div class="login-box">
+    <img class="logo" src="assets/dilnor-logo.png" alt="Logo" onerror="this.style.display='none'">
+    <h2>Gestão <span>Logística</span></h2>
+    <select id="loginUnidade"><option>Dilnor</option><option>Nordece</option></select>
+    <input type="password" id="loginSenha" placeholder="Senha" autocomplete="current-password">
+    <button class="yellow" id="loginBtn">Entrar</button>
+    <div class="login-err" id="loginErr"></div>
+    <div class="login-off" id="loginOff" style="display:none">Banco de dados ainda não configurado.<br><a href="#" id="loginOffline">Entrar sem banco (modo local) →</a></div>
+  </div>
+</div>
 <div class="app">
   <!-- SIDEBAR -->
   <aside class="side">
@@ -152,7 +187,10 @@
       <button data-view="dashboard">📈 Dashboard <span class="tag">Etapa 3</span></button>
       <button data-view="cadastros">👥 Cadastros <span class="tag">Etapa 3</span></button>
       <button data-view="config">⚙️ Configurações <span class="tag">Etapa 3</span></button>
+      <div class="sep"></div>
+      <button data-view="desempenho">🙋 Meu Desempenho</button>
     </nav>
+    <div class="userchip" id="userChip" style="display:none"><b id="userUnidade"></b><span id="userRole"></span><br><a href="#" id="btnLogout">Sair →</a></div>
   </aside>
 
   <!-- MAIN -->
@@ -242,7 +280,9 @@
             <div class="pad">
               <div id="prSelList"><div class="empty">Selecione cargas na tabela.</div></div>
               <div id="prActions" style="display:none;margin-top:12px;text-align:right">
+                <button id="prSave">💾 Salvar premiação</button>
                 <button class="yellow" id="prExport">⬇️ Exportar Excel (.xlsx)</button>
+                <div class="muted stat" id="prSaveMsg" style="margin-top:6px"></div>
               </div>
             </div>
           </div>
@@ -334,6 +374,30 @@
           <div class="cfg-row"><label>Sábado conta na apuração?</label><input type="checkbox" id="cfgSabado" class="chk"></div>
           <div class="cfg-row"><label>Pagamento ativo?</label><input type="checkbox" id="cfgPagAtivo" class="chk"></div>
           <div class="muted" style="font-size:12px;margin-top:8px">As mudanças são salvas automaticamente e recalculam todos os módulos. 100% = excelência sempre fixa.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== MEU DESEMPENHO ===== -->
+    <section class="view" id="view-desempenho">
+      <div class="card">
+        <h3>Consultar desempenho</h3>
+        <div class="pad toolbar">
+          <select id="deNome" style="min-width:230px"><option value="">Selecione seu nome…</option></select>
+          <label class="muted">De <input type="date" id="deIni"></label>
+          <label class="muted">Até <input type="date" id="deFim"></label>
+          <button class="yellow" id="deBuscar">🔍 Consultar</button>
+          <span class="muted" id="deMsg" style="margin-left:auto"></span>
+        </div>
+      </div>
+      <div id="deBody" style="display:none;margin-top:16px">
+        <div class="kpis" id="deKpis"></div>
+        <div class="grid2">
+          <div class="card"><h3>Histórico dia a dia <span class="pill">clique no dia para ver os pedidos não entregues</span></h3><div class="pad" id="deHist"></div></div>
+          <div>
+            <div class="card"><h3>🏆 Ranking motoristas</h3><div class="pad" id="deRankMot"></div></div>
+            <div class="card" style="margin-top:16px"><h3>🏆 Ranking ajudantes</h3><div class="pad" id="deRankAju"></div></div>
+          </div>
         </div>
       </div>
     </section>
@@ -917,6 +981,143 @@ function renderConfigForm(){
 function recalcAll(){ if(BASE.length){ buildCargas(); renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
     fillReFilters(); renderRe(); renderPay(); renderDashboard(); renderCadastros(); } }
 
+// ===================== BANCO DE DADOS (SUPABASE) =====================
+// >>> COLE AQUI as credenciais do seu projeto (Settings → API) <<<
+const SUPA_URL='';   // ex.: 'https://abcdefg.supabase.co'
+const SUPA_KEY='';   // anon public key (começa com eyJ...)
+const AUTH_DOMAIN='gestao.app'; // e-mails dos usuários: dilnor.admin@gestao.app etc.
+let sb=null, SESSION={unidade:null,role:null,offline:false};
+function supaReady(){ if(!SUPA_URL||!SUPA_KEY||typeof window.supabase==='undefined') return false;
+  if(!sb) sb=window.supabase.createClient(SUPA_URL,SUPA_KEY); return true; }
+function sessionFromEmail(email){ const [pref]=String(email).split('@'); const [u,role]=pref.split('.');
+  return {unidade:u.charAt(0).toUpperCase()+u.slice(1), role:role==='admin'?'admin':'consulta', offline:false}; }
+async function doLogin(unidade,senha){
+  const u=unidade.toLowerCase();
+  for(const role of ['admin','consulta']){
+    const {error}=await sb.auth.signInWithPassword({email:`${u}.${role}@${AUTH_DOMAIN}`,password:senha});
+    if(!error) return sessionFromEmail(`${u}.${role}@x`);
+  }
+  throw new Error('Senha incorreta para a unidade '+unidade+'.');
+}
+function applyAccess(){
+  document.getElementById('loginOverlay').style.display='none';
+  const chip=document.getElementById('userChip');
+  chip.style.display='block';
+  document.getElementById('userUnidade').textContent=SESSION.unidade||'Local';
+  document.getElementById('userRole').textContent=SESSION.offline?'modo local (sem banco)':(SESSION.role==='admin'?'Administrador':'Funcionário (consulta)');
+  const isConsulta=SESSION.role==='consulta';
+  document.querySelectorAll('#nav button[data-view]').forEach(b=>{
+    if(b.dataset.view!=='desempenho') b.style.display=isConsulta?'none':'';
+  });
+  document.getElementById('btnLoad').style.display=isConsulta?'none':'';
+  if(isConsulta){ document.getElementById('btnClear').style.display='none'; go('desempenho'); }
+  // desempenho precisa de banco
+  if(SESSION.offline){ document.querySelector('#nav button[data-view="desempenho"]').style.display='none'; }
+  else deInitDates();
+}
+async function initAuth(){
+  if(!supaReady()){ document.getElementById('loginOff').style.display='block'; return; }
+  const {data}=await sb.auth.getSession();
+  if(data&&data.session){ SESSION=sessionFromEmail(data.session.user.email); applyAccess(); }
+}
+async function logout(){ if(sb) await sb.auth.signOut(); location.reload(); }
+
+// ---------- salvar premiação (admin) ----------
+function toISODate(s){ const dt=parseBRDate(s); return dt?`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`:null; }
+function buildSaveRows(){
+  return [...selected].map(id=>{
+    const c=byCarga[id], conf=ensureCfg(id);
+    let mot='',tipoMot='',vMot=0; const ajs=[];
+    Object.entries(conf.roles).forEach(([k,info])=>{
+      const v=premioPessoa(info.cargo,c.faixa.tier,conf.ganha);
+      if(info.tipo==='mot'){mot=info.display||k;tipoMot=info.cargo;vMot=v;}
+      else ajs.push({nome:info.display||k,valor:v});
+    });
+    const problemas=c.peds.filter(p=>p.cat!=='entregue').map(p=>({pedido:p.pedido,cliente:p.cliente,status:p.status,motivo:p.motivo,peso:p.peso,cat:p.cat}));
+    return {unidade:SESSION.unidade,data_saida:toISODate(c.dataSaida)||new Date().toISOString().slice(0,10),
+      carga:c.id,motorista:mot,aj1:ajs[0]?ajs[0].nome:null,aj2:ajs[1]?ajs[1].nome:null,tipo:tipoMot,
+      prod_final:c.prodFinal,faixa:c.faixa.label,pagar:conf.ganha,
+      valor_mot:vMot,valor_aj1:ajs[0]?ajs[0].valor:0,valor_aj2:ajs[1]?ajs[1].valor:0,problemas};
+  });
+}
+async function salvarPremiacao(){
+  const msg=document.getElementById('prSaveMsg');
+  if(SESSION.offline||!supaReady()){msg.textContent='⚠️ Banco não configurado — configure o Supabase para salvar.';return;}
+  if(SESSION.role!=='admin'){msg.textContent='⚠️ Apenas administrador pode salvar.';return;}
+  if(!selected.size){msg.textContent='Selecione ao menos uma carga.';return;}
+  msg.textContent='Salvando…';
+  const rows=buildSaveRows();
+  const {error}=await sb.from('premiacoes').upsert(rows,{onConflict:'unidade,data_saida,carga'});
+  msg.textContent=error?('❌ Erro: '+error.message):('✅ '+rows.length+' carga(s) salva(s) em '+SESSION.unidade+'.');
+}
+
+// ---------- meu desempenho ----------
+let DE_ROWS=[];
+function deInitDates(){ const f=new Date(), i=new Date(Date.now()-7*864e5);
+  document.getElementById('deFim').value=f.toISOString().slice(0,10);
+  document.getElementById('deIni').value=i.toISOString().slice(0,10); }
+function deFmtData(iso){ const [y,m,d]=String(iso).split('-'); return `${d}/${m}/${y}`; }
+function deValorDe(r,nome){ let v=0; if(r.motorista===nome)v+=+r.valor_mot||0; if(r.aj1===nome)v+=+r.valor_aj1||0; if(r.aj2===nome)v+=+r.valor_aj2||0; return v; }
+async function deConsultar(){
+  const msg=document.getElementById('deMsg');
+  if(SESSION.offline||!supaReady()){msg.textContent='Banco não configurado.';return;}
+  msg.textContent='Buscando…';
+  const ini=document.getElementById('deIni').value, fim=document.getElementById('deFim').value;
+  let q=sb.from('premiacoes').select('*').eq('unidade',SESSION.unidade).order('data_saida',{ascending:false});
+  if(ini)q=q.gte('data_saida',ini); if(fim)q=q.lte('data_saida',fim);
+  const {data,error}=await q;
+  if(error){msg.textContent='❌ '+error.message;return;}
+  DE_ROWS=data||[]; msg.textContent=DE_ROWS.length+' registro(s) no período';
+  // nomes
+  const nomes=[...new Set(DE_ROWS.flatMap(r=>[r.motorista,r.aj1,r.aj2]).filter(Boolean))].sort();
+  const sel=document.getElementById('deNome'), atual=sel.value;
+  sel.innerHTML='<option value="">Selecione seu nome…</option>'+nomes.map(n=>`<option ${n===atual?'selected':''}>${n}</option>`).join('');
+  renderDesempenho();
+}
+function deRank(tipo){ // tipo: 'mot' | 'aju'
+  const m={};
+  DE_ROWS.forEach(r=>{
+    const pares=tipo==='mot'?[[r.motorista,+r.valor_mot||0]]:[[r.aj1,+r.valor_aj1||0],[r.aj2,+r.valor_aj2||0]];
+    pares.forEach(([n,v])=>{ if(!n)return; if(!m[n])m[n]={n,soma:0,dias:0,valor:0}; m[n].soma+=+r.prod_final||0; m[n].dias++; m[n].valor+=v; });
+  });
+  return Object.values(m).map(x=>({nome:x.n,prod:x.soma/x.dias,valor:x.valor,dias:x.dias})).sort((a,b)=>b.prod-a.prod);
+}
+function renderDesempenho(){
+  const nome=document.getElementById('deNome').value;
+  document.getElementById('deBody').style.display='block';
+  // rankings
+  const rkM=deRank('mot'), rkA=deRank('aju');
+  const paint=(el,rk)=>{ barChart(el, rk.slice(0,15).map((x,i)=>({label:(i+1)+'º '+x.nome,value:x.prod*100,color:x.nome===nome?'var(--accent)':FAIXA_COLOR[faixaOf(x.prod).k]})),{fmt:d=>fmtPct(d.value/100)}); };
+  paint(document.getElementById('deRankMot'),rkM);
+  paint(document.getElementById('deRankAju'),rkA);
+  // pessoal
+  const kp=document.getElementById('deKpis'), hist=document.getElementById('deHist');
+  if(!nome){ kp.innerHTML='<div class="kpi"><div class="k">Selecione seu nome</div><div class="v">—</div></div>'; hist.innerHTML='<div class="empty">Escolha seu nome acima para ver seu histórico.</div>'; return; }
+  const meus=DE_ROWS.filter(r=>r.motorista===nome||r.aj1===nome||r.aj2===nome);
+  const total=meus.reduce((a,r)=>a+deValorDe(r,nome),0);
+  const prodM=meus.length?meus.reduce((a,r)=>a+(+r.prod_final||0),0)/meus.length:0;
+  const posM=rkM.findIndex(x=>x.nome===nome), posA=rkA.findIndex(x=>x.nome===nome);
+  const pos=posM>=0?(posM+1)+'º motorista':posA>=0?(posA+1)+'º ajudante':'—';
+  kp.innerHTML=`
+    <div class="kpi green"><div class="k">💰 A receber no período</div><div class="v">${fmtBRL(total)}</div></div>
+    <div class="kpi accent"><div class="k">Produtividade média</div><div class="v">${fmtPct(prodM)}</div></div>
+    <div class="kpi blue"><div class="k">Posição no ranking</div><div class="v" style="font-size:20px">${pos}</div></div>
+    <div class="kpi"><div class="k">Cargas no período</div><div class="v">${meus.length}</div></div>`;
+  hist.innerHTML=meus.map((r,i)=>{
+    const probs=(r.problemas||[]);
+    const body=probs.length?`<table class="subtbl"><thead><tr><th>Pedido</th><th>Cliente</th><th>Status</th><th>Motivo</th><th class="num">Peso</th></tr></thead><tbody>`+
+      probs.map(p=>`<tr><td class="muted">${p.pedido||'—'}</td><td>${p.cliente||'—'}</td><td>${pedStatusBadge(p.cat,p.status)}</td><td class="muted">${p.motivo||'—'}</td><td class="num">${fmtKg(+p.peso||0)}</td></tr>`).join('')+
+      '</tbody></table>':'<div class="muted" style="padding:8px 0">🟢 Nenhum pedido com problema nesta carga. Parabéns!</div>';
+    return `<div class="de-day" data-i="${i}">
+      <div class="head"><span class="dt">${deFmtData(r.data_saida)}</span><span class="muted">Carga ${r.carga}</span>
+        <span class="badge ${faixaOf(+r.prod_final||0).cls}">${fmtPct(+r.prod_final||0)}</span>
+        ${r.pagar?'':'<span class="badge b-red">Não recebe (17h30)</span>'}
+        <span class="vl">${fmtBRL(deValorDe(r,nome))}</span><span class="exp muted">▸</span></div>
+      <div class="body" style="display:none">${body}</div>
+    </div>`;
+  }).join('')||'<div class="empty">Nenhum registro seu no período.</div>';
+}
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -999,9 +1200,31 @@ function onCfgChange(){CONFIG.horario=document.getElementById('cfgHorario').valu
   saveConfig(); recalcAll();}
 ['cfgHorario','cfgMeta90','cfgMeta80','cfgSabado','cfgPagAtivo'].forEach(id=>{const el=document.getElementById(id);el.onchange=onCfgChange;});
 
+// login / banco
+document.getElementById('loginBtn').onclick=async()=>{
+  const err=document.getElementById('loginErr');
+  if(!supaReady()){err.textContent='Banco não configurado ou sem internet.';document.getElementById('loginOff').style.display='block';return;}
+  err.textContent='Entrando…';
+  try{ SESSION=await doLogin(document.getElementById('loginUnidade').value,document.getElementById('loginSenha').value);
+    err.textContent=''; applyAccess(); }
+  catch(e){ err.textContent=e.message; }
+};
+document.getElementById('loginSenha').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
+document.getElementById('loginOffline').onclick=e=>{e.preventDefault();SESSION={unidade:document.getElementById('loginUnidade').value,role:'admin',offline:true};applyAccess();};
+document.getElementById('btnLogout').onclick=e=>{e.preventDefault();logout();};
+document.getElementById('prSave').onclick=salvarPremiacao;
+document.getElementById('deBuscar').onclick=deConsultar;
+document.getElementById('deNome').onchange=renderDesempenho;
+document.getElementById('deHist').addEventListener('click',e=>{
+  const d=e.target.closest('.de-day');if(!d)return;
+  const b=d.querySelector('.body'),ex=d.querySelector('.exp');
+  const open=b.style.display==='none'; b.style.display=open?'block':'none'; ex.textContent=open?'▾':'▸';
+});
+
 // ===================== INICIALIZAÇÃO =====================
 loadConfig(); loadPremio(); loadTipos(); renderConfigForm(); renderCadPremio();
 if(restore()) afterLoad();
+initAuth();
 </script>
 </body>
 </html>
