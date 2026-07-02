@@ -429,6 +429,7 @@
 // ===================== BASE / PARSE =====================
 const HEAD={
   pedido:['numero pedido erp'],cliente:['razao social'],fantasia:['nome fantasia'],
+  codcli:['cod erp cliente','codigo erp cliente'],
   cidade:['cidade'],rota:['rota'],peso:['peso'],valor:['valor do pedido'],
   dataSaida:['data saida'],carga:['numero da carga erp'],romaneio:['romaneio'],
   motorista:['motorista'],aj1:['ajudante 1'],aj2:['ajudante 2'],aj3:['ajudante 3'],aj4:['ajudante 4'],
@@ -513,7 +514,7 @@ function handleFile(file){
           dataSaida:norm(g('dataSaida')), carga:norm(g('carga')), romaneio:norm(g('romaneio')),
           motorista:norm(g('motorista')), aj1:norm(g('aj1')), aj2:norm(g('aj2')),
           aj3:norm(g('aj3')), aj4:norm(g('aj4')), rota:norm(g('rota')),
-          cliente:norm(g('cliente'))||norm(g('fantasia')), pedido:norm(g('pedido')),
+          cliente:norm(g('cliente'))||norm(g('fantasia')), codcli:norm(g('codcli')), pedido:norm(g('pedido')),
           cidade:norm(g('cidade')), regiao:norm(g('regiao')), placa:norm(g('placa')),
           peso:parseNum(g('peso')), valor:parseNum(g('valor')),
           status:norm(g('status')), stl, cat:classify(stl),
@@ -621,12 +622,12 @@ let anSort='carga',anDir=1,STATUS_LIST=[],statusFilter=new Set(),anExpanded=new 
 function pedStatusBadge(cat,label){const m={entregue:'b-green',reentrega:'b-orange',devolvido:'b-red',pendente:'b-blue'};return `<span class="badge ${m[cat]||'b-blue'}" style="font-size:11px">${label}</span>`;}
 function anDetailHtml(peds){
   const rows=peds.map(p=>`<tr>
-    <td class="muted">${p.pedido||'—'}</td><td>${p.cliente||'—'}</td><td class="muted">${p.cidade||'—'}</td>
+    <td class="muted">${p.pedido||'—'}</td><td class="muted">${p.codcli||'—'}</td><td>${p.cliente||'—'}</td><td class="muted">${p.cidade||'—'}</td>
     <td class="muted">${p.rota||'—'}</td><td>${pedStatusBadge(p.cat,p.status)}</td>
     <td class="muted">${p.motivo||'—'}</td><td class="num">${fmtKg(p.peso)}</td><td class="num">${fmtBRL(p.valor)}</td>
   </tr>`).join('');
   return `<table class="subtbl"><thead><tr>
-    <th>Pedido</th><th>Cliente</th><th>Cidade</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
+    <th>Pedido</th><th>Cód. Cliente</th><th>Cliente</th><th>Cidade</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
     </tr></thead><tbody>${rows}</tbody></table>`;
 }
 // agrega uma lista de pedidos nos campos exibidos na tabela de cargas
