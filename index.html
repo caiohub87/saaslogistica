@@ -163,7 +163,7 @@
 <!-- ===== LOGIN ===== -->
 <div id="loginOverlay">
   <div class="login-box">
-    <img class="logo" src="assets/dilnor-logo.png" alt="Logo" onerror="this.style.display='none'">
+    <img class="logo" id="loginLogo" src="assets/dilnor-logo.png" alt="Logo" onerror="this.style.display='none'">
     <h2>Gestão <span>Logística</span></h2>
     <select id="loginUnidade"><option>Dilnor</option><option>Nordece</option></select>
     <input type="password" id="loginSenha" placeholder="Senha" autocomplete="current-password">
@@ -175,7 +175,7 @@
 <div class="app">
   <!-- SIDEBAR -->
   <aside class="side">
-    <img class="logo" src="assets/dilnor-logo.png" alt="Dilnor" onerror="this.style.display='none'">
+    <img class="logo" id="sideLogo" src="assets/dilnor-logo.png" alt="Logo" onerror="this.style.display='none'">
     <div class="brand">GESTÃO LOGÍSTICA</div>
     <nav class="nav" id="nav">
       <button data-view="inicio" class="active">🏠 Início</button>
@@ -986,6 +986,10 @@ const SUPA_URL='https://npnvvkrpfgirtagogqqu.supabase.co';
 const SUPA_KEY='sb_publishable_8alSHzvYqryH2IuRS8-2og_5fnMsdmc';
 const AUTH_DOMAIN='gestao.app'; // e-mails dos usuários: dilnor.admin@gestao.app etc.
 let sb=null, SESSION={unidade:null,role:null,offline:false};
+// logo de cada unidade
+const LOGOS={'Dilnor':'assets/dilnor-logo.png','Nordece':'assets/nordece-logo.png'};
+function setLogos(unidade){const src=LOGOS[unidade]||LOGOS['Dilnor'];
+  ['loginLogo','sideLogo'].forEach(id=>{const el=document.getElementById(id);if(el){el.src=src;el.style.display='';}});}
 function supaReady(){ if(!SUPA_URL||!SUPA_KEY||typeof window.supabase==='undefined') return false;
   if(!sb) sb=window.supabase.createClient(SUPA_URL,SUPA_KEY); return true; }
 function sessionFromEmail(email){ const [pref]=String(email).split('@'); const [u,role]=pref.split('.');
@@ -999,6 +1003,7 @@ async function doLogin(unidade,senha){
   throw new Error('Senha incorreta para a unidade '+unidade+'.');
 }
 function applyAccess(){
+  setLogos(SESSION.unidade);
   document.getElementById('loginOverlay').style.display='none';
   const chip=document.getElementById('userChip');
   chip.style.display='block';
@@ -1216,6 +1221,7 @@ document.getElementById('loginBtn').onclick=async()=>{
   catch(e){ err.textContent=e.message; }
 };
 document.getElementById('loginSenha').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
+document.getElementById('loginUnidade').onchange=e=>setLogos(e.target.value);
 document.getElementById('loginOffline').onclick=e=>{e.preventDefault();SESSION={unidade:document.getElementById('loginUnidade').value,role:'admin',offline:true};applyAccess();};
 document.getElementById('btnLogout').onclick=e=>{e.preventDefault();logout();};
 document.getElementById('prSave').onclick=salvarPremiacao;
