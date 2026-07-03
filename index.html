@@ -408,9 +408,8 @@
       <div class="card">
         <h3>Premiações salvas no banco — <span id="svUnidade"></span></h3>
         <div class="pad toolbar">
-          <label class="muted">De <input type="date" id="svIni"></label>
-          <label class="muted">Até <input type="date" id="svFim"></label>
-          <button class="yellow" id="svBuscar">🔍 Buscar</button>
+          <input type="search" id="svBusca" placeholder="Buscar carga ou motorista..." style="min-width:240px">
+          <button class="yellow" id="svBuscar">🔄 Atualizar</button>
           <button id="svExport">⬇️ Exportar Excel (.xlsx)</button>
           <button id="svExcluirSel" style="background:var(--danger);border-color:var(--danger)">🗑️ Excluir selecionados</button>
           <span class="muted" id="svMsg" style="margin-left:auto"></span>
@@ -1155,22 +1154,23 @@ function renderDesempenho(){
 }
 
 // ---------- salvos (admin: ver e excluir registros do banco) ----------
-let SV_ROWS=[];
-function svInitDates(){ const f=new Date(), i=new Date(Date.now()-14*864e5);
-  document.getElementById('svFim').value=f.toISOString().slice(0,10);
-  document.getElementById('svIni').value=i.toISOString().slice(0,10);
-  document.getElementById('svUnidade').textContent=SESSION.unidade||''; }
+let SV_ALL=[], SV_ROWS=[];
+function svInitDates(){ document.getElementById('svUnidade').textContent=SESSION.unidade||''; }
 async function svConsultar(){
   const msg=document.getElementById('svMsg');
   if(SESSION.offline||!supaReady()){msg.textContent='Banco não configurado.';return;}
   msg.textContent='Buscando…';
-  const ini=document.getElementById('svIni').value, fim=document.getElementById('svFim').value;
-  let q=sb.from('premiacoes').select('*').eq('unidade',SESSION.unidade).order('data_saida',{ascending:false}).order('carga');
-  if(ini)q=q.gte('data_saida',ini); if(fim)q=q.lte('data_saida',fim);
-  const {data,error}=await q;
+  const {data,error}=await sb.from('premiacoes').select('*').eq('unidade',SESSION.unidade)
+    .order('data_saida',{ascending:false}).order('carga').limit(3000);
   if(error){msg.textContent='❌ '+error.message;return;}
-  SV_ROWS=data||[]; msg.textContent=SV_ROWS.length+' registro(s)';
+  SV_ALL=data||[];
   document.getElementById('svChkAll').checked=false;
+  svFilter();
+}
+function svFilter(){
+  const q=low(document.getElementById('svBusca').value);
+  SV_ROWS=q?SV_ALL.filter(r=>low(r.carga+' '+(r.motorista||'')+' '+(r.aj1||'')+' '+(r.aj2||'')).includes(q)):SV_ALL;
+  document.getElementById('svMsg').textContent=SV_ROWS.length+' registro(s)'+(q?' · filtro: "'+document.getElementById('svBusca').value+'"':'');
   renderSalvos();
 }
 function renderSalvos(){
@@ -1211,7 +1211,7 @@ function svExportXLSX(){ // mesmo formato do export da Produtividade
   for(let i=1;i<aoa.length;i++){const pf=XLSX.utils.encode_cell({r:i,c:5});if(ws[pf]&&typeof ws[pf].v==='number')ws[pf].z='0.00%';
     [6,7].forEach(ci=>{const a=XLSX.utils.encode_cell({r:i,c:ci});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='"R$" #,##0.00';});}
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Premiacao');XLSX.writeFile(wb,'premiacao_salvos.xlsx');
-  document.getElementById('svMsg').textContent='⬇️ '+rows.length+' carga(s) exportada(s)'+(ids.length?'':' (todas do período)')+'.';
+  document.getElementById('svMsg').textContent='⬇️ '+rows.length+' carga(s) exportada(s)'+(ids.length?'':' (todas as listadas)')+'.';
 }
 function svRecalcValores(r,pagar){ // ao reativar PAGAR, recalcula pela tabela de valores atual
   if(!pagar) return {valor_mot:0,valor_aj1:0,valor_aj2:0};
@@ -1339,6 +1339,7 @@ document.getElementById('deHist').addEventListener('click',e=>{
 });
 // salvos (admin)
 document.getElementById('svBuscar').onclick=svConsultar;
+document.getElementById('svBusca').oninput=svFilter;
 document.getElementById('svChkAll').onchange=e=>{document.querySelectorAll('#svTbl .svchk').forEach(c=>c.checked=e.target.checked);};
 document.getElementById('svExcluirSel').onclick=()=>svExcluir(svIdsSelecionados());
 document.getElementById('svExport').onclick=svExportXLSX;
