@@ -590,7 +590,9 @@ function afterLoad(){
     renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
     fillReFilters(); renderRe(); renderPay(); renderDashboard(); renderCadastros(); }
 }
-function go(view){ document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
+function go(view){
+  if(view==='salvos'&&!exigeSenha('Acessar a aba Salvos'))return;
+  document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
   document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
   if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
@@ -1057,6 +1059,18 @@ async function initAuth(){
 }
 async function logout(){ if(sb) await sb.auth.signOut(); location.reload(); }
 
+// ---------- senha de ações sensíveis (por unidade) ----------
+const SENHA_ACOES={'Dilnor':'1987'}; // unidades sem senha aqui não pedem confirmação
+function exigeSenha(acao){
+  const s=SENHA_ACOES[SESSION.unidade];
+  if(!s) return true;
+  const dig=prompt('🔒 '+acao+'\nDigite a senha numérica:');
+  if(dig===null) return false;
+  if(String(dig).trim()===s) return true;
+  alert('Senha incorreta.');
+  return false;
+}
+
 // ---------- salvar premiação (admin) ----------
 function toISODate(s){ const dt=parseBRDate(s); return dt?`${dt.getFullYear()}-${String(dt.getMonth()+1).padStart(2,'0')}-${String(dt.getDate()).padStart(2,'0')}`:null; }
 function buildSaveRows(){
@@ -1080,6 +1094,7 @@ async function salvarPremiacao(){
   if(SESSION.offline||!supaReady()){msg.textContent='⚠️ Banco não configurado — configure o Supabase para salvar.';return;}
   if(SESSION.role!=='admin'){msg.textContent='⚠️ Apenas administrador pode salvar.';return;}
   if(!selected.size){msg.textContent='Selecione ao menos uma carga.';return;}
+  if(!exigeSenha('Salvar premiação no banco ('+selected.size+' carga(s))')){msg.textContent='Salvamento cancelado.';return;}
   msg.textContent='Salvando…';
   const rows=buildSaveRows();
   const {error}=await sb.from('premiacoes').upsert(rows,{onConflict:'unidade,data_saida,carga'});
