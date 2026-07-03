@@ -411,6 +411,7 @@
           <label class="muted">De <input type="date" id="svIni"></label>
           <label class="muted">Até <input type="date" id="svFim"></label>
           <button class="yellow" id="svBuscar">🔍 Buscar</button>
+          <button id="svExport">⬇️ Exportar Excel (.xlsx)</button>
           <button id="svExcluirSel" style="background:var(--danger);border-color:var(--danger)">🗑️ Excluir selecionados</button>
           <span class="muted" id="svMsg" style="margin-left:auto"></span>
         </div>
@@ -1179,7 +1180,7 @@ function renderSalvos(){
       <td class="muted">${deFmtData(r.data_saida)}</td><td><b>${r.carga}</b></td>
       <td>${r.motorista||'—'}</td><td class="muted">${r.aj1||'—'}</td><td class="muted">${r.aj2||'—'}</td>
       <td class="num"><span class="badge ${faixaOf(+r.prod_final||0).cls}">${fmtPct(+r.prod_final||0)}</span></td>
-      <td>${r.pagar?'<span class="badge b-green">SIM</span>':'<span class="badge b-red">NÃO</span>'}</td>
+      <td><span class="badge ${r.pagar?'b-green':'b-red'} svpag" style="cursor:pointer" title="Clique para alternar SIM/NÃO">${r.pagar?'SIM':'NÃO'}</span></td>
       <td class="num">${fmtBRL(+r.valor_mot||0)}</td><td class="num">${fmtBRL(+r.valor_aj1||0)}</td><td class="num">${fmtBRL(+r.valor_aj2||0)}</td>
       <td><button class="ghost svdel" title="Excluir este registro" style="padding:3px 9px">🗑️</button></td>
     </tr>`).join('')||'<tr><td colspan="12" class="empty">Nenhum registro salvo no período.</td></tr>';
@@ -1193,6 +1194,44 @@ async function svExcluir(ids){
   if(error){msg.textContent='❌ '+error.message;return;}
   msg.textContent='✅ '+ids.length+' registro(s) excluído(s).';
   svConsultar();
+}
+function svIdsSelecionados(){ return [...document.querySelectorAll('#svTbl .svchk:checked')].map(c=>+c.closest('tr').dataset.id); }
+function svExportXLSX(){ // mesmo formato do export da Produtividade
+  const ids=svIdsSelecionados();
+  const rows=ids.length?SV_ROWS.filter(r=>ids.includes(r.id)):SV_ROWS;
+  if(!rows.length){document.getElementById('svMsg').textContent='Nada para exportar.';return;}
+  const aoa=[['DATA SAIDA','LOTE','MOTORISTA','AJUDANTE 1','AJUDANTE 2','PROD MOT','RECEBER MOT','RECEBER AJD','PAGAR']];
+  rows.forEach(r=>{
+    const [y,m,d]=String(r.data_saida).split('-');
+    aoa.push([`${d}-${m}-${y}`,+r.carga||r.carga,r.motorista||'',r.aj1||'',r.aj2||'',
+      +r.prod_final||0,+r.valor_mot||0,(+r.valor_aj1||0)+(+r.valor_aj2||0),r.pagar?'SIM':'NÃO']);
+  });
+  const ws=XLSX.utils.aoa_to_sheet(aoa);
+  ws['!cols']=[{wch:12},{wch:9},{wch:24},{wch:22},{wch:22},{wch:10},{wch:12},{wch:12},{wch:8}];
+  for(let i=1;i<aoa.length;i++){const pf=XLSX.utils.encode_cell({r:i,c:5});if(ws[pf]&&typeof ws[pf].v==='number')ws[pf].z='0.00%';
+    [6,7].forEach(ci=>{const a=XLSX.utils.encode_cell({r:i,c:ci});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='"R$" #,##0.00';});}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Premiacao');XLSX.writeFile(wb,'premiacao_salvos.xlsx');
+  document.getElementById('svMsg').textContent='⬇️ '+rows.length+' carga(s) exportada(s)'+(ids.length?'':' (todas do período)')+'.';
+}
+function svRecalcValores(r,pagar){ // ao reativar PAGAR, recalcula pela tabela de valores atual
+  if(!pagar) return {valor_mot:0,valor_aj1:0,valor_aj2:0};
+  const tier=faixaOf(+r.prod_final||0).tier;
+  const t=r.tipo&&PREMIO[r.tipo]?r.tipo:'Motorista de Praça';
+  const ajC=/viagem/i.test(t)?'Ajudante de Viagem':/agregado/i.test(t)?'Ajudante de Praça (Agregado)':'Ajudante de Praça';
+  return {valor_mot:r.motorista?PREMIO[t][tier]:0,
+          valor_aj1:r.aj1?PREMIO[ajC][tier]:0, valor_aj2:r.aj2?PREMIO[ajC][tier]:0};
+}
+async function svTogglePagar(id){
+  const r=SV_ROWS.find(x=>x.id===id); if(!r)return;
+  const msg=document.getElementById('svMsg');
+  const novo=!r.pagar, vals=svRecalcValores(r,novo);
+  msg.textContent='Atualizando…';
+  const {data,error}=await sb.from('premiacoes').update({pagar:novo,...vals}).eq('id',id).select();
+  if(error){msg.textContent='❌ '+error.message;return;}
+  if(!data||!data.length){msg.textContent='❌ Sem permissão para alterar (entre como admin).';return;}
+  Object.assign(r,{pagar:novo,...vals});
+  msg.textContent='✅ Carga '+r.carga+' → PAGAR '+(novo?'SIM':'NÃO')+'.';
+  renderSalvos();
 }
 
 // ===================== EVENTOS =====================
@@ -1301,8 +1340,13 @@ document.getElementById('deHist').addEventListener('click',e=>{
 // salvos (admin)
 document.getElementById('svBuscar').onclick=svConsultar;
 document.getElementById('svChkAll').onchange=e=>{document.querySelectorAll('#svTbl .svchk').forEach(c=>c.checked=e.target.checked);};
-document.getElementById('svExcluirSel').onclick=()=>{const ids=[...document.querySelectorAll('#svTbl .svchk:checked')].map(c=>+c.closest('tr').dataset.id);svExcluir(ids);};
-document.querySelector('#svTbl tbody').addEventListener('click',e=>{if(e.target.classList.contains('svdel'))svExcluir([+e.target.closest('tr').dataset.id]);});
+document.getElementById('svExcluirSel').onclick=()=>svExcluir(svIdsSelecionados());
+document.getElementById('svExport').onclick=svExportXLSX;
+document.querySelector('#svTbl tbody').addEventListener('click',e=>{
+  const tr=e.target.closest('tr'); if(!tr)return;
+  if(e.target.classList.contains('svdel'))svExcluir([+tr.dataset.id]);
+  else if(e.target.classList.contains('svpag'))svTogglePagar(+tr.dataset.id);
+});
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
