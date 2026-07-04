@@ -411,6 +411,7 @@
           <input type="search" id="svBusca" placeholder="Buscar carga ou motorista..." style="min-width:240px">
           <button class="yellow" id="svBuscar">🔄 Atualizar</button>
           <button id="svExport">⬇️ Exportar Excel (.xlsx)</button>
+          <button class="ghost" id="svLimparSel">✖ Limpar seleção</button>
           <button id="svExcluirSel" style="background:var(--danger);border-color:var(--danger)">🗑️ Excluir selecionados</button>
           <span class="muted" id="svMsg" style="margin-left:auto"></span>
         </div>
@@ -1169,7 +1170,7 @@ function renderDesempenho(){
 }
 
 // ---------- salvos (admin: ver e excluir registros do banco) ----------
-let SV_ALL=[], SV_ROWS=[];
+let SV_ALL=[], SV_ROWS=[], svSel=new Set(); // seleção persiste entre buscas
 function svInitDates(){ document.getElementById('svUnidade').textContent=SESSION.unidade||''; }
 async function svConsultar(){
   const msg=document.getElementById('svMsg');
@@ -1179,19 +1180,26 @@ async function svConsultar(){
     .order('data_saida',{ascending:false}).order('carga').limit(3000);
   if(error){msg.textContent='❌ '+error.message;return;}
   SV_ALL=data||[];
-  document.getElementById('svChkAll').checked=false;
+  const vivos=new Set(SV_ALL.map(r=>r.id));
+  svSel=new Set([...svSel].filter(i=>vivos.has(i))); // mantém seleção; tira só o que não existe mais
   svFilter();
+}
+function svUpdateMsg(){
+  const q=document.getElementById('svBusca').value;
+  document.getElementById('svMsg').textContent=SV_ROWS.length+' registro(s)'
+    +(q?' · filtro: "'+q+'"':'')+(svSel.size?' · ✔ '+svSel.size+' selecionada(s)':'');
 }
 function svFilter(){
   const q=low(document.getElementById('svBusca').value);
   SV_ROWS=q?SV_ALL.filter(r=>low(r.carga+' '+(r.motorista||'')+' '+(r.aj1||'')+' '+(r.aj2||'')).includes(q)):SV_ALL;
-  document.getElementById('svMsg').textContent=SV_ROWS.length+' registro(s)'+(q?' · filtro: "'+document.getElementById('svBusca').value+'"':'');
+  svUpdateMsg();
   renderSalvos();
 }
 function renderSalvos(){
+  document.getElementById('svChkAll').checked=SV_ROWS.length>0&&SV_ROWS.every(r=>svSel.has(r.id));
   document.querySelector('#svTbl tbody').innerHTML=SV_ROWS.map(r=>`
     <tr data-id="${r.id}">
-      <td><input type="checkbox" class="chk svchk"></td>
+      <td><input type="checkbox" class="chk svchk" ${svSel.has(r.id)?'checked':''}></td>
       <td class="muted">${deFmtData(r.data_saida)}</td><td><b>${r.carga}</b></td>
       <td>${r.motorista||'—'}</td><td class="muted">${r.aj1||'—'}</td><td class="muted">${r.aj2||'—'}</td>
       <td class="num"><span class="badge ${faixaOf(+r.prod_final||0).cls}">${fmtPct(+r.prod_final||0)}</span></td>
@@ -1202,18 +1210,19 @@ function renderSalvos(){
 }
 async function svExcluir(ids){
   if(!ids.length){document.getElementById('svMsg').textContent='Selecione ao menos um registro.';return;}
-  const det=SV_ROWS.filter(r=>ids.includes(r.id)).slice(0,5).map(r=>deFmtData(r.data_saida)+' carga '+r.carga).join(', ');
+  const det=SV_ALL.filter(r=>ids.includes(r.id)).slice(0,5).map(r=>deFmtData(r.data_saida)+' carga '+r.carga).join(', ');
   if(!confirm('Excluir '+ids.length+' registro(s)?\n'+det+(ids.length>5?'…':'')+'\n\nIsso remove do banco e some do desempenho dos funcionários.'))return;
   const msg=document.getElementById('svMsg'); msg.textContent='Excluindo…';
   const {error}=await sb.from('premiacoes').delete().in('id',ids);
   if(error){msg.textContent='❌ '+error.message;return;}
+  ids.forEach(i=>svSel.delete(i));
   msg.textContent='✅ '+ids.length+' registro(s) excluído(s).';
   svConsultar();
 }
-function svIdsSelecionados(){ return [...document.querySelectorAll('#svTbl .svchk:checked')].map(c=>+c.closest('tr').dataset.id); }
+function svIdsSelecionados(){ return [...svSel]; }
 function svExportXLSX(){ // mesmo formato do export da Produtividade
   const ids=svIdsSelecionados();
-  const rows=ids.length?SV_ROWS.filter(r=>ids.includes(r.id)):SV_ROWS;
+  const rows=ids.length?SV_ALL.filter(r=>ids.includes(r.id)):SV_ROWS; // seleção vale mesmo fora do filtro atual
   if(!rows.length){document.getElementById('svMsg').textContent='Nada para exportar.';return;}
   const aoa=[['DATA SAIDA','LOTE','MOTORISTA','AJUDANTE 1','AJUDANTE 2','PROD MOT','RECEBER MOT','RECEBER AJD','PAGAR']];
   rows.forEach(r=>{
@@ -1355,7 +1364,14 @@ document.getElementById('deHist').addEventListener('click',e=>{
 // salvos (admin)
 document.getElementById('svBuscar').onclick=svConsultar;
 document.getElementById('svBusca').oninput=svFilter;
-document.getElementById('svChkAll').onchange=e=>{document.querySelectorAll('#svTbl .svchk').forEach(c=>c.checked=e.target.checked);};
+document.getElementById('svChkAll').onchange=e=>{SV_ROWS.forEach(r=>e.target.checked?svSel.add(r.id):svSel.delete(r.id));svUpdateMsg();renderSalvos();};
+document.getElementById('svLimparSel').onclick=()=>{svSel.clear();svUpdateMsg();renderSalvos();};
+document.querySelector('#svTbl tbody').addEventListener('change',e=>{
+  if(e.target.classList.contains('svchk')){const id=+e.target.closest('tr').dataset.id;
+    e.target.checked?svSel.add(id):svSel.delete(id);
+    document.getElementById('svChkAll').checked=SV_ROWS.length>0&&SV_ROWS.every(r=>svSel.has(r.id));
+    svUpdateMsg();}
+});
 document.getElementById('svExcluirSel').onclick=()=>svExcluir(svIdsSelecionados());
 document.getElementById('svExport').onclick=svExportXLSX;
 document.querySelector('#svTbl tbody').addEventListener('click',e=>{
