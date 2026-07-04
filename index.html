@@ -1228,7 +1228,7 @@ function svExportXLSX(){ // mesmo formato do export da Produtividade
   rows.forEach(r=>{
     const [y,m,d]=String(r.data_saida).split('-');
     aoa.push([`${d}-${m}-${y}`,+r.carga||r.carga,r.motorista||'',r.aj1||'',r.aj2||'',
-      +r.prod_final||0,+r.valor_mot||0,(+r.valor_aj1||0)+(+r.valor_aj2||0),r.pagar?'SIM':'NÃO']);
+      +r.prod_final||0,+r.valor_mot||0,Math.max(+r.valor_aj1||0,+r.valor_aj2||0),r.pagar?'SIM':'NÃO']); // valor fixo por ajudante, não a soma
   });
   const ws=XLSX.utils.aoa_to_sheet(aoa);
   ws['!cols']=[{wch:12},{wch:9},{wch:24},{wch:22},{wch:22},{wch:10},{wch:12},{wch:12},{wch:8}];
