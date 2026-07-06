@@ -1406,12 +1406,22 @@ function renderEsTotais(){const t=esTotais();
     <td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td>
     <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
     <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td colspan="2"></td></tr>`;}
+// Equipe registrada no sistema (NÃO puxa do relatório; muda só pela Disponibilidade)
+const EQUIPE_INICIAL={'Dilnor':{
+  motoristas:['DANIEL CARNEIRO','EDNALDO COSTA','EDUARDO ARAUJO','ELIAB RAFAEL','ESDRAS DIONISIO','ESMERALDO FELIX','GEOVANI ANTONIO','ISAAC BORBA','JAILSON JOSE','JEDSON FRANCISCO','ROBSON MARQUES','ROBSON REGIO','THIAGO CARVALHO','TIAGO JOSE','TIAGO SILVA','VALBIR RICARDO','VITOR GABRIEL','WELLINGTON JOSE','ALDEMIR SILVA','MARLON JOSE'],
+  ajudantes:['ALEX GONDIM','CRISTIANO ROBERTO','CRISTIANO VICTOR','DAVI HOLANDA','DAVID PEDRO','GENIVAL LUIZ','JEFFERSON GOMES','MARCONI ANDRE','MARCOS ANTONIO','PAULO SERGIO','ROBSON SOUZA','VALDENIO ANTONIO','EDUARDO WANDERLEY','VICTOR MATHEUS','DOUGLAS GUSTAVO','LEANDRO NASCIMENTO','LUCAS RIBEIRO','PAULO ROBERTO','JHEYMISON MICHAEL','RAPHAEL DE LIMA','PABLO DE ANDRADE','JOSE ADRIANO','DANIEL GOMES','PAULO CESAR','ERIC JOSE','ORLANDO MARTINS'],
+  ferias:['ROBSON SOUZA','VALDENIO ANTONIO']
+}};
+function esSeedEquipe(){
+  const seed=EQUIPE_INICIAL[SESSION.unidade]; if(!seed)return [];
+  const rows=[];
+  seed.motoristas.forEach(n=>rows.push({unidade:SESSION.unidade,nome:n,tipo:'motorista',status:'disponivel'}));
+  seed.ajudantes.forEach(n=>rows.push({unidade:SESSION.unidade,nome:n,tipo:'ajudante',status:seed.ferias.includes(n)?'ferias':'disponivel'}));
+  rows.forEach(r=>{ESTATUS[r.nome]={tipo:r.tipo,status:r.status};});
+  return rows;
+}
 function esDisponiveis(tipo){
-  const set=new Set();
-  if(tipo==='motorista'){Object.keys(motoristaTipo).forEach(n=>set.add(n));CARGAS.forEach(c=>{if(c.motorista)set.add(c.motorista);});}
-  else{Object.keys(ajudanteTipo).forEach(n=>set.add(n));workBase().forEach(p=>[p.aj1,p.aj2,p.aj3,p.aj4].forEach(a=>{if(a)set.add(a);}));}
-  Object.entries(ESTATUS).forEach(([n,i])=>{if(i.tipo===tipo)set.add(n);});
-  return [...set].filter(n=>{const s=ESTATUS[n]&&ESTATUS[n].status;return !s||s==='disponivel';}).sort();
+  return Object.entries(ESTATUS).filter(([n,i])=>i.tipo===tipo&&i.status==='disponivel').map(([n])=>n).sort();
 }
 function esBuildDatalists(){
   document.getElementById('dlMot').innerHTML=esDisponiveis('motorista').map(n=>`<option value="${esc(n)}">`).join('');
@@ -1423,10 +1433,20 @@ function esBuildDatalists(){
 }
 // ---- disponibilidade da equipe (banco) ----
 async function esLoadEquipe(){
-  if(SESSION.offline||!supaReady())return;
+  if(SESSION.offline||!supaReady()){
+    if(!Object.keys(ESTATUS).length)esSeedEquipe();
+    renderEquipe(); esBuildDatalists(); return;
+  }
   const {data,error}=await sb.from('equipe_status').select('*').eq('unidade',SESSION.unidade);
-  if(error){document.getElementById('esMsg').textContent='⚠️ Equipe: rode o SQL novo no Supabase ('+error.message+')';return;}
-  (data||[]).forEach(r=>{ESTATUS[r.nome]={tipo:r.tipo||'ajudante',status:r.status||'disponivel'};});
+  if(error){document.getElementById('esMsg').textContent='⚠️ Equipe: rode o SQL novo no Supabase ('+error.message+')';
+    if(!Object.keys(ESTATUS).length)esSeedEquipe(); renderEquipe(); esBuildDatalists(); return;}
+  if(data&&data.length){
+    data.forEach(r=>{ESTATUS[r.nome]={tipo:r.tipo||'ajudante',status:r.status||'disponivel'};});
+  }else{
+    // primeira vez: grava a relação inicial da unidade no banco
+    const rows=esSeedEquipe();
+    if(rows.length)await sb.from('equipe_status').upsert(rows,{onConflict:'unidade,nome'});
+  }
   esEquipeCarregada=true; renderEquipe(); esBuildDatalists();
 }
 async function esSetStatus(nome,tipo,status){
@@ -1438,16 +1458,19 @@ async function esSetStatus(nome,tipo,status){
 }
 function renderEquipe(){
   const q=low(document.getElementById('eqBusca').value);
-  const nomes=new Set([...Object.keys(ESTATUS)]);
-  Object.keys(motoristaTipo).forEach(n=>nomes.add(n));Object.keys(ajudanteTipo).forEach(n=>nomes.add(n));
-  CARGAS.forEach(c=>{if(c.motorista)nomes.add(c.motorista);[...c.ajudantes].forEach(a=>nomes.add(a));});
-  const lista=[...nomes].filter(n=>!q||low(n).includes(q)).sort();
-  document.getElementById('eqLista').innerHTML=lista.map(n=>{
-    const info=ESTATUS[n]||{tipo:motoristaTipo[n]!==undefined||CARGAS.some(c=>c.motorista===n)?'motorista':'ajudante',status:'disponivel'};
-    const opts=Object.entries(ES_STATUS_LBL).map(([k,v])=>`<option value="${k}" ${k===info.status?'selected':''}>${v}</option>`).join('');
-    return `<div class="eq-row"><span class="nm st-${info.status}" title="${esc(n)}">${esc(n)}</span>
-      <span class="muted" style="font-size:11.5px">${info.tipo==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</span>
-      <select data-eqnome="${esc(n)}" data-eqtipo="${info.tipo}">${opts}</select></div>`;}).join('')||'<div class="muted">Nenhum nome.</div>';
+  const grupo=tipo=>Object.entries(ESTATUS)
+    .filter(([n,i])=>i.tipo===tipo&&(!q||low(n).includes(q)))
+    .sort((a,b)=>a[0]<b[0]?-1:1)
+    .map(([n,info])=>{
+      const opts=Object.entries(ES_STATUS_LBL).map(([k,v])=>`<option value="${k}" ${k===info.status?'selected':''}>${v}</option>`).join('');
+      return `<div class="eq-row"><span class="nm st-${info.status}" title="${esc(n)}">${esc(n)}</span>
+        <span class="muted" style="font-size:11.5px">${tipo==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</span>
+        <select data-eqnome="${esc(n)}" data-eqtipo="${tipo}">${opts}</select></div>`;}).join('');
+  const mots=grupo('motorista'), ajs=grupo('ajudante');
+  document.getElementById('eqLista').innerHTML=
+    (mots?'<b style="color:var(--accent)">MOTORISTAS</b>'+mots:'')+
+    (ajs?'<b style="display:block;margin-top:12px;color:var(--accent)">AJUDANTES</b>'+ajs:'')||
+    '<div class="muted">Nenhum nome registrado. Use "Adicionar" acima.</div>';
 }
 // ---- salvar / abrir ----
 async function esSalvar(){
@@ -1650,6 +1673,27 @@ document.querySelector('#esTbl tbody').addEventListener('click',e=>{
   if(e.target.classList.contains('esdel')){const i=+e.target.closest('tr').dataset.i;
     ES.linhas.splice(i,1); if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
     esDraftSave(); renderEscala();}
+});
+// motorista/ajudante não pode estar em duas linhas: pergunta se troca de lote
+document.querySelector('#esTbl tbody').addEventListener('change',e=>{
+  const f=e.target.dataset.f; if(!f||!['mot','aj1','aj2'].includes(f))return;
+  const tr=e.target.closest('tr'); if(!tr)return;
+  const i=+tr.dataset.i, val=norm(e.target.value); if(!val)return;
+  const lv=low(val);
+  for(let j=0;j<ES.linhas.length;j++){
+    for(const g of ['mot','aj1','aj2']){
+      if(j===i&&g===f)continue;
+      if(low(ES.linhas[j][g]||'')===lv){
+        const onde=ES.linhas[j].lote?('no lote '+ES.linhas[j].lote):('na linha '+(j+1));
+        if(confirm('⚠️ '+val+' já está escalado '+onde+'.\n\nTrocar para esta linha (lote '+(ES.linhas[i].lote||(i+1))+')?')){
+          ES.linhas[j][g]='';   // sai da linha antiga
+        }else{
+          ES.linhas[i][f]='';   // cancela: mantém onde estava
+        }
+        esDraftSave(); renderEscala(); return;
+      }
+    }
+  }
 });
 document.getElementById('eqBusca').oninput=renderEquipe;
 document.getElementById('eqAdd').onclick=()=>{const n=norm(document.getElementById('eqNovo').value);
