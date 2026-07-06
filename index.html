@@ -130,18 +130,18 @@
   .empty{color:var(--muted);text-align:center;padding:40px}
   /* escala */
   .eswrap{overflow-x:auto}
-  #esTbl{border-collapse:collapse;font-size:12px;min-width:1500px}
-  #esTbl th{position:static;padding:6px 6px;text-align:center;border:1px solid var(--line);cursor:default}
-  #esTbl th.grp{background:var(--panel2);color:var(--txt);font-size:11px;letter-spacing:.6px}
-  #esTbl td{padding:2px;border:1px solid var(--line)}
-  #esTbl input{width:100%;border:none;background:transparent;border-radius:5px;padding:6px 6px;font-size:12.5px}
-  #esTbl input:focus{background:var(--panel2);outline:1px solid var(--accent)}
-  #esTbl input.num{text-align:right}
-  #esTbl td.calc{text-align:right;padding:6px;color:var(--accent);font-weight:700;white-space:nowrap}
-  #esTbl td.ord{text-align:center;color:var(--muted);width:26px}
-  #esTbl .esdel{cursor:pointer;color:var(--muted);padding:0 7px}
-  #esTbl .esdel:hover{color:var(--red)}
-  #esTbl tfoot td{padding:7px 6px;font-weight:800;color:var(--accent);text-align:right;border:1px solid var(--line);background:var(--panel2)}
+  .estbl{border-collapse:collapse;font-size:12px;min-width:1500px}
+  .estbl th{position:static;padding:6px 6px;text-align:center;border:1px solid var(--line);cursor:default}
+  .estbl th.grp{background:var(--panel2);color:var(--txt);font-size:11px;letter-spacing:.6px}
+  .estbl td{padding:2px;border:1px solid var(--line)}
+  .estbl input{width:100%;border:none;background:transparent;border-radius:5px;padding:6px 6px;font-size:12.5px}
+  .estbl input:focus{background:var(--panel2);outline:1px solid var(--accent)}
+  .estbl input.num{text-align:right}
+  .estbl td.calc{text-align:right;padding:6px;color:var(--accent);font-weight:700;white-space:nowrap}
+  .estbl td.ord{text-align:center;color:var(--muted);width:26px}
+  .estbl .esdel{cursor:pointer;color:var(--muted);padding:0 7px}
+  .estbl .esdel:hover{color:var(--red)}
+  .estbl tfoot td{padding:7px 6px;font-weight:800;color:var(--accent);text-align:right;border:1px solid var(--line);background:var(--panel2)}
   .eq-row{display:grid;grid-template-columns:1fr 130px 140px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
   .eq-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .eq-row select{padding:5px 8px;font-size:12.5px}
@@ -221,9 +221,9 @@
       <button data-view="pagamento">💰 Pagamento</button>
       <button data-view="salvos">🗄️ Salvos</button>
       <button data-view="escala">📅 Escala</button>
-      <button data-view="dashboard">📈 Dashboard <span class="tag">Etapa 3</span></button>
-      <button data-view="cadastros">👥 Cadastros <span class="tag">Etapa 3</span></button>
-      <button data-view="config">⚙️ Configurações <span class="tag">Etapa 3</span></button>
+      <button data-view="escalasalvas">🗓️ Escalas salvas</button>
+      <button data-view="cadastros">👥 Cadastros</button>
+      <button data-view="config">⚙️ Configurações</button>
       <div class="sep"></div>
       <button data-view="desempenho">🙋 Meu Desempenho</button>
     </nav>
@@ -376,16 +376,17 @@
         </div>
       </div>
     </section>
-    <!-- ===== DASHBOARD ===== -->
-    <section class="view" id="view-dashboard">
-      <div id="dashEmpty" class="empty">Carregue um relatório para ver o dashboard.</div>
-      <div id="dashBody" style="display:none">
-        <div class="kpis" id="dashKpis"></div>
-        <div class="card"><h3>Ranking de produtividade por motorista</h3><div class="pad" id="chartRank"></div></div>
-        <div class="grid2" style="margin-top:16px">
-          <div class="card"><h3>Reentregas/Devoluções por motivo</h3><div class="pad" id="chartMotivo"></div></div>
-          <div class="card"><h3>Entregas por rota</h3><div class="pad" id="chartRota"></div></div>
+    <!-- ===== ESCALAS SALVAS (só visualizar/imprimir) ===== -->
+    <section class="view" id="view-escalasalvas">
+      <div class="card">
+        <h3>Escalas salvas <span id="esvUnidade" class="pill"></span></h3>
+        <div class="pad toolbar">
+          <select id="esvSelect" style="min-width:260px"><option value="">Escolha o dia…</option></select>
+          <button class="ghost" id="esvAtualizar">🔄 Atualizar</button>
+          <button class="yellow" id="esvImprimir">🖨️ Imprimir</button>
+          <span class="muted" id="esvMsg" style="margin-left:auto"></span>
         </div>
+        <div class="pad eswrap" id="esvView" style="padding-top:0"><div class="empty">Escolha um dia salvo para visualizar.</div></div>
       </div>
     </section>
 
@@ -475,7 +476,7 @@
           <span class="muted" id="esMsg" style="margin-left:auto"></span>
         </div>
         <div class="pad eswrap" style="padding-top:0">
-          <table id="esTbl">
+          <table id="esTbl" class="estbl">
             <thead>
               <tr>
                 <th class="grp" rowspan="2">#</th>
@@ -671,14 +672,12 @@ function afterLoad(){
   document.getElementById('reBody').style.display=has?'block':'none';
   document.getElementById('payEmpty').style.display=has?'none':'block';
   document.getElementById('payBody').style.display=has?'block':'none';
-  document.getElementById('dashEmpty').style.display=has?'none':'block';
-  document.getElementById('dashBody').style.display=has?'block':'none';
   document.getElementById('cadEmpty').style.display=has?'none':'block';
   document.getElementById('cadBody').style.display=has?'block':'none';
   renderConfigForm(); renderCadPremio();
   if(has){ buildCargas(); selected.clear(); cfg={}; payCfg={}; loadTipos();
     renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
-    fillReFilters(); renderRe(); renderPay(); renderDashboard(); renderCadastros(); }
+    fillReFilters(); renderRe(); renderPay(); renderCadastros(); }
 }
 function go(view){
   if(view==='salvos'&&!exigeSenha('Acessar a aba Salvos'))return;
@@ -687,6 +686,7 @@ function go(view){
   document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
   if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
   if(view==='escala'&&typeof esEnter==='function') esEnter();
+  if(view==='escalasalvas'&&!SESSION.offline&&typeof esvListar==='function') esvListar();
   window.scrollTo(0,0);
 }
 
@@ -1037,35 +1037,6 @@ function barChart(el,data,opts){
       <span class="bar-track"><span class="bar-fill" style="width:${w}%;background:${d.color||'var(--accent2)'}"></span></span>
       <span class="val">${opts.fmt?opts.fmt(d):d.value}</span></div>`;}).join(''):'<div class="muted">Sem dados.</div>';
 }
-function renderDashboard(){
-  const cnt={green:0,blue:0,orange:0,red:0};CARGAS.forEach(c=>cnt[c.faixa.k]++);
-  const prodMedia=CARGAS.length?CARGAS.reduce((a,c)=>a+c.prodFinal,0)/CARGAS.length:0;
-  const probs=problemPedidos();
-  document.getElementById('dashKpis').innerHTML=`
-    <div class="kpi"><div class="k">Cargas</div><div class="v">${CARGAS.length}</div></div>
-    <div class="kpi accent"><div class="k">Produtividade média</div><div class="v">${fmtPct(prodMedia)}</div></div>
-    <div class="kpi green"><div class="k">Premiadas (≥${CONFIG.meta80}%)</div><div class="v">${cnt.green+cnt.blue+cnt.orange}</div></div>
-    <div class="kpi red"><div class="k">Abaixo da meta</div><div class="v">${cnt.red}</div></div>
-    <div class="kpi orange"><div class="k">Pedidos c/ problema</div><div class="v">${probs.length}</div></div>`;
-  // Ranking por motorista (produtividade média ponderada por pedidos)
-  const mm={};
-  CARGAS.forEach(c=>{const m=c.motorista||'(sem)';if(!mm[m])mm[m]={m,somaProd:0,peds:0};mm[m].somaProd+=c.prodFinal*c.pedidos;mm[m].peds+=c.pedidos;});
-  const rank=Object.values(mm).map(x=>({label:x.m,prod:x.peds?x.somaProd/x.peds:0})).sort((a,b)=>b.prod-a.prod);
-  barChart(document.getElementById('chartRank'),
-    rank.map(x=>({label:x.label,value:x.prod*100,color:FAIXA_COLOR[faixaOf(x.prod).k]})),
-    {fmt:d=>fmtPct(d.value/100)});
-  // Reentregas por motivo
-  const motivos={};probs.forEach(p=>{const k=p.motivo||'(sem motivo)';motivos[k]=(motivos[k]||0)+1;});
-  barChart(document.getElementById('chartMotivo'),
-    Object.entries(motivos).map(([k,v])=>({label:k,value:v,color:'var(--orange)'})).sort((a,b)=>b.value-a.value).slice(0,12),
-    {fmt:d=>d.value+' ped'});
-  // Entregas por rota (pedidos)
-  const rotas={};workBase().forEach(p=>{const k=p.rota||'(sem rota)';if(!rotas[k])rotas[k]={n:0,valor:0};rotas[k].n++;rotas[k].valor+=p.valor;});
-  barChart(document.getElementById('chartRota'),
-    Object.entries(rotas).map(([k,v])=>({label:k,value:v.n,valor:v.valor,color:'var(--accent2)'})).sort((a,b)=>b.value-a.value).slice(0,12),
-    {fmt:d=>d.value+' ped'});
-}
-
 // ===================== CADASTROS =====================
 function renderCadPremio(){
   const faixas=['100%','≥'+CONFIG.meta90+'%','≥'+CONFIG.meta80+'%','<'+CONFIG.meta80+'%'];
@@ -1094,7 +1065,7 @@ function renderConfigForm(){
   document.getElementById('cfgPagAtivo').checked=CONFIG.pagamentoAtivo;
 }
 function recalcAll(){ if(BASE.length){ buildCargas(); renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
-    fillReFilters(); renderRe(); renderPay(); renderDashboard(); renderCadastros(); } }
+    fillReFilters(); renderRe(); renderPay(); renderCadastros(); } }
 
 // ===================== BANCO DE DADOS (SUPABASE) =====================
 // >>> COLE AQUI as credenciais do seu projeto (Settings → API) <<<
@@ -1134,7 +1105,8 @@ function applyAccess(){
   else loadUnitData(); // carrega SÓ os dados da unidade logada
   // desempenho e salvos precisam de banco
   if(SESSION.offline){ document.querySelector('#nav button[data-view="desempenho"]').style.display='none';
-    document.querySelector('#nav button[data-view="salvos"]').style.display='none'; }
+    document.querySelector('#nav button[data-view="salvos"]').style.display='none';
+    document.querySelector('#nav button[data-view="escalasalvas"]').style.display='none'; }
   else { deInitDates(); svInitDates(); }
 }
 function loadUnitData(){
@@ -1372,9 +1344,10 @@ function esEnter(){
 }
 function esCalcRow(l){const ent=parseNum(l.ent),ree=parseNum(l.ree);
   return {cli:ent+ree, ptot:parseNum(l.pent)+parseNum(l.pree), tot:parseNum(l.dia)+parseNum(l.ext)};}
-function esTotais(){const t={ent:0,pent:0,ree:0,pree:0,cli:0,ptot:0,dia:0,ext:0,tot:0};
-  ES.linhas.forEach(l=>{const c=esCalcRow(l);t.ent+=parseNum(l.ent);t.pent+=parseNum(l.pent);t.ree+=parseNum(l.ree);
+function esTotaisDe(linhas){const t={ent:0,pent:0,ree:0,pree:0,cli:0,ptot:0,dia:0,ext:0,tot:0};
+  (linhas||[]).forEach(l=>{const c=esCalcRow(l);t.ent+=parseNum(l.ent);t.pent+=parseNum(l.pent);t.ree+=parseNum(l.ree);
     t.pree+=parseNum(l.pree);t.cli+=c.cli;t.ptot+=c.ptot;t.dia+=parseNum(l.dia);t.ext+=parseNum(l.ext);t.tot+=c.tot;});return t;}
+function esTotais(){return esTotaisDe(ES.linhas);}
 function renderEscala(){
   const tb=document.querySelector('#esTbl tbody');
   tb.innerHTML=ES.linhas.map((l,i)=>{const c=esCalcRow(l);
@@ -1500,11 +1473,11 @@ async function esCarregarSalva(){
   msg.textContent='✅ Escala de '+deFmtData(dt)+' aberta ('+ES.linhas.length+' linha(s)).';
 }
 // ---- impressão ----
-function esPrint(){
-  const dS=ES.saida?deFmtData(ES.saida):'', dC=ES.carrego?deFmtData(ES.carrego):'';
-  const t=esTotais();
-  const linhas=ES.linhas.filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
-  document.getElementById('printEscala').innerHTML=`
+function esPrintHtml(carrego,saida,linhasIn){
+  const dS=saida?deFmtData(saida):'', dC=carrego?deFmtData(carrego):'';
+  const t=esTotaisDe(linhasIn);
+  const linhas=(linhasIn||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+  return `
     <h2>Relatório/Escala - Carregamento ${SESSION.unidade||''}</h2>
     <div class="pdatas"><span>DATA DE CARREGO: ${dC}</span><span>DATA DE SAÍDA: ${dS}</span></div>
     <table><thead>
@@ -1525,6 +1498,62 @@ function esPrint(){
       <td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td>
       <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
       <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr></tfoot></table>`;
+}
+function esPrint(){
+  document.getElementById('printEscala').innerHTML=esPrintHtml(ES.carrego,ES.saida,ES.linhas);
+  setTimeout(()=>window.print(),60);
+}
+
+// ---- escalas salvas (só visualizar / imprimir) ----
+let ESV_LIST=[], ESV_SEL=null;
+async function esvListar(){
+  const msg=document.getElementById('esvMsg');
+  document.getElementById('esvUnidade').textContent=SESSION.unidade||'';
+  if(SESSION.offline||!supaReady()){msg.textContent='Banco não configurado.';return;}
+  msg.textContent='Buscando…';
+  const {data,error}=await sb.from('escalas').select('*').eq('unidade',SESSION.unidade)
+    .order('data_saida',{ascending:false}).limit(400);
+  if(error){msg.textContent='❌ '+error.message;return;}
+  ESV_LIST=data||[];
+  const sel=document.getElementById('esvSelect'), atual=sel.value;
+  sel.innerHTML='<option value="">Escolha o dia…</option>'+ESV_LIST.map(e=>{
+    const n=(e.linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!=='')).length;
+    return `<option value="${e.id}" ${String(e.id)===atual?'selected':''}>${deFmtData(e.data_saida)} — ${n} veículo(s)</option>`;}).join('');
+  msg.textContent=ESV_LIST.length+' escala(s) salva(s)';
+  esvVer();
+}
+function esvVer(){
+  const id=document.getElementById('esvSelect').value;
+  ESV_SEL=ESV_LIST.find(e=>String(e.id)===id)||null;
+  const el=document.getElementById('esvView');
+  if(!ESV_SEL){el.innerHTML='<div class="empty">Escolha um dia salvo para visualizar.</div>';return;}
+  const e=ESV_SEL, t=esTotaisDe(e.linhas);
+  const linhas=(e.linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+  el.innerHTML=`<div class="muted" style="margin:6px 0 10px">Data de carrego: <b style="color:var(--txt)">${e.data_carrego?deFmtData(e.data_carrego):'—'}</b>
+      &nbsp;·&nbsp; Data de saída: <b style="color:var(--txt)">${deFmtData(e.data_saida)}</b>
+      &nbsp;·&nbsp; ${linhas.length} veículo(s) <span class="pill">somente leitura</span></div>
+    <table class="estbl"><thead>
+      <tr><th class="grp" colspan="9">DADOS DA ENTREGA</th><th class="grp" colspan="4">DADOS DA ESCALA</th><th class="grp" colspan="3">DIÁRIA</th><th class="grp" rowspan="2">OBSERVAÇÃO</th></tr>
+      <tr><th>DATA SAÍDA</th><th>LOTE</th><th>ROTA DESTINO</th><th>ENTREGAS</th><th>PESO</th><th>REE</th><th>PESO</th><th>CLIENTES</th><th>PESO</th>
+        <th>MOTORISTA</th><th>AJUDANTE 1</th><th>AJUDANTE 2</th><th>VEÍCULO</th><th>DIÁRIA</th><th>EXTRA</th><th>TOTAL R$</th></tr>
+    </thead><tbody>`+
+    linhas.map(l=>{const c=esCalcRow(l);
+      return `<tr><td style="text-align:center;padding:6px">${deFmtData(e.data_saida)}</td><td style="text-align:center">${esc(l.lote)}</td><td style="padding:6px">${esc(l.rota)}</td>
+        <td class="calc" style="color:var(--txt)">${esc(l.ent)}</td><td class="calc" style="color:var(--txt)">${parseNum(l.pent)?fmtKg(parseNum(l.pent)):esc(l.pent)}</td>
+        <td class="calc" style="color:var(--txt)">${esc(l.ree)}</td><td class="calc" style="color:var(--txt)">${parseNum(l.pree)?fmtKg(parseNum(l.pree)):esc(l.pree)}</td>
+        <td class="calc">${c.cli||''}</td><td class="calc">${c.ptot?fmtKg(c.ptot):''}</td>
+        <td style="padding:6px">${esc(l.mot)}</td><td style="padding:6px">${esc(l.aj1)}</td><td style="padding:6px">${esc(l.aj2)}</td>
+        <td style="text-align:center">${esc(l.veic)}</td><td class="calc" style="color:var(--txt)">${parseNum(l.dia)?fmtBRL(parseNum(l.dia)):''}</td>
+        <td class="calc" style="color:var(--txt)">${parseNum(l.ext)?fmtBRL(parseNum(l.ext)):''}</td><td class="calc">${c.tot?fmtBRL(c.tot):''}</td>
+        <td style="padding:6px">${esc(l.obs)}</td></tr>`;}).join('')+
+    `</tbody><tfoot><tr><td colspan="3" style="text-align:left">TOTAIS · ${linhas.length} veículo(s)</td>
+      <td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td>
+      <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
+      <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr></tfoot></table>`;
+}
+function esvImprimir(){
+  if(!ESV_SEL){document.getElementById('esvMsg').textContent='Escolha um dia para imprimir.';return;}
+  document.getElementById('printEscala').innerHTML=esPrintHtml(ESV_SEL.data_carrego,ESV_SEL.data_saida,ESV_SEL.linhas);
   setTimeout(()=>window.print(),60);
 }
 
@@ -1702,6 +1731,10 @@ document.getElementById('eqAdd').onclick=()=>{const n=norm(document.getElementBy
 document.getElementById('eqLista').addEventListener('change',e=>{
   if(e.target.dataset.eqnome!==undefined)esSetStatus(e.target.dataset.eqnome,e.target.dataset.eqtipo,e.target.value);
 });
+// escalas salvas
+document.getElementById('esvAtualizar').onclick=esvListar;
+document.getElementById('esvSelect').onchange=esvVer;
+document.getElementById('esvImprimir').onclick=esvImprimir;
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
