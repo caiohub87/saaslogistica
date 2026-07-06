@@ -128,6 +128,41 @@
   .pay-tog.nao{background:var(--red);color:#fff;border-color:var(--red)}
   .pay-tipo{padding:5px 8px;font-size:12.5px}
   .empty{color:var(--muted);text-align:center;padding:40px}
+  /* escala */
+  .eswrap{overflow-x:auto}
+  #esTbl{border-collapse:collapse;font-size:12px;min-width:1500px}
+  #esTbl th{position:static;padding:6px 6px;text-align:center;border:1px solid var(--line);cursor:default}
+  #esTbl th.grp{background:var(--panel2);color:var(--txt);font-size:11px;letter-spacing:.6px}
+  #esTbl td{padding:2px;border:1px solid var(--line)}
+  #esTbl input{width:100%;border:none;background:transparent;border-radius:5px;padding:6px 6px;font-size:12.5px}
+  #esTbl input:focus{background:var(--panel2);outline:1px solid var(--accent)}
+  #esTbl input.num{text-align:right}
+  #esTbl td.calc{text-align:right;padding:6px;color:var(--accent);font-weight:700;white-space:nowrap}
+  #esTbl td.ord{text-align:center;color:var(--muted);width:26px}
+  #esTbl .esdel{cursor:pointer;color:var(--muted);padding:0 7px}
+  #esTbl .esdel:hover{color:var(--red)}
+  #esTbl tfoot td{padding:7px 6px;font-weight:800;color:var(--accent);text-align:right;border:1px solid var(--line);background:var(--panel2)}
+  .eq-row{display:grid;grid-template-columns:1fr 130px 140px;gap:8px;align-items:center;padding:5px 0;border-bottom:1px dashed var(--line);font-size:13px}
+  .eq-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .eq-row select{padding:5px 8px;font-size:12.5px}
+  .eq-wrap{max-height:52vh;overflow:auto}
+  .st-disponivel{color:var(--green)} .st-ferias{color:var(--orange)} .st-viajando{color:var(--blue)} .st-afastado{color:var(--red)} .st-folga{color:var(--muted)}
+  /* impressão da escala */
+  #printEscala{display:none}
+  @media print{
+    body{background:#fff!important}
+    body>.app,#loginOverlay{display:none!important}
+    #printEscala{display:block!important;color:#000;font-family:Arial,sans-serif}
+    #printEscala h2{text-align:center;font-size:15px;margin:0 0 2px;text-transform:uppercase}
+    #printEscala .pdatas{display:flex;justify-content:flex-end;gap:24px;font-size:11px;font-weight:700;margin:4px 0 8px}
+    #printEscala table{width:100%;border-collapse:collapse;font-size:9.5px}
+    #printEscala th,#printEscala td{border:1px solid #000;padding:3px 4px;text-align:center}
+    #printEscala th{background:#d9e2f3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #printEscala th.g{background:#b4c6e7!important;font-size:10px}
+    #printEscala td.l{text-align:left}
+    #printEscala tfoot td{font-weight:800;background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    @page{size:A4 landscape;margin:8mm}
+  }
   /* login */
   #loginOverlay{position:fixed;inset:0;z-index:100;display:flex;align-items:center;justify-content:center;
     background:radial-gradient(circle at 14% -8%, rgba(255,196,0,.16), transparent 32%),
@@ -185,6 +220,7 @@
       <button data-view="reentregas">🔄 Reentregas</button>
       <button data-view="pagamento">💰 Pagamento</button>
       <button data-view="salvos">🗄️ Salvos</button>
+      <button data-view="escala">📅 Escala</button>
       <button data-view="dashboard">📈 Dashboard <span class="tag">Etapa 3</span></button>
       <button data-view="cadastros">👥 Cadastros <span class="tag">Etapa 3</span></button>
       <button data-view="config">⚙️ Configurações <span class="tag">Etapa 3</span></button>
@@ -423,8 +459,61 @@
         </tr></thead><tbody></tbody></table></div>
       </div>
     </section>
+
+    <!-- ===== ESCALA (admin) ===== -->
+    <section class="view" id="view-escala">
+      <div class="card">
+        <h3>Relatório/Escala — Carregamento <span id="esUnidade" class="pill"></span></h3>
+        <div class="pad toolbar">
+          <label class="muted">Data de carrego <input type="date" id="esCarrego"></label>
+          <label class="muted">Data de saída <input type="date" id="esSaida"></label>
+          <button class="ghost" id="esCarregar">📥 Abrir salva</button>
+          <button id="esAddLinha">➕ Linha</button>
+          <button class="ghost" id="esEquipeBtn">👥 Disponibilidade</button>
+          <button id="esSalvar">💾 Salvar escala</button>
+          <button class="yellow" id="esImprimir">🖨️ Imprimir</button>
+          <span class="muted" id="esMsg" style="margin-left:auto"></span>
+        </div>
+        <div class="pad eswrap" style="padding-top:0">
+          <table id="esTbl">
+            <thead>
+              <tr>
+                <th class="grp" rowspan="2">#</th>
+                <th class="grp" colspan="8">DADOS DA ENTREGA</th>
+                <th class="grp" colspan="4">DADOS DA ESCALA</th>
+                <th class="grp" colspan="3">DIÁRIA</th>
+                <th class="grp" rowspan="2">OBSERVAÇÃO</th>
+                <th class="grp" rowspan="2"></th>
+              </tr>
+              <tr>
+                <th>LOTE</th><th>ROTA DESTINO</th><th>ENTREGAS</th><th>PESO</th><th>REE</th><th>PESO</th><th>CLIENTES</th><th>PESO</th>
+                <th>MOTORISTA</th><th>AJUDANTE 1</th><th>AJUDANTE 2</th><th>VEÍCULO</th>
+                <th>DIÁRIA</th><th>EXTRA</th><th>TOTAL R$</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+            <tfoot></tfoot>
+          </table>
+        </div>
+      </div>
+      <div class="card" id="esEquipeCard" style="display:none;margin-top:16px">
+        <h3>Disponibilidade da equipe <span class="pill">quem não está disponível some das sugestões</span></h3>
+        <div class="pad">
+          <div class="toolbar" style="margin-bottom:8px">
+            <input type="search" id="eqBusca" placeholder="Buscar nome...">
+            <input type="text" id="eqNovo" placeholder="Adicionar nome novo...">
+            <select id="eqNovoTipo"><option value="motorista">Motorista</option><option value="ajudante">Ajudante</option></select>
+            <button id="eqAdd">➕ Adicionar</button>
+          </div>
+          <div class="eq-wrap" id="eqLista"></div>
+        </div>
+      </div>
+      <datalist id="dlMot"></datalist><datalist id="dlAju"></datalist>
+      <datalist id="dlVeic"></datalist><datalist id="dlRota"></datalist>
+    </section>
   </main>
 </div>
+<div id="printEscala"></div>
 
 <script>
 // ===================== BASE / PARSE =====================
@@ -597,6 +686,7 @@ function go(view){
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
   document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
   if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
+  if(view==='escala'&&typeof esEnter==='function') esEnter();
   window.scrollTo(0,0);
 }
 
@@ -1258,6 +1348,163 @@ async function svTogglePagar(id){
   renderSalvos();
 }
 
+// ===================== ESCALA (admin) =====================
+const FROTA=['OEY 6663','OEY 6673','OEY 6683','OEY 6693','OEY 6703','OEY 6713','OEY 6723','OEY 7773','OEY 7883','OEY 8503','OGD 7635','NQB 9732','NQB 9742','NQB 9752','NQC 2532','NQC 2542','NQC 2552','NQC 1692','MYY 1680','MOF 4G60'];
+const ES_STATUS_LBL={disponivel:'✅ Disponível',ferias:'🏖️ Férias',viajando:'🚚 Viajando',afastado:'⛔ Afastado',folga:'😴 Folga'};
+let ES={carrego:'',saida:'',linhas:[]}, ESTATUS={}, esEquipeCarregada=false, esEntrou=false;
+const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+const esLinhaVazia=()=>({lote:'',rota:'',ent:'',pent:'',ree:'',pree:'',mot:'',aj1:'',aj2:'',veic:'',dia:'',ext:'',obs:''});
+function esDraftSave(){try{localStorage.setItem(lsk('escala_draft'),JSON.stringify(ES));}catch(e){}}
+function esDraftLoad(){try{const j=JSON.parse(localStorage.getItem(lsk('escala_draft'))||'null');if(j&&j.linhas)ES=j;}catch(e){}}
+
+function esEnter(){
+  document.getElementById('esUnidade').textContent=SESSION.unidade||'';
+  if(!esEntrou){
+    esEntrou=true; esDraftLoad();
+    if(!ES.carrego){const h=new Date();ES.carrego=h.toISOString().slice(0,10);}
+    if(!ES.saida){const a=new Date(Date.now()+864e5);ES.saida=a.toISOString().slice(0,10);}
+    if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
+    esLoadEquipe();
+  }
+  document.getElementById('esCarrego').value=ES.carrego;
+  document.getElementById('esSaida').value=ES.saida;
+  esBuildDatalists(); renderEscala();
+}
+function esCalcRow(l){const ent=parseNum(l.ent),ree=parseNum(l.ree);
+  return {cli:ent+ree, ptot:parseNum(l.pent)+parseNum(l.pree), tot:parseNum(l.dia)+parseNum(l.ext)};}
+function esTotais(){const t={ent:0,pent:0,ree:0,pree:0,cli:0,ptot:0,dia:0,ext:0,tot:0};
+  ES.linhas.forEach(l=>{const c=esCalcRow(l);t.ent+=parseNum(l.ent);t.pent+=parseNum(l.pent);t.ree+=parseNum(l.ree);
+    t.pree+=parseNum(l.pree);t.cli+=c.cli;t.ptot+=c.ptot;t.dia+=parseNum(l.dia);t.ext+=parseNum(l.ext);t.tot+=c.tot;});return t;}
+function renderEscala(){
+  const tb=document.querySelector('#esTbl tbody');
+  tb.innerHTML=ES.linhas.map((l,i)=>{const c=esCalcRow(l);
+    return `<tr data-i="${i}">
+      <td class="ord">${i+1}</td>
+      <td style="width:70px"><input class="num" data-f="lote" value="${esc(l.lote)}"></td>
+      <td style="min-width:150px"><input data-f="rota" list="dlRota" value="${esc(l.rota)}"></td>
+      <td style="width:62px"><input class="num" data-f="ent" value="${esc(l.ent)}"></td>
+      <td style="width:76px"><input class="num" data-f="pent" value="${esc(l.pent)}"></td>
+      <td style="width:56px"><input class="num" data-f="ree" value="${esc(l.ree)}"></td>
+      <td style="width:76px"><input class="num" data-f="pree" value="${esc(l.pree)}"></td>
+      <td class="calc es-cli">${c.cli||''}</td>
+      <td class="calc es-ptot">${c.ptot?fmtKg(c.ptot):''}</td>
+      <td style="min-width:150px"><input data-f="mot" list="dlMot" value="${esc(l.mot)}"></td>
+      <td style="min-width:150px"><input data-f="aj1" list="dlAju" value="${esc(l.aj1)}"></td>
+      <td style="min-width:150px"><input data-f="aj2" list="dlAju" value="${esc(l.aj2)}"></td>
+      <td style="width:96px"><input data-f="veic" list="dlVeic" value="${esc(l.veic)}"></td>
+      <td style="width:70px"><input class="num" data-f="dia" value="${esc(l.dia)}"></td>
+      <td style="width:64px"><input class="num" data-f="ext" value="${esc(l.ext)}"></td>
+      <td class="calc es-tot">${c.tot?fmtBRL(c.tot):''}</td>
+      <td style="min-width:130px"><input data-f="obs" value="${esc(l.obs)}"></td>
+      <td class="esdel" title="Remover linha">🗑️</td>
+    </tr>`;}).join('');
+  renderEsTotais();
+}
+function renderEsTotais(){const t=esTotais();
+  document.querySelector('#esTbl tfoot').innerHTML=`<tr>
+    <td colspan="3" style="text-align:left">TOTAIS · ${ES.linhas.length} veículo(s)</td>
+    <td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td>
+    <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
+    <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td colspan="2"></td></tr>`;}
+function esDisponiveis(tipo){
+  const set=new Set();
+  if(tipo==='motorista'){Object.keys(motoristaTipo).forEach(n=>set.add(n));CARGAS.forEach(c=>{if(c.motorista)set.add(c.motorista);});}
+  else{Object.keys(ajudanteTipo).forEach(n=>set.add(n));workBase().forEach(p=>[p.aj1,p.aj2,p.aj3,p.aj4].forEach(a=>{if(a)set.add(a);}));}
+  Object.entries(ESTATUS).forEach(([n,i])=>{if(i.tipo===tipo)set.add(n);});
+  return [...set].filter(n=>{const s=ESTATUS[n]&&ESTATUS[n].status;return !s||s==='disponivel';}).sort();
+}
+function esBuildDatalists(){
+  document.getElementById('dlMot').innerHTML=esDisponiveis('motorista').map(n=>`<option value="${esc(n)}">`).join('');
+  document.getElementById('dlAju').innerHTML=esDisponiveis('ajudante').map(n=>`<option value="${esc(n)}">`).join('');
+  const veics=new Set(FROTA);ES.linhas.forEach(l=>{if(l.veic)veics.add(l.veic);});
+  document.getElementById('dlVeic').innerHTML=[...veics].map(v=>`<option value="${esc(v)}">`).join('');
+  const rotas=new Set();workBase().forEach(p=>{if(p.rota)rotas.add(p.rota);});ES.linhas.forEach(l=>{if(l.rota)rotas.add(l.rota);});
+  document.getElementById('dlRota').innerHTML=[...rotas].sort().map(r=>`<option value="${esc(r)}">`).join('');
+}
+// ---- disponibilidade da equipe (banco) ----
+async function esLoadEquipe(){
+  if(SESSION.offline||!supaReady())return;
+  const {data,error}=await sb.from('equipe_status').select('*').eq('unidade',SESSION.unidade);
+  if(error){document.getElementById('esMsg').textContent='⚠️ Equipe: rode o SQL novo no Supabase ('+error.message+')';return;}
+  (data||[]).forEach(r=>{ESTATUS[r.nome]={tipo:r.tipo||'ajudante',status:r.status||'disponivel'};});
+  esEquipeCarregada=true; renderEquipe(); esBuildDatalists();
+}
+async function esSetStatus(nome,tipo,status){
+  ESTATUS[nome]={tipo,status};
+  renderEquipe(); esBuildDatalists();
+  if(SESSION.offline||!supaReady())return;
+  const {error}=await sb.from('equipe_status').upsert({unidade:SESSION.unidade,nome,tipo,status},{onConflict:'unidade,nome'});
+  if(error)document.getElementById('esMsg').textContent='❌ Equipe: '+error.message;
+}
+function renderEquipe(){
+  const q=low(document.getElementById('eqBusca').value);
+  const nomes=new Set([...Object.keys(ESTATUS)]);
+  Object.keys(motoristaTipo).forEach(n=>nomes.add(n));Object.keys(ajudanteTipo).forEach(n=>nomes.add(n));
+  CARGAS.forEach(c=>{if(c.motorista)nomes.add(c.motorista);[...c.ajudantes].forEach(a=>nomes.add(a));});
+  const lista=[...nomes].filter(n=>!q||low(n).includes(q)).sort();
+  document.getElementById('eqLista').innerHTML=lista.map(n=>{
+    const info=ESTATUS[n]||{tipo:motoristaTipo[n]!==undefined||CARGAS.some(c=>c.motorista===n)?'motorista':'ajudante',status:'disponivel'};
+    const opts=Object.entries(ES_STATUS_LBL).map(([k,v])=>`<option value="${k}" ${k===info.status?'selected':''}>${v}</option>`).join('');
+    return `<div class="eq-row"><span class="nm st-${info.status}" title="${esc(n)}">${esc(n)}</span>
+      <span class="muted" style="font-size:11.5px">${info.tipo==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</span>
+      <select data-eqnome="${esc(n)}" data-eqtipo="${info.tipo}">${opts}</select></div>`;}).join('')||'<div class="muted">Nenhum nome.</div>';
+}
+// ---- salvar / abrir ----
+async function esSalvar(){
+  const msg=document.getElementById('esMsg');
+  if(SESSION.offline||!supaReady()){msg.textContent='⚠️ Banco não configurado — a escala fica só neste navegador.';esDraftSave();return;}
+  if(SESSION.role!=='admin'){msg.textContent='⚠️ Apenas administrador.';return;}
+  if(!ES.saida){msg.textContent='Informe a data de saída.';return;}
+  msg.textContent='Salvando…';
+  const {error}=await sb.from('escalas').upsert(
+    {unidade:SESSION.unidade,data_saida:ES.saida,data_carrego:ES.carrego||null,linhas:ES.linhas},
+    {onConflict:'unidade,data_saida'});
+  msg.textContent=error?('❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL novo no Supabase.':'')):'✅ Escala de '+deFmtData(ES.saida)+' salva.';
+}
+async function esCarregarSalva(){
+  const msg=document.getElementById('esMsg');
+  if(SESSION.offline||!supaReady()){msg.textContent='Banco não configurado.';return;}
+  const dt=document.getElementById('esSaida').value;
+  if(!dt){msg.textContent='Escolha a data de saída para abrir.';return;}
+  msg.textContent='Abrindo…';
+  const {data,error}=await sb.from('escalas').select('*').eq('unidade',SESSION.unidade).eq('data_saida',dt).maybeSingle();
+  if(error){msg.textContent='❌ '+error.message;return;}
+  if(!data){msg.textContent='Nenhuma escala salva em '+deFmtData(dt)+'.';return;}
+  ES={carrego:data.data_carrego||'',saida:data.data_saida,linhas:data.linhas||[]};
+  if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
+  document.getElementById('esCarrego').value=ES.carrego;
+  esDraftSave(); renderEscala(); esBuildDatalists();
+  msg.textContent='✅ Escala de '+deFmtData(dt)+' aberta ('+ES.linhas.length+' linha(s)).';
+}
+// ---- impressão ----
+function esPrint(){
+  const dS=ES.saida?deFmtData(ES.saida):'', dC=ES.carrego?deFmtData(ES.carrego):'';
+  const t=esTotais();
+  const linhas=ES.linhas.filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+  document.getElementById('printEscala').innerHTML=`
+    <h2>Relatório/Escala - Carregamento ${SESSION.unidade||''}</h2>
+    <div class="pdatas"><span>DATA DE CARREGO: ${dC}</span><span>DATA DE SAÍDA: ${dS}</span></div>
+    <table><thead>
+      <tr><th class="g" colspan="9">DADOS DA ENTREGA</th><th class="g" colspan="4">DADOS DA ESCALA</th><th class="g" colspan="3">DIÁRIA</th><th class="g" rowspan="2">OBSERVAÇÃO</th></tr>
+      <tr><th>DATA SAÍDA</th><th>LOTE</th><th>ROTA DESTINO</th><th>ENTREGAS</th><th>PESO</th><th>REE</th><th>PESO</th><th>CLIENTES</th><th>PESO</th>
+        <th>MOTORISTA</th><th>AJUDANTE 1</th><th>AJUDANTE 2</th><th>VEÍCULO</th><th>DIÁRIA</th><th>EXTRA</th><th>TOTAL R$</th></tr>
+    </thead><tbody>`+
+    linhas.map(l=>{const c=esCalcRow(l);
+      return `<tr><td>${dS}</td><td>${esc(l.lote)}</td><td class="l">${esc(l.rota)}</td>
+        <td>${esc(l.ent)}</td><td>${parseNum(l.pent)?fmtKg(parseNum(l.pent)):esc(l.pent)}</td>
+        <td>${esc(l.ree)}</td><td>${parseNum(l.pree)?fmtKg(parseNum(l.pree)):esc(l.pree)}</td>
+        <td>${c.cli||''}</td><td>${c.ptot?fmtKg(c.ptot):''}</td>
+        <td class="l">${esc(l.mot)}</td><td class="l">${esc(l.aj1)}</td><td class="l">${esc(l.aj2)}</td>
+        <td>${esc(l.veic)}</td><td>${parseNum(l.dia)?fmtBRL(parseNum(l.dia)):''}</td>
+        <td>${parseNum(l.ext)?fmtBRL(parseNum(l.ext)):''}</td><td>${c.tot?fmtBRL(c.tot):''}</td>
+        <td class="l">${esc(l.obs)}</td></tr>`;}).join('')+
+    `</tbody><tfoot><tr><td colspan="3">TOTAIS · ${linhas.length} VEÍCULO(S)</td>
+      <td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td>
+      <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
+      <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr></tfoot></table>`;
+  setTimeout(()=>window.print(),60);
+}
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -1378,6 +1625,38 @@ document.querySelector('#svTbl tbody').addEventListener('click',e=>{
   const tr=e.target.closest('tr'); if(!tr)return;
   if(e.target.classList.contains('svdel'))svExcluir([+tr.dataset.id]);
   else if(e.target.classList.contains('svpag'))svTogglePagar(+tr.dataset.id);
+});
+
+// escala
+document.getElementById('esCarrego').onchange=e=>{ES.carrego=e.target.value;esDraftSave();};
+document.getElementById('esSaida').onchange=e=>{ES.saida=e.target.value;esDraftSave();};
+document.getElementById('esAddLinha').onclick=()=>{ES.linhas.push(esLinhaVazia());esDraftSave();renderEscala();};
+document.getElementById('esSalvar').onclick=esSalvar;
+document.getElementById('esCarregar').onclick=esCarregarSalva;
+document.getElementById('esImprimir').onclick=esPrint;
+document.getElementById('esEquipeBtn').onclick=()=>{const c=document.getElementById('esEquipeCard');
+  c.style.display=c.style.display==='none'?'block':'none'; if(c.style.display==='block')renderEquipe();};
+document.querySelector('#esTbl tbody').addEventListener('input',e=>{
+  const tr=e.target.closest('tr'),f=e.target.dataset.f; if(!tr||!f)return;
+  const l=ES.linhas[+tr.dataset.i]; if(!l)return;
+  l[f]=e.target.value;
+  const c=esCalcRow(l);
+  tr.querySelector('.es-cli').textContent=c.cli||'';
+  tr.querySelector('.es-ptot').textContent=c.ptot?fmtKg(c.ptot):'';
+  tr.querySelector('.es-tot').textContent=c.tot?fmtBRL(c.tot):'';
+  renderEsTotais(); esDraftSave();
+});
+document.querySelector('#esTbl tbody').addEventListener('click',e=>{
+  if(e.target.classList.contains('esdel')){const i=+e.target.closest('tr').dataset.i;
+    ES.linhas.splice(i,1); if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
+    esDraftSave(); renderEscala();}
+});
+document.getElementById('eqBusca').oninput=renderEquipe;
+document.getElementById('eqAdd').onclick=()=>{const n=norm(document.getElementById('eqNovo').value);
+  if(!n)return; esSetStatus(n,document.getElementById('eqNovoTipo').value,'disponivel');
+  document.getElementById('eqNovo').value='';};
+document.getElementById('eqLista').addEventListener('change',e=>{
+  if(e.target.dataset.eqnome!==undefined)esSetStatus(e.target.dataset.eqnome,e.target.dataset.eqtipo,e.target.value);
 });
 
 // ===================== INICIALIZAÇÃO =====================

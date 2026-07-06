@@ -38,6 +38,47 @@ create policy "escrita admin da unidade" on premiacoes
   with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
 
 -- ============================================================
+-- MÓDULO ESCALA (rodar depois, quando o módulo for criado)
+-- ============================================================
+
+-- Escala diária (uma por unidade+data de saída; salvar de novo substitui)
+create table if not exists escalas (
+  id bigint generated always as identity primary key,
+  unidade text not null,
+  data_saida date not null,
+  data_carrego date,
+  linhas jsonb default '[]',
+  created_at timestamptz default now(),
+  unique (unidade, data_saida)
+);
+alter table escalas enable row level security;
+create policy "leitura unidade escalas" on escalas
+  for select to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) );
+create policy "escrita admin escalas" on escalas
+  for all to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
+  with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
+
+-- Disponibilidade da equipe (status por pessoa)
+create table if not exists equipe_status (
+  id bigint generated always as identity primary key,
+  unidade text not null,
+  nome text not null,
+  tipo text,                        -- 'motorista' | 'ajudante'
+  status text default 'disponivel', -- disponivel | ferias | viajando | afastado | folga
+  unique (unidade, nome)
+);
+alter table equipe_status enable row level security;
+create policy "leitura unidade equipe" on equipe_status
+  for select to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) );
+create policy "escrita admin equipe" on equipe_status
+  for all to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
+  with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
+
+-- ============================================================
 -- USUÁRIOS (criar no painel: Authentication → Users → Add user → marcar "Auto Confirm User")
 --   dilnor.admin@gestao.app      → senha de administrador da Dilnor
 --   dilnor.consulta@gestao.app   → senha de consulta (funcionários) da Dilnor
