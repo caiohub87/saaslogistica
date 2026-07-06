@@ -1329,15 +1329,24 @@ const ES_STATUS_LBL={disponivel:'✅ Disponível',ferias:'🏖️ Férias',viaja
 let ES={carrego:'',saida:'',linhas:[]}, ESTATUS={}, esEquipeCarregada=false, esEntrou=false;
 const esc=s=>String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
 const esLinhaVazia=()=>({lote:'',rota:'',ent:'',pent:'',ree:'',pree:'',mot:'',aj1:'',aj2:'',veic:'',dia:'',ext:'',obs:''});
-function esDraftSave(){try{localStorage.setItem(lsk('escala_draft'),JSON.stringify(ES));}catch(e){}}
-function esDraftLoad(){try{const j=JSON.parse(localStorage.getItem(lsk('escala_draft'))||'null');if(j&&j.linhas)ES=j;}catch(e){}}
+let DRAFTS={}; // rascunhos POR DIA de saída: {'2026-07-07':{carrego,linhas},...}
+function esDraftSave(){ if(ES.saida)DRAFTS[ES.saida]={carrego:ES.carrego,linhas:ES.linhas};
+  try{localStorage.setItem(lsk('escala_drafts2'),JSON.stringify(DRAFTS));}catch(e){} }
+function esDraftsLoad(){
+  try{DRAFTS=JSON.parse(localStorage.getItem(lsk('escala_drafts2'))||'{}');}catch(e){DRAFTS={};}
+  try{const old=JSON.parse(localStorage.getItem(lsk('escala_draft'))||'null'); // migra formato antigo
+    if(old&&old.saida&&old.linhas&&!DRAFTS[old.saida])DRAFTS[old.saida]={carrego:old.carrego,linhas:old.linhas};
+    localStorage.removeItem(lsk('escala_draft'));}catch(e){}
+}
 
 function esEnter(){
   document.getElementById('esUnidade').textContent=SESSION.unidade||'';
   if(!esEntrou){
-    esEntrou=true; esDraftLoad();
+    esEntrou=true; esDraftsLoad();
     if(!ES.carrego){const h=new Date();ES.carrego=h.toISOString().slice(0,10);}
     if(!ES.saida){const a=new Date(Date.now()+864e5);ES.saida=a.toISOString().slice(0,10);}
+    const d=DRAFTS[ES.saida]; // reabre o rascunho DO DIA, se existir
+    if(d){ES.carrego=d.carrego||ES.carrego;ES.linhas=(d.linhas&&d.linhas.length)?d.linhas:[];}
     if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
     esLoadEquipe();
   }
@@ -1475,6 +1484,29 @@ async function esCarregarSalva(){
   esDraftSave(); renderEscala(); esBuildDatalists();
   msg.textContent='✅ Escala de '+deFmtData(dt)+' aberta ('+ES.linhas.length+' linha(s)).';
 }
+// troca o dia do editor: rascunho do dia > escala salva no banco > em branco
+async function esTrocarDia(dt){
+  const msg=document.getElementById('esMsg');
+  const d=DRAFTS[dt];
+  if(d&&d.linhas&&d.linhas.length&&d.linhas.some(l=>Object.values(l).some(v=>String(v).trim()!==''))){
+    ES={carrego:d.carrego||ES.carrego,saida:dt,linhas:d.linhas};
+    msg.textContent='✏️ Rascunho de '+deFmtData(dt)+' reaberto.';
+  }else if(!SESSION.offline&&supaReady()){
+    msg.textContent='Verificando '+deFmtData(dt)+'…';
+    const {data}=await sb.from('escalas').select('*').eq('unidade',SESSION.unidade).eq('data_saida',dt).maybeSingle();
+    if(data){ES={carrego:data.data_carrego||'',saida:dt,linhas:(data.linhas&&data.linhas.length)?data.linhas:[esLinhaVazia()]};
+      msg.textContent='📥 Escala salva de '+deFmtData(dt)+' aberta.';}
+    else{ES={carrego:ES.carrego,saida:dt,linhas:[esLinhaVazia()]};
+      msg.textContent='🆕 '+deFmtData(dt)+': dia novo, escala em branco.';}
+  }else{
+    ES={carrego:ES.carrego,saida:dt,linhas:[esLinhaVazia()]};
+    msg.textContent='🆕 '+deFmtData(dt)+': dia novo, escala em branco.';
+  }
+  document.getElementById('esCarrego').value=ES.carrego;
+  document.getElementById('esSaida').value=ES.saida;
+  esDraftSave(); renderEscala(); esBuildDatalists();
+}
+
 // ---- impressão ----
 function esPrintHtml(carrego,saida,linhasIn){
   const dS=saida?deFmtData(saida):'', dC=carrego?deFmtData(carrego):'';
@@ -1694,7 +1726,12 @@ document.querySelector('#svTbl tbody').addEventListener('click',e=>{
 
 // escala
 document.getElementById('esCarrego').onchange=e=>{ES.carrego=e.target.value;esDraftSave();};
-document.getElementById('esSaida').onchange=e=>{ES.saida=e.target.value;esDraftSave();};
+document.getElementById('esSaida').onchange=async e=>{
+  const novo=e.target.value;
+  if(!novo||novo===ES.saida)return;
+  esDraftSave();              // guarda o dia atual antes de trocar
+  await esTrocarDia(novo);    // abre o conteúdo do novo dia
+};
 document.getElementById('esAddLinha').onclick=()=>{ES.linhas.push(esLinhaVazia());esDraftSave();renderEscala();};
 document.getElementById('esSalvar').onclick=esSalvar;
 document.getElementById('esCarregar').onclick=esCarregarSalva;
