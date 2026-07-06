@@ -147,20 +147,23 @@
   .eq-row select{padding:5px 8px;font-size:12.5px}
   .eq-wrap{max-height:52vh;overflow:auto}
   .st-disponivel{color:var(--green)} .st-ferias{color:var(--orange)} .st-viajando{color:var(--blue)} .st-afastado{color:var(--red)} .st-folga{color:var(--muted)}
-  /* impressão da escala */
-  #printEscala{display:none}
+  /* impressão da escala (estilos fixos p/ medição igual à impressão) */
+  #printEscala{display:none;color:#000;font-family:Arial,sans-serif;background:#fff}
+  #printEscala .phead{display:flex;align-items:center;gap:16px;border-bottom:2.5px solid #005da8;padding-bottom:6px;margin-bottom:8px}
+  #printEscala .phead img{height:48px;width:auto}
+  #printEscala .phead h2{flex:1;text-align:center;font-size:16px;margin:0;text-transform:uppercase;color:#005da8}
+  #printEscala .pdd{text-align:right;font-size:11px;font-weight:700;white-space:nowrap}
+  #printEscala .pdd div{margin:2px 0}
+  #printEscala table{width:100%;border-collapse:collapse;font-size:10px}
+  #printEscala th,#printEscala td{border:1px solid #000;padding:3px 4px;text-align:center}
+  #printEscala th{background:#d9e2f3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala th.g{background:#005da8!important;color:#fff!important;font-size:10.5px;letter-spacing:.5px}
+  #printEscala td.l{text-align:left}
+  #printEscala tfoot td{font-weight:800;background:#ffc400!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @media print{
     body{background:#fff!important}
     body>.app,#loginOverlay{display:none!important}
-    #printEscala{display:block!important;color:#000;font-family:Arial,sans-serif}
-    #printEscala h2{text-align:center;font-size:15px;margin:0 0 2px;text-transform:uppercase}
-    #printEscala .pdatas{display:flex;justify-content:flex-end;gap:24px;font-size:11px;font-weight:700;margin:4px 0 8px}
-    #printEscala table{width:100%;border-collapse:collapse;font-size:9.5px}
-    #printEscala th,#printEscala td{border:1px solid #000;padding:3px 4px;text-align:center}
-    #printEscala th{background:#d9e2f3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    #printEscala th.g{background:#b4c6e7!important;font-size:10px}
-    #printEscala td.l{text-align:left}
-    #printEscala tfoot td{font-weight:800;background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+    #printEscala{display:block!important}
     @page{size:A4 landscape;margin:8mm}
   }
   /* login */
@@ -1478,8 +1481,11 @@ function esPrintHtml(carrego,saida,linhasIn){
   const t=esTotaisDe(linhasIn);
   const linhas=(linhasIn||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
   return `
-    <h2>Relatório/Escala - Carregamento ${SESSION.unidade||''}</h2>
-    <div class="pdatas"><span>DATA DE CARREGO: ${dC}</span><span>DATA DE SAÍDA: ${dS}</span></div>
+    <div class="phead">
+      <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
+      <h2>Relatório/Escala - Carregamento ${SESSION.unidade||''}</h2>
+      <div class="pdd"><div>DATA DE CARREGO: ${dC}</div><div>DATA DE SAÍDA: ${dS}</div></div>
+    </div>
     <table><thead>
       <tr><th class="g" colspan="9">DADOS DA ENTREGA</th><th class="g" colspan="4">DADOS DA ESCALA</th><th class="g" colspan="3">DIÁRIA</th><th class="g" rowspan="2">OBSERVAÇÃO</th></tr>
       <tr><th>DATA SAÍDA</th><th>LOTE</th><th>ROTA DESTINO</th><th>ENTREGAS</th><th>PESO</th><th>REE</th><th>PESO</th><th>CLIENTES</th><th>PESO</th>
@@ -1499,10 +1505,18 @@ function esPrintHtml(carrego,saida,linhasIn){
       <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
       <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr></tfoot></table>`;
 }
-function esPrint(){
-  document.getElementById('printEscala').innerHTML=esPrintHtml(ES.carrego,ES.saida,ES.linhas);
-  setTimeout(()=>window.print(),60);
+// Mede o conteúdo e reduz a escala na medida exata p/ caber TUDO em 1 página A4 paisagem
+function esDoPrint(html){
+  const el=document.getElementById('printEscala');
+  el.innerHTML=html;
+  el.style.cssText='display:block;position:absolute;left:-9999px;top:0;width:1062px'; // área útil A4 paisagem (281mm)
+  const h=el.scrollHeight, w=el.scrollWidth;
+  el.style.cssText='';
+  const z=Math.min(1, 700/Math.max(h,1), 1062/Math.max(w,1)); // 700px ≈ altura útil (194mm) c/ folga
+  el.style.zoom=z;
+  setTimeout(()=>window.print(),80);
 }
+function esPrint(){ esDoPrint(esPrintHtml(ES.carrego,ES.saida,ES.linhas)); }
 
 // ---- escalas salvas (só visualizar / imprimir) ----
 let ESV_LIST=[], ESV_SEL=null;
@@ -1553,8 +1567,7 @@ function esvVer(){
 }
 function esvImprimir(){
   if(!ESV_SEL){document.getElementById('esvMsg').textContent='Escolha um dia para imprimir.';return;}
-  document.getElementById('printEscala').innerHTML=esPrintHtml(ESV_SEL.data_carrego,ESV_SEL.data_saida,ESV_SEL.linhas);
-  setTimeout(()=>window.print(),60);
+  esDoPrint(esPrintHtml(ESV_SEL.data_carrego,ESV_SEL.data_saida,ESV_SEL.linhas));
 }
 
 // ===================== EVENTOS =====================
