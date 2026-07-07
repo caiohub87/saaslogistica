@@ -1484,6 +1484,25 @@ async function esCarregarSalva(){
   esDraftSave(); renderEscala(); esBuildDatalists();
   msg.textContent='✅ Escala de '+deFmtData(dt)+' aberta ('+ES.linhas.length+' linha(s)).';
 }
+// colagem em grade (bloco copiado do Excel): distribui por colunas/linhas a partir da célula
+// sequência visual das colunas; null = coluna calculada (CLIENTES/PESO/TOTAL), valor colado é descartado
+const ES_SEQ=['lote','rota','ent','pent','ree','pree',null,null,'mot','aj1','aj2','veic','dia','ext',null,'obs'];
+function esColarGrade(f,i0,txt){
+  const start=ES_SEQ.indexOf(f); if(start<0)return 0;
+  const rows=String(txt).replace(/\r/g,'').split('\n');
+  while(rows.length&&rows[rows.length-1].trim()==='')rows.pop();
+  if(!rows.length)return 0;
+  rows.forEach((rl,r)=>{
+    const cells=rl.split('\t');
+    while(ES.linhas.length<=i0+r)ES.linhas.push(esLinhaVazia());
+    const alvo=ES.linhas[i0+r];
+    cells.forEach((v,c)=>{const tf=ES_SEQ[start+c]; if(tf!==undefined&&tf!==null)alvo[tf]=v.trim();});
+  });
+  esDraftSave(); renderEscala(); esBuildDatalists();
+  document.getElementById('esMsg').textContent='📋 Colado: '+rows.length+' linha(s) a partir da linha '+(i0+1)+'.';
+  return rows.length;
+}
+
 // troca o dia do editor: rascunho do dia > escala salva no banco > em branco
 async function esTrocarDia(dt){
   const msg=document.getElementById('esMsg');
@@ -1752,6 +1771,14 @@ document.querySelector('#esTbl tbody').addEventListener('click',e=>{
   if(e.target.classList.contains('esdel')){const i=+e.target.closest('tr').dataset.i;
     ES.linhas.splice(i,1); if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
     esDraftSave(); renderEscala();}
+});
+// colar bloco do Excel (Ctrl+V) em qualquer célula: distribui pela grade
+document.querySelector('#esTbl tbody').addEventListener('paste',e=>{
+  const f=e.target.dataset&&e.target.dataset.f; if(!f)return;
+  const txt=(e.clipboardData||window.clipboardData).getData('text')||'';
+  if(!txt.includes('\t')&&!/[\r\n]/.test(txt.trim()))return; // valor simples: cola normal na célula
+  e.preventDefault();
+  esColarGrade(f,+e.target.closest('tr').dataset.i,txt);
 });
 // motorista/ajudante não pode estar em duas linhas: pergunta se troca de lote
 document.querySelector('#esTbl tbody').addEventListener('change',e=>{
