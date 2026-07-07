@@ -532,7 +532,7 @@ const HEAD={
   checkin:['check-in'],checkout:['check-out'],leadtime:['lead time'],
   placa:['placa'],status:['status da entrega'],motivo:['motivo devolucao/reentrega'],regiao:['regiao'],
 };
-const stripAcc=s=>(s==null?'':String(s)).normalize('NFD').replace(/[̀-ͯ]/g,'');
+const stripAcc=s=>(s==null?'':String(s)).normalize('NFD').replace(/[\u0300-\u036f]/g,'');
 const norm=s=>(s==null?'':String(s)).trim();
 const low=s=>stripAcc(norm(s)).toLowerCase();
 const fmtKg=n=>(+n||0).toLocaleString('pt-BR',{minimumFractionDigits:1,maximumFractionDigits:1});
@@ -1558,46 +1558,76 @@ function esPrintHtml(carrego,saida,linhasIn){
       <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
       <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr></tfoot></table>`;
 }
-// ---- portaria (dois quadros a partir da escala; campos de hora/km/assinatura em branco) ----
+// ---- portaria (duas folhas a partir da escala; sem linhas em branco extras) ----
 function esPortariaHtml(saida,linhasIn){
   const dS=saida?deFmtData(saida):'____/____/______';
   const linhas=(linhasIn||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
-  const N=Math.max(20,linhas.length);
-  let esq='',dir='';
-  for(let i=0;i<N;i++){
-    const l=linhas[i]||{};
-    const cli=l.ent!==undefined?(parseNum(l.ent)+parseNum(l.ree)||''):'';
-    esq+=`<tr><td>${i+1}</td><td class="l">${esc(l.rota||'')}</td><td>${cli}</td><td class="l">${esc(l.mot||'')}</td><td>${esc(l.veic||'')}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
-    dir+=`<tr><td>${i+1}</td><td>${esc(l.lote||'')}</td><td class="l">${esc(l.mot||'')}</td><td>${esc(l.veic||'')}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
-  }
-  return `
-    <div class="phead">
+  if(!linhas.length){
+    return `<div data-print-pages="true" class="portaria-print"><div class="portaria-page"><div class="phead">
       <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
-      <h2>Portaria — Caminhões da Casa ${SESSION.unidade||''}</h2>
-      <div class="pdd"><div>DATA: ${dS}</div></div>
+      <h2>Portaria - ${SESSION.unidade||''}</h2><div class="pdd"><div>DATA: ${dS}</div></div>
+    </div><div style="font-size:16px;text-align:center;margin-top:80px">Nenhuma linha preenchida na escala.</div></div></div>`;
+  }
+  const logo=LOGOS[SESSION.unidade]||LOGOS['Dilnor'];
+  const totalEnt=linhas.reduce((a,l)=>a+parseNum(l.ent)+parseNum(l.ree),0);
+  const totalDia=linhas.reduce((a,l)=>a+parseNum(l.dia),0);
+  const totalExt=linhas.reduce((a,l)=>a+parseNum(l.ext),0);
+  const casa=linhas.map((l,i)=>{
+    const cli=parseNum(l.ent)+parseNum(l.ree);
+    const diaria=parseNum(l.dia)+parseNum(l.ext);
+    return `<tr><td>${i+1}</td><td class="l">${esc(l.rota||'')}</td><td>${cli||''}</td><td class="l">${esc(l.mot||'')}</td><td>${esc(l.veic||'')}</td><td></td><td></td><td></td><td></td><td></td><td>${diaria?fmtBRL(diaria):''}</td></tr>`;
+  }).join('');
+  const km=linhas.map((l,i)=>`<tr><td>${i+1}</td><td>${esc(l.lote||'')}</td><td class="l">${esc(l.mot||'')}</td><td>${esc(l.veic||'')}</td><td></td><td></td><td></td><td></td><td></td><td>${dS}</td><td></td></tr>`).join('');
+  return `
+    <div data-print-pages="true" class="portaria-print">
+      <section class="portaria-page">
+        <div class="phead">
+          <img src="${logo}" alt="">
+          <h2>Portaria - Caminh&otilde;es da Casa ${SESSION.unidade||''}</h2>
+          <div class="pdd"><div>DATA: ${dS}</div></div>
+        </div>
+        <table><thead>
+          <tr><th>ORDEM</th><th>DESTINO</th><th>ENTR.</th><th>MOTORISTA</th><th>PLACA</th><th>SA&Iacute;DA/HS</th><th>RET./HS</th><th>RET./DATA</th><th>ASS. MOTORISTA</th><th>ASS. AJUDANTE</th><th>VL. DI&Aacute;RIA</th></tr>
+        </thead><tbody>${casa}</tbody><tfoot><tr><td colspan="2">TOTAIS - ${linhas.length} VE&Iacute;CULO(S)</td><td>${totalEnt||''}</td><td colspan="7"></td><td>${(totalDia+totalExt)?fmtBRL(totalDia+totalExt):''}</td></tr></tfoot></table>
+        <div class="portaria-signatures"><div>________________________________<br>ASS. PORTEIRO</div><div>________________________________<br>GERENTE ADMINISTRATIVO</div></div>
+      </section>
+      <section class="portaria-page">
+        <div class="phead">
+          <img src="${logo}" alt="">
+          <h2>Controle de KM - Portaria ${SESSION.unidade||''}</h2>
+          <div class="pdd"><div>DATA: ${dS}</div></div>
+        </div>
+        <table><thead>
+          <tr><th>ORDEM</th><th>LOTE</th><th>NOME</th><th>PLACA</th><th>H.SA&Iacute;DA</th><th>H.VOLTA</th><th>KM SA&Iacute;DA</th><th>KM VOLTA</th><th>KM PERC.</th><th>DATA</th><th>ASSINATURA</th></tr>
+        </thead><tbody>${km}</tbody></table>
+        <div class="portaria-signatures"><div>________________________________<br>ASS. PORTEIRO</div><div>________________________________<br>GERENTE ADMINISTRATIVO</div></div>
+      </section>
     </div>
-    <div style="display:flex;gap:10px;align-items:flex-start">
-      <table style="width:52%"><thead>
-        <tr><th>ORDEM</th><th>DESTINO</th><th>ENTR.</th><th>MOTORISTA</th><th>PLACA</th><th>SAÍDA/HS</th><th>RET./HS</th><th>RET./DATA</th><th style="min-width:78px">ASS. MOTORISTA</th><th style="min-width:78px">ASS. AJUDANTE</th><th>VL. DIÁRIA</th></tr>
-      </thead><tbody>${esq}</tbody></table>
-      <table style="width:48%"><thead>
-        <tr><th>ORDEM</th><th>LOTE</th><th>NOME</th><th>PLACA</th><th>H.SAÍDA</th><th>H.VOLTA</th><th>KM SAÍDA</th><th>KM VOLTA</th><th>KM PERC.</th><th>DATA</th><th style="min-width:78px">ASSINATURA</th></tr>
-      </thead><tbody>${dir}</tbody></table>
-    </div>
-    <div style="display:flex;justify-content:space-around;margin-top:26px;font-size:11px;font-weight:700;text-align:center">
-      <div>________________________________<br>ASS. PORTEIRO</div>
-      <div>________________________________<br>GERENTE ADMINISTRATIVO</div>
-    </div>`;
+    <style>
+      #printEscala .portaria-print{width:100%;color:#000}
+      #printEscala .portaria-page{break-after:page;page-break-after:always;min-height:680px;background:#fff}
+      #printEscala .portaria-page:last-child{break-after:auto;page-break-after:auto}
+      #printEscala .portaria-page table{font-size:10.5px}
+      #printEscala .portaria-page th,#printEscala .portaria-page td{padding:4px 5px;height:22px}
+      #printEscala .portaria-page th{color:#000!important;font-weight:800!important}
+      #printEscala .portaria-signatures{display:flex;justify-content:space-around;margin-top:26px;font-size:11px;font-weight:700;text-align:center}
+    </style>`;
 }
 
-// Mede o conteúdo e reduz a escala na medida exata p/ caber TUDO em 1 página A4 paisagem
+// Mede o conteudo e reduz a escala na medida exata p/ caber TUDO em 1 pagina A4 paisagem
 function esDoPrint(html){
   const el=document.getElementById('printEscala');
   el.innerHTML=html;
-  el.style.cssText='display:block;position:absolute;left:-9999px;top:0;width:1062px'; // área útil A4 paisagem (281mm)
+  const multiPage=!!el.querySelector('[data-print-pages="true"]');
+  if(multiPage){
+    el.style.zoom=1;
+    setTimeout(()=>window.print(),80);
+    return;
+  }
+  el.style.cssText='display:block;position:absolute;left:-9999px;top:0;width:1062px'; // area util A4 paisagem (281mm)
   const h=el.scrollHeight, w=el.scrollWidth;
   el.style.cssText='';
-  const z=Math.min(1, 700/Math.max(h,1), 1062/Math.max(w,1)); // 700px ≈ altura útil (194mm) c/ folga
+  const z=Math.min(1, 700/Math.max(h,1), 1062/Math.max(w,1)); // 700px aprox. altura util (194mm) c/ folga
   el.style.zoom=z;
   setTimeout(()=>window.print(),80);
 }
