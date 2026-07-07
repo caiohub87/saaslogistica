@@ -387,6 +387,7 @@
           <select id="esvSelect" style="min-width:260px"><option value="">Escolha o dia…</option></select>
           <button class="ghost" id="esvAtualizar">🔄 Atualizar</button>
           <button class="yellow" id="esvImprimir">🖨️ Imprimir</button>
+          <button class="ghost" id="esvPortaria">🚪 Portaria</button>
           <span class="muted" id="esvMsg" style="margin-left:auto"></span>
         </div>
         <div class="pad eswrap" id="esvView" style="padding-top:0"><div class="empty">Escolha um dia salvo para visualizar.</div></div>
@@ -476,6 +477,7 @@
           <button class="ghost" id="esEquipeBtn">👥 Disponibilidade</button>
           <button id="esSalvar">💾 Salvar escala</button>
           <button class="yellow" id="esImprimir">🖨️ Imprimir</button>
+          <button class="ghost" id="esPortaria">🚪 Portaria</button>
           <span class="muted" id="esMsg" style="margin-left:auto"></span>
         </div>
         <div class="pad eswrap" style="padding-top:0">
@@ -1556,6 +1558,38 @@ function esPrintHtml(carrego,saida,linhasIn){
       <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="4"></td>
       <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr></tfoot></table>`;
 }
+// ---- portaria (dois quadros a partir da escala; campos de hora/km/assinatura em branco) ----
+function esPortariaHtml(saida,linhasIn){
+  const dS=saida?deFmtData(saida):'____/____/______';
+  const linhas=(linhasIn||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+  const N=Math.max(20,linhas.length);
+  let esq='',dir='';
+  for(let i=0;i<N;i++){
+    const l=linhas[i]||{};
+    const cli=l.ent!==undefined?(parseNum(l.ent)+parseNum(l.ree)||''):'';
+    esq+=`<tr><td>${i+1}</td><td class="l">${esc(l.rota||'')}</td><td>${cli}</td><td class="l">${esc(l.mot||'')}</td><td>${esc(l.veic||'')}</td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+    dir+=`<tr><td>${i+1}</td><td>${esc(l.lote||'')}</td><td class="l">${esc(l.mot||'')}</td><td>${esc(l.veic||'')}</td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>`;
+  }
+  return `
+    <div class="phead">
+      <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
+      <h2>Portaria — Caminhões da Casa ${SESSION.unidade||''}</h2>
+      <div class="pdd"><div>DATA: ${dS}</div></div>
+    </div>
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <table style="width:52%"><thead>
+        <tr><th>ORDEM</th><th>DESTINO</th><th>ENTR.</th><th>MOTORISTA</th><th>PLACA</th><th>SAÍDA/HS</th><th>RET./HS</th><th>RET./DATA</th><th style="min-width:78px">ASS. MOTORISTA</th><th style="min-width:78px">ASS. AJUDANTE</th><th>VL. DIÁRIA</th></tr>
+      </thead><tbody>${esq}</tbody></table>
+      <table style="width:48%"><thead>
+        <tr><th>ORDEM</th><th>LOTE</th><th>NOME</th><th>PLACA</th><th>H.SAÍDA</th><th>H.VOLTA</th><th>KM SAÍDA</th><th>KM VOLTA</th><th>KM PERC.</th><th>DATA</th><th style="min-width:78px">ASSINATURA</th></tr>
+      </thead><tbody>${dir}</tbody></table>
+    </div>
+    <div style="display:flex;justify-content:space-around;margin-top:26px;font-size:11px;font-weight:700;text-align:center">
+      <div>________________________________<br>ASS. PORTEIRO</div>
+      <div>________________________________<br>GERENTE ADMINISTRATIVO</div>
+    </div>`;
+}
+
 // Mede o conteúdo e reduz a escala na medida exata p/ caber TUDO em 1 página A4 paisagem
 function esDoPrint(html){
   const el=document.getElementById('printEscala');
@@ -1755,6 +1789,7 @@ document.getElementById('esAddLinha').onclick=()=>{ES.linhas.push(esLinhaVazia()
 document.getElementById('esSalvar').onclick=esSalvar;
 document.getElementById('esCarregar').onclick=esCarregarSalva;
 document.getElementById('esImprimir').onclick=esPrint;
+document.getElementById('esPortaria').onclick=()=>esDoPrint(esPortariaHtml(ES.saida,ES.linhas));
 document.getElementById('esEquipeBtn').onclick=()=>{const c=document.getElementById('esEquipeCard');
   c.style.display=c.style.display==='none'?'block':'none'; if(c.style.display==='block')renderEquipe();};
 document.querySelector('#esTbl tbody').addEventListener('input',e=>{
@@ -1812,6 +1847,10 @@ document.getElementById('eqLista').addEventListener('change',e=>{
 document.getElementById('esvAtualizar').onclick=esvListar;
 document.getElementById('esvSelect').onchange=esvVer;
 document.getElementById('esvImprimir').onclick=esvImprimir;
+document.getElementById('esvPortaria').onclick=()=>{
+  if(!ESV_SEL){document.getElementById('esvMsg').textContent='Escolha um dia para imprimir a portaria.';return;}
+  esDoPrint(esPortariaHtml(ESV_SEL.data_saida,ESV_SEL.linhas));
+};
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
