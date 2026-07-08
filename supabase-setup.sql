@@ -78,6 +78,22 @@ create policy "escrita admin equipe" on equipe_status
   using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
   with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
 
+-- Rascunho / acompanhamento (um por unidade: blocos praça e viagem)
+create table if not exists rascunhos (
+  unidade text primary key,
+  praca jsonb default '[]',
+  viagem jsonb default '[]',
+  updated_at timestamptz default now()
+);
+alter table rascunhos enable row level security;
+create policy "leitura unidade rascunho" on rascunhos
+  for select to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) );
+create policy "escrita admin rascunho" on rascunhos
+  for all to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
+  with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
+
 -- ============================================================
 -- USUÁRIOS (criar no painel: Authentication → Users → Add user → marcar "Auto Confirm User")
 --   dilnor.admin@gestao.app      → senha de administrador da Dilnor

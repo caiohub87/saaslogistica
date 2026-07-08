@@ -144,6 +144,10 @@
   .pay-tipo{padding:5px 8px;font-size:12.5px}
   .empty{color:var(--muted);text-align:center;padding:40px}
   /* escala */
+  .subtabs{display:inline-flex;gap:4px;background:rgba(255,255,255,.6);border:1px solid var(--line);border-radius:12px;padding:4px;margin-bottom:14px}
+  .subtab{background:transparent;border:1px solid transparent;color:var(--muted);font-weight:600;padding:7px 14px;border-radius:9px}
+  .subtab:hover{transform:none;box-shadow:none;color:var(--txt)}
+  .subtab.active{background:linear-gradient(135deg, rgba(255,196,0,.30), rgba(0,93,168,.10));border-color:rgba(0,93,168,.30);color:var(--txt)}
   .eswrap{overflow-x:auto}
   .estbl{border-collapse:collapse;font-size:12px;min-width:1500px}
   .estbl th{position:static;padding:6px 6px;text-align:center;border:1px solid var(--line);cursor:default}
@@ -530,6 +534,11 @@
 
     <!-- ===== ESCALA (admin) ===== -->
     <section class="view" id="view-escala">
+      <div class="subtabs">
+        <button class="subtab active" data-sub="escala">📋 Escala</button>
+        <button class="subtab" data-sub="rascunho">🚚 Rascunho (na rua / viagem)</button>
+      </div>
+      <div id="esPaneEscala">
       <div class="card">
         <h3>Relatório/Escala — Carregamento <span id="esUnidade" class="pill"></span></h3>
         <div class="pad toolbar">
@@ -577,6 +586,28 @@
           <div class="eq-wrap" id="eqLista"></div>
         </div>
       </div>
+      </div><!-- /esPaneEscala -->
+
+      <div id="esPaneRascunho" style="display:none">
+        <div class="card">
+          <h3>Rascunho — acompanhamento <span id="raUnidade" class="pill"></span></h3>
+          <div class="pad toolbar">
+            <button class="ghost" id="raPuxar">📥 Puxar da escala do dia</button>
+            <button id="raSalvar">💾 Salvar rascunho</button>
+            <button class="yellow" id="raImprimir">🖨️ Imprimir</button>
+            <span class="muted" id="raMsg" style="margin-left:auto"></span>
+          </div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3>🏙️ Praça (na rua) <span class="pill">saem da escala do dia</span> <button id="raAddPraca" style="float:right;padding:3px 9px;font-size:12px">➕ Linha</button></h3>
+          <div class="pad eswrap" style="padding-top:0"><table id="raTblPraca" class="estbl"></table></div>
+        </div>
+        <div class="card" style="margin-top:14px">
+          <h3>🛣️ Viagem (vários dias) <span class="pill">ficam salvos até voltar</span> <button id="raAddViagem" style="float:right;padding:3px 9px;font-size:12px">➕ Linha</button></h3>
+          <div class="pad eswrap" style="padding-top:0"><table id="raTblViagem" class="estbl"></table></div>
+        </div>
+      </div>
+
       <datalist id="dlMot"></datalist><datalist id="dlAju"></datalist>
       <datalist id="dlVeic"></datalist><datalist id="dlRota"></datalist>
     </section>
@@ -1593,20 +1624,24 @@ async function esCarregarSalva(){
 // colagem em grade (bloco copiado do Excel): distribui por colunas/linhas a partir da célula
 // sequência visual das colunas; null = coluna calculada (CLIENTES/PESO/TOTAL), valor colado é descartado
 const ES_SEQ=['lote','rota','ent','pent','ree','pree',null,null,'mot','aj1','aj2','veic','dia','ext',null,'obs'];
-function esColarGrade(f,i0,txt){
-  const start=ES_SEQ.indexOf(f); if(start<0)return 0;
+function esGridPaste(linhas,SEQ,mkEmpty,f,i0,txt){
+  const start=SEQ.indexOf(f); if(start<0)return 0;
   const rows=String(txt).replace(/\r/g,'').split('\n');
   while(rows.length&&rows[rows.length-1].trim()==='')rows.pop();
   if(!rows.length)return 0;
   rows.forEach((rl,r)=>{
     const cells=rl.split('\t');
-    while(ES.linhas.length<=i0+r)ES.linhas.push(esLinhaVazia());
-    const alvo=ES.linhas[i0+r];
-    cells.forEach((v,c)=>{const tf=ES_SEQ[start+c]; if(tf!==undefined&&tf!==null)alvo[tf]=v.trim();});
+    while(linhas.length<=i0+r)linhas.push(mkEmpty());
+    const alvo=linhas[i0+r];
+    cells.forEach((v,c)=>{const tf=SEQ[start+c]; if(tf!==undefined&&tf!==null)alvo[tf]=v.trim();});
   });
-  esDraftSave(); renderEscala(); esBuildDatalists();
-  document.getElementById('esMsg').textContent='📋 Colado: '+rows.length+' linha(s) a partir da linha '+(i0+1)+'.';
   return rows.length;
+}
+function esColarGrade(f,i0,txt){
+  const n=esGridPaste(ES.linhas,ES_SEQ,esLinhaVazia,f,i0,txt);
+  if(n){esDraftSave(); renderEscala(); esBuildDatalists();
+    document.getElementById('esMsg').textContent='📋 Colado: '+n+' linha(s) a partir da linha '+(i0+1)+'.';}
+  return n;
 }
 
 // troca o dia do editor: rascunho do dia > escala salva no banco > em branco
@@ -1787,6 +1822,72 @@ function esvVer(){
 function esvImprimir(){
   if(!ESV_SEL){document.getElementById('esvMsg').textContent='Escolha um dia para imprimir.';return;}
   esDoPrint(esPrintHtml(ESV_SEL.data_carrego,ESV_SEL.data_saida,ESV_SEL.linhas));
+}
+
+// ---- rascunho (acompanhamento: Praça na rua + Viagem vários dias) ----
+let RASC={praca:[],viagem:[]}, rascEntrou=false;
+const raLinhaVazia=()=>Object.assign(esLinhaVazia(),{dt:''});
+const RA_SEQ=['veic','dt','lote','rota','ent','pent','ree','pree',null,null,'mot','aj1','aj2','dia','ext',null];
+const RA_THEAD='<thead><tr><th>VEÍCULO</th><th>DATA SAÍDA</th><th>LOTE</th><th>ROTA</th><th>ENTR.</th><th>PESO</th><th>REE</th><th>PESO</th><th>CLIENTES</th><th>PESO</th><th>MOTORISTA</th><th>AJUD.1</th><th>AJUD.2</th><th>DIÁRIA</th><th>EXTRA</th><th>TOTAL R$</th><th></th></tr></thead>';
+function raTblId(bloco){return bloco==='praca'?'raTblPraca':'raTblViagem';}
+function raRow(l,i,bloco){const c=esCalcRow(l);
+  return `<tr data-i="${i}" data-b="${bloco}">
+    <td style="width:96px"><input data-f="veic" list="dlVeic" value="${esc(l.veic)}"></td>
+    <td style="width:140px"><input type="date" data-f="dt" value="${esc(l.dt||'')}"></td>
+    <td style="width:70px"><input class="num" data-f="lote" value="${esc(l.lote)}"></td>
+    <td style="min-width:140px"><input data-f="rota" list="dlRota" value="${esc(l.rota)}"></td>
+    <td style="width:56px"><input class="num" data-f="ent" value="${esc(l.ent)}"></td>
+    <td style="width:74px"><input class="num" data-f="pent" value="${esc(l.pent)}"></td>
+    <td style="width:50px"><input class="num" data-f="ree" value="${esc(l.ree)}"></td>
+    <td style="width:74px"><input class="num" data-f="pree" value="${esc(l.pree)}"></td>
+    <td class="calc ra-cli">${c.cli||''}</td><td class="calc ra-ptot">${c.ptot?fmtKg(c.ptot):''}</td>
+    <td style="min-width:140px"><input data-f="mot" list="dlMot" value="${esc(l.mot)}"></td>
+    <td style="min-width:140px"><input data-f="aj1" list="dlAju" value="${esc(l.aj1)}"></td>
+    <td style="min-width:140px"><input data-f="aj2" list="dlAju" value="${esc(l.aj2)}"></td>
+    <td style="width:66px"><input class="num" data-f="dia" value="${esc(l.dia)}"></td>
+    <td style="width:60px"><input class="num" data-f="ext" value="${esc(l.ext)}"></td>
+    <td class="calc ra-tot">${c.tot?fmtBRL(c.tot):''}</td>
+    <td class="esdel" title="Remover linha">🗑️</td></tr>`;}
+function raTfootRow(bloco){const t=esTotaisDe(RASC[bloco]);
+  return `<tr><td colspan="4" style="text-align:left">TOTAIS · ${RASC[bloco].length} veículo(s)</td>
+    <td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td>
+    <td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="3"></td>
+    <td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td><td></td></tr>`;}
+function renderRascTabela(bloco){
+  const linhas=RASC[bloco];
+  const body=linhas.map((l,i)=>raRow(l,i,bloco)).join('')||
+    `<tr><td colspan="17" class="empty" style="padding:16px">Sem linhas. Use ➕ Linha${bloco==='praca'?' ou "Puxar da escala do dia"':''}.</td></tr>`;
+  document.getElementById(raTblId(bloco)).innerHTML=RA_THEAD+'<tbody>'+body+'</tbody><tfoot>'+raTfootRow(bloco)+'</tfoot>';
+}
+function renderRasc(){document.getElementById('raUnidade').textContent=SESSION.unidade||'';renderRascTabela('praca');renderRascTabela('viagem');}
+function rascLocalSave(){try{localStorage.setItem(lsk('rascunho'),JSON.stringify(RASC));}catch(e){}}
+function rascLocalLoad(){try{const j=JSON.parse(localStorage.getItem(lsk('rascunho'))||'null');if(j&&j.praca)RASC={praca:j.praca||[],viagem:j.viagem||[]};}catch(e){}}
+async function rascLoad(){
+  rascLocalLoad();
+  if(SESSION.offline||!supaReady())return;
+  const {data,error}=await sb.from('rascunhos').select('*').eq('unidade',SESSION.unidade).maybeSingle();
+  if(!error&&data){RASC={praca:data.praca||[],viagem:data.viagem||[]};rascLocalSave();renderRasc();}
+}
+async function rascSalvar(){
+  const msg=document.getElementById('raMsg'); rascLocalSave();
+  if(SESSION.offline||!supaReady()){msg.textContent='⚠️ Salvo neste navegador (banco não configurado).';return;}
+  if(SESSION.role!=='admin'){msg.textContent='⚠️ Apenas administrador.';return;}
+  msg.textContent='Salvando…';
+  const {error}=await sb.from('rascunhos').upsert({unidade:SESSION.unidade,praca:RASC.praca,viagem:RASC.viagem,updated_at:new Date().toISOString()},{onConflict:'unidade'});
+  msg.textContent=error?('❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL novo no Supabase.':'')):'✅ Rascunho salvo.';
+}
+function raPrintHtml(){
+  const dHoje=new Date().toLocaleDateString('pt-BR');
+  const bloco=(titulo,linhas)=>{
+    const ls=(linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+    const t=esTotaisDe(ls);
+    return `<h2 style="text-align:left;font-size:12px;margin:8px 0 3px">${titulo} — ${ls.length} veículo(s)</h2>
+      <table><thead><tr><th>VEÍCULO</th><th>DATA</th><th>LOTE</th><th>ROTA</th><th>ENTR.</th><th>PESO</th><th>REE</th><th>PESO</th><th>CLI</th><th>PESO</th><th>MOTORISTA</th><th>AJUD.1</th><th>AJUD.2</th><th>DIÁRIA</th><th>EXTRA</th><th>TOTAL</th></tr></thead><tbody>`+
+      ls.map(l=>{const c=esCalcRow(l);return `<tr><td>${esc(l.veic)}</td><td>${l.dt?deFmtData(l.dt):''}</td><td>${esc(l.lote)}</td><td class="l">${esc(l.rota)}</td><td>${esc(l.ent)}</td><td>${parseNum(l.pent)?fmtKg(parseNum(l.pent)):esc(l.pent)}</td><td>${esc(l.ree)}</td><td>${parseNum(l.pree)?fmtKg(parseNum(l.pree)):esc(l.pree)}</td><td>${c.cli||''}</td><td>${c.ptot?fmtKg(c.ptot):''}</td><td class="l">${esc(l.mot)}</td><td class="l">${esc(l.aj1)}</td><td class="l">${esc(l.aj2)}</td><td>${parseNum(l.dia)?fmtBRL(parseNum(l.dia)):''}</td><td>${parseNum(l.ext)?fmtBRL(parseNum(l.ext)):''}</td><td>${c.tot?fmtBRL(c.tot):''}</td></tr>`;}).join('')+
+      `</tbody><tfoot><tr><td colspan="4">TOTAIS</td><td>${t.ent||''}</td><td>${t.pent?fmtKg(t.pent):''}</td><td>${t.ree||''}</td><td>${t.pree?fmtKg(t.pree):''}</td><td>${t.cli||''}</td><td>${t.ptot?fmtKg(t.ptot):''}</td><td colspan="3"></td><td>${t.dia?fmtBRL(t.dia):''}</td><td>${t.ext?fmtBRL(t.ext):''}</td><td>${t.tot?fmtBRL(t.tot):''}</td></tr></tfoot></table>`;
+  };
+  return `<div class="phead"><img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt=""><h2>Rascunho — Acompanhamento ${SESSION.unidade||''}</h2><div class="pdd"><div>DATA: ${dHoje}</div></div></div>`
+    +bloco('🏙️ PRAÇA (na rua)',RASC.praca)+bloco('🛣️ VIAGEM (vários dias)',RASC.viagem);
 }
 
 // ===================== EVENTOS =====================
@@ -1987,6 +2088,54 @@ document.getElementById('esvPortaria').onclick=()=>{
   if(!ESV_SEL){document.getElementById('esvMsg').textContent='Escolha um dia para imprimir a portaria.';return;}
   esDoPrint(esPortariaHtml(ESV_SEL.data_saida,ESV_SEL.linhas));
 };
+
+// sub-tela Escala <-> Rascunho
+document.querySelectorAll('#view-escala .subtab').forEach(b=>b.onclick=()=>{
+  document.querySelectorAll('#view-escala .subtab').forEach(x=>x.classList.toggle('active',x===b));
+  const sub=b.dataset.sub;
+  document.getElementById('esPaneEscala').style.display=sub==='escala'?'':'none';
+  document.getElementById('esPaneRascunho').style.display=sub==='rascunho'?'block':'none';
+  if(sub==='rascunho'){ if(!rascEntrou){rascEntrou=true;rascLoad();} esBuildDatalists(); renderRasc(); }
+});
+// rascunho: botões
+document.getElementById('raAddPraca').onclick=()=>{RASC.praca.push(raLinhaVazia());rascLocalSave();renderRascTabela('praca');};
+document.getElementById('raAddViagem').onclick=()=>{RASC.viagem.push(raLinhaVazia());rascLocalSave();renderRascTabela('viagem');};
+document.getElementById('raSalvar').onclick=rascSalvar;
+document.getElementById('raImprimir').onclick=()=>esDoPrint(raPrintHtml());
+document.getElementById('raPuxar').onclick=()=>{
+  const src=(ES.linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+  if(!src.length){document.getElementById('raMsg').textContent='A escala do dia está vazia — monte a escala primeiro.';return;}
+  if(RASC.praca.length&&!confirm('Substituir o bloco Praça pelas '+src.length+' linha(s) da escala de '+deFmtData(ES.saida)+'?'))return;
+  RASC.praca=src.map(l=>Object.assign(raLinhaVazia(),l,{dt:ES.saida}));
+  rascLocalSave(); renderRascTabela('praca');
+  document.getElementById('raMsg').textContent='📥 '+src.length+' carga(s) da escala de '+deFmtData(ES.saida)+' no bloco Praça.';
+};
+// rascunho: edição/exclusão/colagem (delegado nos dois blocos)
+document.getElementById('esPaneRascunho').addEventListener('input',e=>{
+  const f=e.target.dataset.f, tr=e.target.closest('tr'); if(!f||!tr)return;
+  const l=RASC[tr.dataset.b][+tr.dataset.i]; if(!l)return;
+  l[f]=e.target.value;
+  const c=esCalcRow(l);
+  tr.querySelector('.ra-cli').textContent=c.cli||'';
+  tr.querySelector('.ra-ptot').textContent=c.ptot?fmtKg(c.ptot):'';
+  tr.querySelector('.ra-tot').textContent=c.tot?fmtBRL(c.tot):'';
+  const tf=document.querySelector('#'+raTblId(tr.dataset.b)+' tfoot'); if(tf)tf.innerHTML=raTfootRow(tr.dataset.b);
+  rascLocalSave();
+});
+document.getElementById('esPaneRascunho').addEventListener('click',e=>{
+  if(e.target.classList.contains('esdel')){const tr=e.target.closest('tr');
+    RASC[tr.dataset.b].splice(+tr.dataset.i,1); rascLocalSave(); renderRascTabela(tr.dataset.b);}
+});
+document.getElementById('esPaneRascunho').addEventListener('paste',e=>{
+  const f=e.target.dataset&&e.target.dataset.f, tr=e.target.closest('tr'); if(!f||!tr)return;
+  const txt=(e.clipboardData||window.clipboardData).getData('text')||'';
+  if(!txt.includes('\t')&&!/[\r\n]/.test(txt.trim()))return;
+  e.preventDefault();
+  const bloco=tr.dataset.b;
+  const n=esGridPaste(RASC[bloco],RA_SEQ,raLinhaVazia,f,+tr.dataset.i,txt);
+  rascLocalSave(); renderRascTabela(bloco);
+  document.getElementById('raMsg').textContent='📋 Colado: '+n+' linha(s) no bloco '+(bloco==='praca'?'Praça':'Viagem')+'.';
+});
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
