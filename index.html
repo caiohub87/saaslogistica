@@ -97,6 +97,7 @@
   .drop{border:2px dashed rgba(0,93,168,.30);border-radius:var(--radius);padding:40px;text-align:center;background:rgba(255,255,255,.55);backdrop-filter:blur(10px);cursor:pointer;transition:.18s}
   .drop:hover,.drop.over{border-color:var(--accent2);background:rgba(255,255,255,.85);transform:translateY(-2px);box-shadow:0 14px 34px rgba(15,45,80,.12)}
   .drop b{color:var(--accent2)}.drop small{display:block;color:var(--muted);margin-top:8px}
+  .drop-mark{display:inline-flex;align-items:center;gap:8px;margin-bottom:6px;color:var(--accent2);font-weight:800;font-size:15px}
 
   .sel-carga{border:1px solid var(--line);border-radius:12px;padding:12px;margin-bottom:12px;background:rgba(255,255,255,.6)}
   .sel-carga .top{display:flex;justify-content:space-between;align-items:center;gap:8px;margin-bottom:8px}
@@ -207,10 +208,41 @@
   @media(max-width:1150px){.grid2{grid-template-columns:1fr}}
   .home-actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:14px}
   @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+
+
+  /* menu retratil + icones modernos */
+  .menu-toggle{position:fixed;top:18px;left:18px;z-index:60;width:44px;height:44px;border-radius:14px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--txt);border:1px solid rgba(0,93,168,.18);box-shadow:0 14px 32px rgba(15,45,80,.18)}
+  .menu-toggle:hover{transform:translateY(-1px);box-shadow:0 16px 36px rgba(15,45,80,.24)}
+  .hamb-lines{width:18px;height:14px;display:flex;flex-direction:column;justify-content:space-between}
+  .hamb-lines span{height:2px;border-radius:99px;background:currentColor;display:block;transition:transform .18s,opacity .18s}
+  body.menu-open .hamb-lines span:nth-child(1),body.menu-collapsed .hamb-lines span:nth-child(1){transform:translateY(6px) rotate(45deg)}
+  body.menu-open .hamb-lines span:nth-child(2),body.menu-collapsed .hamb-lines span:nth-child(2){opacity:0}
+  body.menu-open .hamb-lines span:nth-child(3),body.menu-collapsed .hamb-lines span:nth-child(3){transform:translateY(-6px) rotate(-45deg)}
+  .menu-backdrop{position:fixed;inset:0;background:rgba(11,30,55,.36);backdrop-filter:blur(3px);z-index:45;display:none}
+  body.menu-open .menu-backdrop{display:block}
+  .app{transition:grid-template-columns .2s ease}
+  .side{padding-top:74px;transition:width .2s ease,padding .2s ease,transform .2s ease,box-shadow .2s ease}
+  .app.menu-collapsed{grid-template-columns:78px 1fr}
+  .app.menu-collapsed .side{padding-left:10px;padding-right:10px;overflow:hidden}
+  .app.menu-collapsed .side .logo{padding:4px;margin-bottom:10px}
+  .app.menu-collapsed .side .brand,.app.menu-collapsed .userchip,.app.menu-collapsed .nav button .nav-label,.app.menu-collapsed .nav button .tag{display:none}
+  .app.menu-collapsed .nav button{justify-content:center;padding:11px 8px;border-radius:14px}
+  .ui-icon{width:18px;height:18px;min-width:18px;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;fill:none}
+  .nav .ui-icon{color:var(--accent2)}
+  .nav button.active .ui-icon{color:var(--accent)}
+  button{display:inline-flex;align-items:center;justify-content:center;gap:8px;border-radius:12px;background:linear-gradient(135deg,var(--accent2),#0d74c8);box-shadow:0 10px 22px rgba(0,93,168,.18)}
+  button.ghost{background:rgba(255,255,255,.82);border-color:rgba(0,93,168,.16);box-shadow:0 8px 18px rgba(15,45,80,.08)}
+  button.yellow{background:linear-gradient(135deg,#ffd233,#ffc400);box-shadow:0 10px 22px rgba(255,196,0,.22)}
+  button.danger{background:linear-gradient(135deg,#e5262e,#b91c1c);border-color:#b91c1c;color:#fff}
+  .topbar{padding-left:52px}
+  @media(max-width:880px){.menu-toggle{top:14px;left:14px}.topbar{padding-left:52px}.app{display:block}.side{position:fixed;z-index:50;inset:0 auto 0 0;width:min(300px,86vw);height:100vh;transform:translateX(-105%);box-shadow:18px 0 44px rgba(15,45,80,.24)}body.menu-open .side{transform:translateX(0)}.app.menu-collapsed{grid-template-columns:1fr}.app.menu-collapsed .side .brand,.app.menu-collapsed .userchip,.app.menu-collapsed .nav button .nav-label,.app.menu-collapsed .nav button .tag{display:initial}.app.menu-collapsed .nav button{justify-content:flex-start;padding:10px 12px}}
+
   @media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
 </style>
 </head>
 <body>
+<button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir ou recolher menu" aria-expanded="true"><span class="hamb-lines"><span></span><span></span><span></span></span></button>
+<div class="menu-backdrop" id="menuBackdrop"></div>
 <!-- fundo: mapa de rotas animado -->
 <div id="bgFx" aria-hidden="true">
   <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
@@ -245,21 +277,21 @@
   <!-- SIDEBAR -->
   <aside class="side">
     <img class="logo" id="sideLogo" src="assets/dilnor-logo.png" alt="Logo" onerror="this.style.display='none'">
-    <div class="brand">GESTÃO LOGÍSTICA</div>
+    <div class="brand">GEST&Atilde;O LOG&Iacute;STICA</div>
     <nav class="nav" id="nav">
-      <button data-view="inicio" class="active">🏠 Início</button>
-      <button data-view="analise">📊 Análise de Entregas</button>
-      <button data-view="produtividade">🎯 Produtividade</button>
+      <button data-view="inicio" data-icon="home" class="active"><span class="nav-label">In&iacute;cio</span></button>
+      <button data-view="analise" data-icon="chart"><span class="nav-label">An&aacute;lise de Entregas</span></button>
+      <button data-view="produtividade" data-icon="target"><span class="nav-label">Produtividade</span></button>
       <div class="sep"></div>
-      <button data-view="reentregas">🔄 Reentregas</button>
-      <button data-view="pagamento">💰 Pagamento</button>
-      <button data-view="salvos">🗄️ Salvos</button>
-      <button data-view="escala">📅 Escala</button>
-      <button data-view="escalasalvas">🗓️ Escalas salvas</button>
-      <button data-view="cadastros">👥 Cadastros</button>
-      <button data-view="config">⚙️ Configurações</button>
+      <button data-view="reentregas" data-icon="refresh"><span class="nav-label">Reentregas</span></button>
+      <button data-view="pagamento" data-icon="wallet"><span class="nav-label">Pagamento</span></button>
+      <button data-view="salvos" data-icon="archive"><span class="nav-label">Salvos</span></button>
+      <button data-view="escala" data-icon="calendar"><span class="nav-label">Escala</span></button>
+      <button data-view="escalasalvas" data-icon="calendar"><span class="nav-label">Escalas salvas</span></button>
+      <button data-view="cadastros" data-icon="users"><span class="nav-label">Cadastros</span></button>
+      <button data-view="config" data-icon="settings"><span class="nav-label">Configura&ccedil;&otilde;es</span></button>
       <div class="sep"></div>
-      <button data-view="desempenho">🙋 Meu Desempenho</button>
+      <button data-view="desempenho" data-icon="user"><span class="nav-label">Meu Desempenho</span></button>
     </nav>
     <div class="userchip" id="userChip" style="display:none"><b id="userUnidade"></b><span id="userRole"></span><br><a href="#" id="btnLogout">Sair →</a></div>
   </aside>
@@ -270,8 +302,8 @@
       <h1 id="viewTitle">Início</h1>
       <span class="file" id="fileState">Nenhum relatório carregado</span>
       <span class="sp"></span>
-      <button class="ghost" id="btnLoad">📥 Importar relatório</button>
-      <button class="ghost" id="btnClear" style="display:none">🗑️ Limpar base</button>
+      <button class="ghost" id="btnLoad" data-icon="upload">Importar relat&oacute;rio</button>
+      <button class="ghost" id="btnClear" style="display:none" data-icon="trash">Limpar base</button>
       <input type="file" id="file" accept=".xlsx,.xlsm,.xls" style="display:none">
     </div>
 
@@ -285,7 +317,7 @@
           <h2 style="margin-top:0">Bem-vindo 👋</h2>
           <p class="muted">Carregue o <b>Relatório de Entregas (.xlsx)</b> do Fusion. Ele será lido uma vez para a <b>Base Tratada</b> e vai alimentar todos os módulos. Fica salvo no seu navegador até você limpar.</p>
           <div class="drop" id="drop">
-            <div style="font-size:38px">📥</div>
+            <div class="drop-mark" data-icon="upload"><span>Importar</span></div>
             <p>Arraste o <b>relatório (.xlsx)</b> aqui ou clique para selecionar</p>
             <small>Lido localmente — nada é enviado para a internet.</small>
           </div>
@@ -297,10 +329,10 @@
         <div class="card"><div class="pad">
           <b>Atalhos</b>
           <div class="home-actions">
-            <button onclick="go('analise')">📊 Abrir Análise</button>
-            <button onclick="go('produtividade')">🎯 Abrir Produtividade</button>
-            <button class="ghost" onclick="go('reentregas')">🔄 Ver Reentregas</button>
-            <button class="ghost" onclick="go('pagamento')">💰 Gerar Pagamento</button>
+            <button onclick="go('analise')" data-icon="chart">Abrir An&aacute;lise</button>
+            <button onclick="go('produtividade')" data-icon="target">Abrir Produtividade</button>
+            <button class="ghost" onclick="go('reentregas')" data-icon="refresh">Ver Reentregas</button>
+            <button class="ghost" onclick="go('pagamento')" data-icon="wallet">Gerar Pagamento</button>
           </div>
         </div></div>
       </div>
@@ -351,7 +383,7 @@
             <div class="pad">
               <div id="prSelList"><div class="empty">Selecione cargas na tabela.</div></div>
               <div id="prActions" style="display:none;margin-top:12px;text-align:right">
-                <button id="prSave">💾 Salvar premiação</button>
+                <button id="prSave" data-icon="save">Salvar premia&ccedil;&atilde;o</button>
                 <button class="yellow" id="prExport">⬇️ Exportar Excel (.xlsx)</button>
                 <div class="muted stat" id="prSaveMsg" style="margin-top:6px"></div>
               </div>
@@ -416,9 +448,9 @@
         <h3>Escalas salvas <span id="esvUnidade" class="pill"></span></h3>
         <div class="pad toolbar">
           <select id="esvSelect" style="min-width:260px"><option value="">Escolha o dia…</option></select>
-          <button class="ghost" id="esvAtualizar">🔄 Atualizar</button>
-          <button class="yellow" id="esvImprimir">🖨️ Imprimir</button>
-          <button class="ghost" id="esvPortaria">🚪 Portaria</button>
+          <button class="ghost" id="esvAtualizar" data-icon="refresh">Atualizar</button>
+          <button class="yellow" id="esvImprimir" data-icon="print">Imprimir</button>
+          <button class="ghost" id="esvPortaria" data-icon="door">Portaria</button>
           <span class="muted" id="esvMsg" style="margin-left:auto"></span>
         </div>
         <div class="pad eswrap" id="esvView" style="padding-top:0"><div class="empty">Escolha um dia salvo para visualizar.</div></div>
@@ -481,10 +513,10 @@
         <h3>Premiações salvas no banco — <span id="svUnidade"></span></h3>
         <div class="pad toolbar">
           <input type="search" id="svBusca" placeholder="Buscar carga ou motorista..." style="min-width:240px">
-          <button class="yellow" id="svBuscar">🔄 Atualizar</button>
-          <button id="svExport">⬇️ Exportar Excel (.xlsx)</button>
+          <button class="yellow" id="svBuscar" data-icon="refresh">Atualizar</button>
+          <button id="svExport" data-icon="download">Exportar Excel (.xlsx)</button>
           <button class="ghost" id="svLimparSel">✖ Limpar seleção</button>
-          <button id="svExcluirSel" style="background:var(--danger);border-color:var(--danger)">🗑️ Excluir selecionados</button>
+          <button id="svExcluirSel" class="danger" data-icon="trash">Excluir selecionados</button>
           <span class="muted" id="svMsg" style="margin-left:auto"></span>
         </div>
         <div class="tablewrap"><table id="svTbl"><thead><tr>
@@ -503,12 +535,12 @@
         <div class="pad toolbar">
           <label class="muted">Data de carrego <input type="date" id="esCarrego"></label>
           <label class="muted">Data de saída <input type="date" id="esSaida"></label>
-          <button class="ghost" id="esCarregar">📥 Abrir salva</button>
-          <button id="esAddLinha">➕ Linha</button>
-          <button class="ghost" id="esEquipeBtn">👥 Disponibilidade</button>
-          <button id="esSalvar">💾 Salvar escala</button>
-          <button class="yellow" id="esImprimir">🖨️ Imprimir</button>
-          <button class="ghost" id="esPortaria">🚪 Portaria</button>
+          <button class="ghost" id="esCarregar" data-icon="upload">Abrir salva</button>
+          <button id="esAddLinha" data-icon="plus">Linha</button>
+          <button class="ghost" id="esEquipeBtn" data-icon="users">Disponibilidade</button>
+          <button id="esSalvar" data-icon="save">Salvar escala</button>
+          <button class="yellow" id="esImprimir" data-icon="print">Imprimir</button>
+          <button class="ghost" id="esPortaria" data-icon="door">Portaria</button>
           <span class="muted" id="esMsg" style="margin-left:auto"></span>
         </div>
         <div class="pad eswrap" style="padding-top:0">
@@ -540,7 +572,7 @@
             <input type="search" id="eqBusca" placeholder="Buscar nome...">
             <input type="text" id="eqNovo" placeholder="Adicionar nome novo...">
             <select id="eqNovoTipo"><option value="motorista">Motorista</option><option value="ajudante">Ajudante</option></select>
-            <button id="eqAdd">➕ Adicionar</button>
+            <button id="eqAdd" data-icon="plus">Adicionar</button>
           </div>
           <div class="eq-wrap" id="eqLista"></div>
         </div>
@@ -553,6 +585,43 @@
 <div id="printEscala"></div>
 
 <script>
+
+// ===================== UI / ICONES =====================
+const ICONS={
+  home:'M3 10.5 12 3l9 7.5V21a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z',
+  chart:'M4 19V5M4 19h16M8 16v-5M12 16V8M16 16v-8',
+  target:'M12 22a10 10 0 1 0 0-20 10 10 0 0 0 0 20ZM12 18a6 6 0 1 0 0-12 6 6 0 0 0 0 12ZM12 14a2 2 0 1 0 0-4 2 2 0 0 0 0 4Z',
+  refresh:'M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M18 3v4h4M6 21v-4H2',
+  wallet:'M3 7a3 3 0 0 1 3-3h13v16H6a3 3 0 0 1-3-3zM16 12h4v4h-4a2 2 0 0 1 0-4Z',
+  archive:'M4 7h16M5 7l1 14h12l1-14M8 7V3h8v4M10 12h4',
+  calendar:'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
+  users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
+  settings:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.18.38.4.72.6 1 .33.27.7.4 1.08.4H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z',
+  user:'M20 21a8 8 0 0 0-16 0M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8Z',
+  upload:'M12 3v12M7 8l5-5 5 5M5 21h14',
+  trash:'M3 6h18M8 6V4h8v2M6 6l1 15h10l1-15',
+  check:'M20 6 9 17l-5-5',
+  download:'M12 3v12M7 10l5 5 5-5M5 21h14',
+  print:'M6 9V3h12v6M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2M6 14h12v7H6z',
+  door:'M4 21h16M8 21V5a2 2 0 0 1 2-2h6v18M13 12h.01',
+  search:'M21 21l-4.3-4.3M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15Z',
+  plus:'M12 5v14M5 12h14',
+  save:'M5 3h12l2 2v16H5zM8 3v6h8M8 21v-7h8',
+  rotate:'M3 12a9 9 0 0 1 15.5-6.2M18 3v4h4M21 12a9 9 0 0 1-15.5 6.2M6 21v-4H2'
+};
+function iconSvg(name){return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]||ICONS.check}"></path></svg>`;}
+function decorateIcons(){document.querySelectorAll('[data-icon]').forEach(el=>{if(!el.querySelector('.ui-icon'))el.insertAdjacentHTML('afterbegin',iconSvg(el.dataset.icon));});}
+function setupMenuToggle(){
+  const app=document.querySelector('.app'),btn=document.getElementById('menuToggle'),back=document.getElementById('menuBackdrop');
+  if(!app||!btn||!back)return;
+  const saved=localStorage.getItem('sgl_menu_collapsed')==='1';
+  app.classList.toggle('menu-collapsed',saved);
+  document.body.classList.toggle('menu-collapsed',saved);
+  btn.setAttribute('aria-expanded',String(!saved));
+  btn.onclick=()=>{if(window.matchMedia('(max-width:880px)').matches){document.body.classList.toggle('menu-open');btn.setAttribute('aria-expanded',String(document.body.classList.contains('menu-open')));return;}const next=!app.classList.contains('menu-collapsed');app.classList.toggle('menu-collapsed',next);document.body.classList.toggle('menu-collapsed',next);localStorage.setItem('sgl_menu_collapsed',next?'1':'0');btn.setAttribute('aria-expanded',String(!next));};
+  back.onclick=()=>document.body.classList.remove('menu-open');
+}
+
 // ===================== BASE / PARSE =====================
 const HEAD={
   pedido:['numero pedido erp'],cliente:['razao social'],fantasia:['nome fantasia'],
@@ -723,7 +792,7 @@ function go(view){
   if(view==='salvos'&&!exigeSenha('Acessar a aba Salvos'))return;
   document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
-  document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
+  document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"] .nav-label`)?.textContent.trim()||document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
   if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
   if(view==='escala'&&typeof esEnter==='function') esEnter();
   if(view==='escalasalvas'&&!SESSION.offline&&typeof esvListar==='function') esvListar();
@@ -1307,7 +1376,7 @@ function renderSalvos(){
       <td class="num"><span class="badge ${faixaOf(+r.prod_final||0).cls}">${fmtPct(+r.prod_final||0)}</span></td>
       <td><span class="badge ${r.pagar?'b-green':'b-red'} svpag" style="cursor:pointer" title="Clique para alternar SIM/NÃO">${r.pagar?'SIM':'NÃO'}</span></td>
       <td class="num">${fmtBRL(+r.valor_mot||0)}</td><td class="num">${fmtBRL(+r.valor_aj1||0)}</td><td class="num">${fmtBRL(+r.valor_aj2||0)}</td>
-      <td><button class="ghost svdel" title="Excluir este registro" style="padding:3px 9px">🗑️</button></td>
+      <td><button class="ghost svdel" title="Excluir este registro" style="padding:3px 9px">Excluir</button></td>
     </tr>`).join('')||'<tr><td colspan="12" class="empty">Nenhum registro salvo no período.</td></tr>';
 }
 async function svExcluir(ids){
@@ -1418,7 +1487,7 @@ function renderEscala(){
       <td style="width:64px"><input class="num" data-f="ext" value="${esc(l.ext)}"></td>
       <td class="calc es-tot">${c.tot?fmtBRL(c.tot):''}</td>
       <td style="min-width:130px"><input data-f="obs" value="${esc(l.obs)}"></td>
-      <td class="esdel" title="Remover linha">🗑️</td>
+      <td class="esdel" title="Remover linha">Remover</td>
     </tr>`;}).join('');
   renderEsTotais();
 }
@@ -1730,7 +1799,9 @@ drop.onclick=()=>fileEl.click();
 drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
 drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);};
-document.querySelectorAll('#nav button[data-view]').forEach(b=>b.onclick=()=>go(b.dataset.view));
+decorateIcons();
+setupMenuToggle();
+document.querySelectorAll('#nav button[data-view]').forEach(b=>b.onclick=()=>{go(b.dataset.view);document.body.classList.remove('menu-open');});
 
 document.getElementById('anSearch').oninput=renderAnalise;
 document.getElementById('anMot').onchange=renderAnalise;
