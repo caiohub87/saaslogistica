@@ -20,6 +20,17 @@
     --green:#0e9e5e; --blue:#2779bd; --orange:#dd9500; --red:#d6252e;
     --glow:0 12px 34px rgba(15,45,80,.10); --radius:16px;
   }
+  body.theme-dark{
+    --bg:#09121f; --panel:rgba(17,29,48,.84); --panel2:#17263d; --line:rgba(160,180,205,.20);
+    --txt:#edf5ff; --muted:#9fb1c8; --accent:#ffd15c; --accent2:#62b5ff; --danger:#ff6670;
+    --green:#35d489; --blue:#78c3ff; --orange:#ffc857; --red:#ff6872;
+    --glow:0 18px 42px rgba(0,0,0,.34);
+  }
+  body.theme-dark #bgFx svg{opacity:.34}
+  body.theme-dark #bgFx .routes path{stroke:#62b5ff;opacity:.12}
+  body.theme-dark #bgFx .routes .ry{stroke:#ffd15c;opacity:.20}
+  body.theme-dark #bgFx .cities circle{fill:#62b5ff;opacity:.22}
+  body.theme-dark #bgFx .cities .hub{fill:#ffd15c;opacity:.55}
   *{box-sizing:border-box}
   body{margin:0;background:var(--bg);color:var(--txt);font-family:"Segoe UI Variable Text","Segoe UI",system-ui,Arial,sans-serif;font-size:14.5px}
   a{color:var(--accent2);text-decoration:none}
@@ -214,6 +225,25 @@
   @keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
 
 
+  /* dark mode */
+  body.theme-dark .side,body.theme-dark .card,body.theme-dark .kpi,body.theme-dark .login-box,body.theme-dark .userchip,body.theme-dark .sel-carga,body.theme-dark .de-day{background:rgba(17,29,48,.78);border-color:var(--line);box-shadow:0 0 0 1px rgba(160,180,205,.08),var(--glow)}
+  body.theme-dark .side .logo,body.theme-dark .login-box .logo{background:rgba(255,255,255,.92)}
+  body.theme-dark input,body.theme-dark select,body.theme-dark button.ghost{background:rgba(13,24,40,.92);color:var(--txt);border-color:var(--line)}
+  body.theme-dark input::placeholder{color:#7488a0}
+  body.theme-dark thead th{background:#142239;color:#c4d3e6}
+  body.theme-dark tbody tr:hover,body.theme-dark .an-main:hover,body.theme-dark .de-day>.head:hover{background:rgba(98,181,255,.10)}
+  body.theme-dark .drop{background:rgba(17,29,48,.66);border-color:rgba(98,181,255,.34)}
+  body.theme-dark .drop:hover,body.theme-dark .drop.over{background:rgba(22,38,62,.90);border-color:var(--accent2)}
+  body.theme-dark .spill,body.theme-dark .subtabs{background:rgba(13,24,40,.72)}
+  body.theme-dark .spill.on,body.theme-dark .subtab.active,body.theme-dark .nav button.active{background:linear-gradient(135deg,rgba(255,209,92,.18),rgba(98,181,255,.14));border-color:rgba(98,181,255,.38)}
+  body.theme-dark .toggle button{background:#17263d;color:var(--muted)}
+  body.theme-dark .bar-track{background:rgba(237,245,255,.12)}
+  body.theme-dark .subtbl tbody td,body.theme-dark tbody td{border-color:var(--line)}
+  body.theme-dark .menu-toggle{background:#101d30;color:var(--txt);border-color:var(--line);box-shadow:0 18px 42px rgba(0,0,0,.34)}
+  body.theme-dark .menu-backdrop{background:rgba(0,0,0,.58)}
+  body.theme-dark #loginOverlay{background:rgba(9,18,31,.70)}
+  body.theme-dark .theme-toggle{min-width:98px}
+  .theme-toggle{min-width:98px}
   /* menu retratil + icones modernos */
   .menu-toggle{position:fixed;top:18px;left:18px;z-index:60;width:44px;height:44px;border-radius:14px;padding:0;display:inline-flex;align-items:center;justify-content:center;background:#fff;color:var(--txt);border:1px solid rgba(0,93,168,.18);box-shadow:0 14px 32px rgba(15,45,80,.18)}
   .menu-toggle:hover{transform:translateY(-1px);box-shadow:0 16px 36px rgba(15,45,80,.24)}
@@ -306,6 +336,7 @@
       <h1 id="viewTitle">Início</h1>
       <span class="file" id="fileState">Nenhum relatório carregado</span>
       <span class="sp"></span>
+      <button class="ghost theme-toggle" id="themeToggle" type="button" data-icon="moon" aria-label="Alternar modo escuro"><span class="theme-label">Escuro</span></button>
       <button class="ghost" id="btnLoad" data-icon="upload">Importar relat&oacute;rio</button>
       <button class="ghost" id="btnClear" style="display:none" data-icon="trash">Limpar base</button>
       <input type="file" id="file" accept=".xlsx,.xlsm,.xls" style="display:none">
@@ -642,6 +673,23 @@ const ICONS={
 };
 function iconSvg(name){return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]||ICONS.check}"></path></svg>`;}
 function decorateIcons(){document.querySelectorAll('[data-icon]').forEach(el=>{if(!el.querySelector('.ui-icon'))el.insertAdjacentHTML('afterbegin',iconSvg(el.dataset.icon));});}
+function setupThemeToggle(){
+  const btn=document.getElementById('themeToggle');
+  if(!btn)return;
+  const label=btn.querySelector('.theme-label');
+  const saved=localStorage.getItem('sgl_theme');
+  const prefersDark=window.matchMedia&&window.matchMedia('(prefers-color-scheme: dark)').matches;
+  const apply=dark=>{
+    document.body.classList.toggle('theme-dark',dark);
+    btn.dataset.icon=dark?'sun':'moon';
+    if(label)label.textContent=dark?'Claro':'Escuro';
+    btn.setAttribute('aria-pressed',dark?'true':'false');
+    btn.querySelector('.ui-icon')?.remove();
+    btn.insertAdjacentHTML('afterbegin',iconSvg(btn.dataset.icon));
+  };
+  apply(saved?saved==='dark':prefersDark);
+  btn.onclick=()=>{const dark=!document.body.classList.contains('theme-dark');localStorage.setItem('sgl_theme',dark?'dark':'light');apply(dark);};
+}
 function setupMenuToggle(){
   const app=document.querySelector('.app'),btn=document.getElementById('menuToggle'),back=document.getElementById('menuBackdrop');
   if(!app||!btn||!back)return;
@@ -1901,6 +1949,7 @@ drop.ondragover=e=>{e.preventDefault();drop.classList.add('over');};
 drop.ondragleave=()=>drop.classList.remove('over');
 drop.ondrop=e=>{e.preventDefault();drop.classList.remove('over');if(e.dataTransfer.files[0])handleFile(e.dataTransfer.files[0]);};
 decorateIcons();
+setupThemeToggle();
 setupMenuToggle();
 document.querySelectorAll('#nav button[data-view]').forEach(b=>b.onclick=()=>{go(b.dataset.view);document.body.classList.remove('menu-open');});
 
