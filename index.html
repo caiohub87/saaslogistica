@@ -292,23 +292,6 @@
 <body>
 <button class="menu-toggle" id="menuToggle" type="button" aria-label="Abrir ou recolher menu" aria-expanded="true"><span class="hamb-lines"><span></span><span></span><span></span></span></button>
 <div class="menu-backdrop" id="menuBackdrop"></div>
-<div class="truck-loader" id="truckLoader" aria-live="polite" aria-hidden="true">
-  <div class="truck-loader__box">
-    <div class="truck-scene" aria-hidden="true">
-      <div class="truck-scene__car">
-        <div class="truck-scene__window"></div>
-        <div class="truck-scene__cargo"></div>
-        <div class="truck-scene__door"></div>
-        <div class="truck-scene__lights"></div>
-      </div>
-      <div class="truck-scene__wheels truck-scene__wheels--1"></div>
-      <div class="truck-scene__wheels truck-scene__wheels--2"></div>
-      <div class="truck-scene__street"></div>
-      <div class="truck-scene__post"></div>
-    </div>
-    <div class="truck-loader__text" id="truckLoaderText">Carregando...</div>
-  </div>
-</div>
 <!-- fundo: mapa de rotas animado -->
 <div id="bgFx" aria-hidden="true">
   <svg viewBox="0 0 1440 900" preserveAspectRatio="xMidYMid slice" xmlns="http://www.w3.org/2000/svg">
@@ -716,28 +699,6 @@ const ICONS={
 };
 function iconSvg(name){return `<svg class="ui-icon" viewBox="0 0 24 24" aria-hidden="true"><path d="${ICONS[name]||ICONS.check}"></path></svg>`;}
 function decorateIcons(){document.querySelectorAll('[data-icon]').forEach(el=>{if(!el.querySelector('.ui-icon'))el.insertAdjacentHTML('afterbegin',iconSvg(el.dataset.icon));});}
-let TRUCK_LOADING=0;
-function showTruckLoader(text='Carregando...'){
-  const el=document.getElementById('truckLoader'),msg=document.getElementById('truckLoaderText');
-  if(!el)return;
-  TRUCK_LOADING++;
-  if(msg)msg.textContent=text;
-  el.classList.add('on');
-  el.setAttribute('aria-hidden','false');
-}
-function hideTruckLoader(){
-  const el=document.getElementById('truckLoader');
-  if(!el)return;
-  TRUCK_LOADING=Math.max(0,TRUCK_LOADING-1);
-  if(TRUCK_LOADING)return;
-  el.classList.remove('on');
-  el.setAttribute('aria-hidden','true');
-}
-async function withTruckLoader(text,fn){
-  showTruckLoader(text);
-  try{return await fn();}
-  finally{hideTruckLoader();}
-}
 function setupThemeToggle(){
   const wrap=document.getElementById('themeToggle'),input=document.getElementById('themeToggleInput');
   if(!wrap||!input)return;
@@ -835,12 +796,10 @@ function colmapFrom(headerRow){
   return idx;
 }
 function handleFile(file){
-  showTruckLoader('Lendo relatório...');
   Promise.resolve(window.XLSX_READY).then(ok=>{
-    if(!ok){alert('Não consegui carregar a biblioteca (xlsx.full.min.js). Verifique se está na pasta.');hideTruckLoader();return;}
+    if(!ok){alert('Não consegui carregar a biblioteca (xlsx.full.min.js). Verifique se está na pasta.');return;}
     const r=new FileReader();
-    r.onerror=()=>{alert('Não consegui ler o arquivo selecionado.');hideTruckLoader();};
-    r.onload=e=>{try{
+    r.onload=e=>{
       const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
       const ws=wb.Sheets[wb.SheetNames[0]];
       const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
@@ -865,10 +824,9 @@ function handleFile(file){
       });
       META={file:file.name, loadedAt:new Date().toISOString(), pedidos:BASE.length};
       persist(); afterLoad();
-    }catch(err){alert('Erro ao processar o relatório: '+err.message);}
-    finally{hideTruckLoader();}};
+    };
     r.readAsArrayBuffer(file);
-  }).catch(err=>{alert('Erro ao preparar a leitura do relatório: '+err.message);hideTruckLoader();});
+  });
 }
 function persist(){ try{localStorage.setItem(lsk('base'),JSON.stringify({BASE,META}));}catch(e){} }
 function restore(){ BASE=[];META={}; try{const j=JSON.parse(localStorage.getItem(lsk('base'))||'null'); if(j&&j.BASE){BASE=j.BASE;META=j.META||{};return true;}}catch(e){} return false; }
@@ -936,9 +894,9 @@ function go(view){
   document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
   document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"] .nav-label`)?.textContent.trim()||document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
-  if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) withTruckLoader('Buscando salvos...',()=>svConsultar());
+  if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
   if(view==='escala'&&typeof esEnter==='function') esEnter();
-  if(view==='escalasalvas'&&!SESSION.offline&&typeof esvListar==='function') withTruckLoader('Buscando escalas salvas...',()=>esvListar());
+  if(view==='escalasalvas'&&!SESSION.offline&&typeof esvListar==='function') esvListar();
   window.scrollTo(0,0);
 }
 
@@ -2092,18 +2050,16 @@ document.getElementById('loginBtn').onclick=async()=>{
   const err=document.getElementById('loginErr');
   if(!supaReady()){err.textContent='Banco não configurado ou sem internet.';document.getElementById('loginOff').style.display='block';return;}
   err.textContent='Entrando…';
-  showTruckLoader('Entrando no sistema...');
   try{ SESSION=await doLogin(document.getElementById('loginUnidade').value,document.getElementById('loginSenha').value);
     err.textContent=''; applyAccess(); }
   catch(e){ err.textContent=e.message; }
-  finally{hideTruckLoader();}
 };
 document.getElementById('loginSenha').addEventListener('keydown',e=>{if(e.key==='Enter')document.getElementById('loginBtn').click();});
 document.getElementById('loginUnidade').onchange=e=>setLogos(e.target.value);
 document.getElementById('loginOffline').onclick=e=>{e.preventDefault();SESSION={unidade:document.getElementById('loginUnidade').value,role:'admin',offline:true};applyAccess();};
 document.getElementById('btnLogout').onclick=e=>{e.preventDefault();logout();};
-document.getElementById('prSave').onclick=()=>withTruckLoader('Salvando premiação...',salvarPremiacao);
-document.getElementById('deBuscar').onclick=()=>withTruckLoader('Buscando desempenho...',deConsultar);
+document.getElementById('prSave').onclick=salvarPremiacao;
+document.getElementById('deBuscar').onclick=deConsultar;
 document.getElementById('deNome').onchange=renderDesempenho;
 document.getElementById('deHist').addEventListener('click',e=>{
   const d=e.target.closest('.de-day');if(!d)return;
@@ -2111,7 +2067,7 @@ document.getElementById('deHist').addEventListener('click',e=>{
   const open=b.style.display==='none'; b.style.display=open?'block':'none'; ex.textContent=open?'▾':'▸';
 });
 // salvos (admin)
-document.getElementById('svBuscar').onclick=()=>withTruckLoader('Buscando salvos...',svConsultar);
+document.getElementById('svBuscar').onclick=svConsultar;
 document.getElementById('svBusca').oninput=svFilter;
 document.getElementById('svChkAll').onchange=e=>{SV_ROWS.forEach(r=>e.target.checked?svSel.add(r.id):svSel.delete(r.id));svUpdateMsg();renderSalvos();};
 document.getElementById('svLimparSel').onclick=()=>{svSel.clear();svUpdateMsg();renderSalvos();};
@@ -2138,8 +2094,8 @@ document.getElementById('esSaida').onchange=async e=>{
   await esTrocarDia(novo);    // abre o conteúdo do novo dia
 };
 document.getElementById('esAddLinha').onclick=()=>{ES.linhas.push(esLinhaVazia());esDraftSave();renderEscala();};
-document.getElementById('esSalvar').onclick=()=>withTruckLoader('Salvando escala...',esSalvar);
-document.getElementById('esCarregar').onclick=()=>withTruckLoader('Abrindo escala salva...',esCarregarSalva);
+document.getElementById('esSalvar').onclick=esSalvar;
+document.getElementById('esCarregar').onclick=esCarregarSalva;
 document.getElementById('esImprimir').onclick=esPrint;
 document.getElementById('esPortaria').onclick=()=>esDoPrint(esPortariaHtml(ES.saida,ES.linhas));
 document.getElementById('esEquipeBtn').onclick=()=>{const c=document.getElementById('esEquipeCard');
@@ -2196,7 +2152,7 @@ document.getElementById('eqLista').addEventListener('change',e=>{
   if(e.target.dataset.eqnome!==undefined)esSetStatus(e.target.dataset.eqnome,e.target.dataset.eqtipo,e.target.value);
 });
 // escalas salvas
-document.getElementById('esvAtualizar').onclick=()=>withTruckLoader('Buscando escalas salvas...',esvListar);
+document.getElementById('esvAtualizar').onclick=esvListar;
 document.getElementById('esvSelect').onchange=esvVer;
 document.getElementById('esvImprimir').onclick=esvImprimir;
 document.getElementById('esvPortaria').onclick=()=>{
