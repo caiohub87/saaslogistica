@@ -94,6 +94,27 @@ create policy "escrita admin rascunho" on rascunhos
   using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
   with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
 
+-- Diárias (histórico de pagamento: um lançamento por pessoa por dia/linha da escala)
+create table if not exists diarias (
+  id bigint generated always as identity primary key,
+  unidade text not null,
+  data_saida date not null,
+  nome text not null,
+  funcao text,                 -- 'motorista' | 'ajudante'
+  veiculo text,
+  lote text,
+  valor numeric default 0,
+  created_at timestamptz default now()
+);
+alter table diarias enable row level security;
+create policy "leitura unidade diarias" on diarias
+  for select to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) );
+create policy "escrita admin diarias" on diarias
+  for all to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
+  with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
+
 -- ============================================================
 -- USUÁRIOS (criar no painel: Authentication → Users → Add user → marcar "Auto Confirm User")
 --   dilnor.admin@gestao.app      → senha de administrador da Dilnor

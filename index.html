@@ -348,8 +348,6 @@
       <button data-view="analise" data-icon="chart"><span class="nav-label">An&aacute;lise de Entregas</span></button>
       <button data-view="produtividade" data-icon="target"><span class="nav-label">Produtividade</span></button>
       <div class="sep"></div>
-      <button data-view="reentregas" data-icon="refresh"><span class="nav-label">Reentregas</span></button>
-      <button data-view="pagamento" data-icon="wallet"><span class="nav-label">Pagamento</span></button>
       <button data-view="salvos" data-icon="archive"><span class="nav-label">Salvos</span></button>
       <button data-view="escala" data-icon="calendar"><span class="nav-label">Escala</span></button>
       <button data-view="escalasalvas" data-icon="calendar"><span class="nav-label">Escalas salvas</span></button>
@@ -388,7 +386,7 @@
     <section class="view active" id="view-inicio">
       <div id="homeNoData">
         <div class="card"><div class="pad">
-          <div class="flow">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Reentregas <span class="ar">→</span> Pagamento <span class="ar">→</span> Dashboard</div>
+          <div class="flow">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Salvos <span class="ar">→</span> Escala <span class="ar">→</span> Diárias</div>
         </div></div>
         <div class="card" style="margin-top:16px"><div class="pad">
           <h2 style="margin-top:0">Bem-vindo 👋</h2>
@@ -401,15 +399,14 @@
         </div></div>
       </div>
       <div id="homeData" style="display:none">
-        <div class="flow" style="margin-bottom:12px">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Reentregas <span class="ar">→</span> Pagamento <span class="ar">→</span> Dashboard</div>
+        <div class="flow" style="margin-bottom:12px">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Salvos <span class="ar">→</span> Escala <span class="ar">→</span> Diárias</div>
         <div class="kpis" id="homeKpis"></div>
         <div class="card"><div class="pad">
           <b>Atalhos</b>
           <div class="home-actions">
             <button onclick="go('analise')" data-icon="chart">Abrir An&aacute;lise</button>
             <button onclick="go('produtividade')" data-icon="target">Abrir Produtividade</button>
-            <button class="ghost" onclick="go('reentregas')" data-icon="refresh">Ver Reentregas</button>
-            <button class="ghost" onclick="go('pagamento')" data-icon="wallet">Gerar Pagamento</button>
+            <button class="ghost" onclick="go('escala')" data-icon="calendar">Abrir Escala</button>
           </div>
         </div></div>
       </div>
@@ -470,56 +467,7 @@
       </div>
     </section>
 
-    <!-- ===== STUBS ===== -->
-    <!-- ===== REENTREGAS ===== -->
-    <section class="view" id="view-reentregas">
-      <div id="reEmpty" class="empty">Carregue um relatório para ver as reentregas e devoluções.</div>
-      <div id="reBody" style="display:none">
-        <div class="kpis" id="reKpis"></div>
-        <div class="card">
-          <h3>Pedidos com problema <span id="reCount" class="pill"></span></h3>
-          <div class="pad toolbar">
-            <input type="search" id="reSearch" placeholder="Buscar cliente, pedido, motorista...">
-            <select id="reMot"><option value="">Todos motoristas</option></select>
-            <select id="reRota"><option value="">Todas rotas</option></select>
-            <select id="reMotivo"><option value="">Todos motivos</option></select>
-            <button class="ghost" id="reExport">⬇️ Exportar</button>
-          </div>
-          <div class="pad" style="padding-top:0"><div class="status-bar" id="reStatus"></div></div>
-          <div class="tablewrap"><table id="reTbl"><thead><tr>
-            <th>Data</th><th>Carga</th><th>Romaneio</th><th>Motorista</th><th>Cliente</th>
-            <th>Pedido</th><th>Rota</th><th>Status</th><th>Motivo</th><th class="num">Peso</th><th class="num">Valor</th>
-          </tr></thead><tbody></tbody></table></div>
-        </div>
-      </div>
-    </section>
-
-    <!-- ===== PAGAMENTO ===== -->
-    <section class="view" id="view-pagamento">
-      <div id="payEmpty" class="empty">Carregue um relatório para gerar o pagamento.</div>
-      <div id="payBody" style="display:none">
-        <div class="kpis" id="payKpis"></div>
-        <div class="card">
-          <h3>Folha de premiação por carga <span id="payCount" class="pill"></span></h3>
-          <div class="pad toolbar">
-            <input type="search" id="paySearch" placeholder="Buscar carga, motorista...">
-            <select id="payTipoBulk"><option value="">Aplicar tipo a todos…</option><option>Praça</option><option>Viagem</option><option>Agregado</option></select>
-            <label class="muted" style="display:flex;align-items:center;gap:6px;cursor:pointer"><input type="checkbox" id="payOnlyPag" class="chk"> Só PAGAR=SIM</label>
-            <button class="yellow" id="payExport" style="margin-left:auto">⬇️ Exportar folha (.xlsx)</button>
-          </div>
-          <div class="tablewrap"><table id="payTbl"><thead><tr>
-            <th>Data</th><th>Carga</th><th>Motorista</th><th>Ajud. 1</th><th>Ajud. 2</th>
-            <th>Tipo Operação</th><th class="num">Prod.</th><th>Faixa</th><th>PAGAR</th>
-            <th class="num">Vlr Mot.</th><th class="num">Vlr Aj1</th><th class="num">Vlr Aj2</th><th class="num">Total</th>
-          </tr></thead><tbody></tbody></table></div>
-        </div>
-        <div class="grid2" style="margin-top:16px">
-          <div class="card"><h3>Resumo por colaborador (período carregado)</h3><div class="pad" id="payByMot"></div></div>
-          <div class="card"><h3>Totais</h3><div class="pad" id="payTotals"></div></div>
-        </div>
-      </div>
-    </section>
-    <!-- ===== ESCALAS SALVAS (só visualizar/imprimir) ===== -->
+    <!-- ===== ESCALAS SALVAS (visualizar/imprimir + buscar por placa) ===== -->
     <section class="view" id="view-escalasalvas">
       <div class="card">
         <h3>Escalas salvas <span id="esvUnidade" class="pill"></span></h3>
@@ -530,7 +478,11 @@
           <button class="ghost" id="esvPortaria" data-icon="door">Portaria</button>
           <span class="muted" id="esvMsg" style="margin-left:auto"></span>
         </div>
-        <div class="pad eswrap" id="esvView" style="padding-top:0"><div class="empty">Escolha um dia salvo para visualizar.</div></div>
+        <div class="pad" style="padding-top:0">
+          <div class="muted" style="font-size:12px;margin-bottom:6px">🔎 Buscar por placa (todas as datas que esses veículos saíram):</div>
+          <div class="status-bar" id="esvPlacas"></div>
+        </div>
+        <div class="pad eswrap" id="esvView" style="padding-top:0"><div class="empty">Escolha um dia salvo para visualizar, ou selecione placas acima.</div></div>
       </div>
     </section>
 
@@ -610,6 +562,7 @@
       <div class="subtabs">
         <button class="subtab active" data-sub="escala">📋 Escala</button>
         <button class="subtab" data-sub="rascunho">🚚 Rascunho (na rua / viagem)</button>
+        <button class="subtab" data-sub="diarias">💵 Diárias</button>
       </div>
       <div id="esPaneEscala">
       <div class="card">
@@ -678,6 +631,24 @@
         <div class="card" style="margin-top:14px">
           <h3>🛣️ Viagem (vários dias) <span class="pill">ficam salvos até voltar</span> <button id="raAddViagem" style="float:right;padding:3px 9px;font-size:12px">➕ Linha</button></h3>
           <div class="pad eswrap" style="padding-top:0"><table id="raTblViagem" class="estbl"></table></div>
+        </div>
+      </div>
+
+      <div id="esPaneDiarias" style="display:none">
+        <div class="card">
+          <h3>Histórico de diárias <span id="diUnidade" class="pill"></span></h3>
+          <div class="pad toolbar">
+            <label class="muted">De <input type="date" id="diIni"></label>
+            <label class="muted">Até <input type="date" id="diFim"></label>
+            <input type="search" id="diBusca" placeholder="Buscar nome...">
+            <button class="yellow" id="diBuscar" data-icon="refresh">Buscar</button>
+            <button class="ghost" id="diExport" data-icon="download">Exportar Excel</button>
+            <span class="muted" id="diMsg" style="margin-left:auto"></span>
+          </div>
+          <div class="pad" style="padding-top:0">
+            <div class="muted" style="font-size:12px;margin-bottom:6px">As diárias são gravadas ao <b>Salvar escala</b>. Ajudantes "Chapa" não entram. Clique numa pessoa para ver os dias.</div>
+            <div class="tablewrap"><table id="diTbl" class="estbl"></table></div>
+          </div>
         </div>
       </div>
 
@@ -894,16 +865,12 @@ function afterLoad(){
   document.getElementById('analiseBody').style.display=has?'block':'none';
   document.getElementById('prodEmpty').style.display=has?'none':'block';
   document.getElementById('prodBody').style.display=has?'block':'none';
-  document.getElementById('reEmpty').style.display=has?'none':'block';
-  document.getElementById('reBody').style.display=has?'block':'none';
-  document.getElementById('payEmpty').style.display=has?'none':'block';
-  document.getElementById('payBody').style.display=has?'block':'none';
   document.getElementById('cadEmpty').style.display=has?'none':'block';
   document.getElementById('cadBody').style.display=has?'block':'none';
   renderConfigForm(); renderCadPremio();
-  if(has){ buildCargas(); selected.clear(); cfg={}; payCfg={}; loadTipos();
+  if(has){ buildCargas(); selected.clear(); cfg={}; loadTipos();
     renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
-    fillReFilters(); renderRe(); renderPay(); renderCadastros(); }
+    renderCadastros(); }
 }
 function go(view){
   if(view==='salvos'&&!exigeSenha('Acessar a aba Salvos'))return;
@@ -1291,7 +1258,7 @@ function renderConfigForm(){
   document.getElementById('cfgPagAtivo').checked=CONFIG.pagamentoAtivo;
 }
 function recalcAll(){ if(BASE.length){ buildCargas(); renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
-    fillReFilters(); renderRe(); renderPay(); renderCadastros(); } }
+    renderCadastros(); } }
 
 // ===================== BANCO DE DADOS (SUPABASE) =====================
 // >>> COLE AQUI as credenciais do seu projeto (Settings → API) <<<
@@ -1706,7 +1673,27 @@ async function esSalvar(){
   const {error}=await sb.from('escalas').upsert(
     {unidade:SESSION.unidade,data_saida:ES.saida,data_carrego:ES.carrego||null,linhas:ES.linhas},
     {onConflict:'unidade,data_saida'});
-  msg.textContent=error?('❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL novo no Supabase.':'')):'✅ Escala de '+deFmtData(ES.saida)+' salva.';
+  if(error){msg.textContent='❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL novo no Supabase.':'');return;}
+  const dia=await esGravarDiarias(ES.saida,ES.linhas);
+  msg.textContent='✅ Escala de '+deFmtData(ES.saida)+' salva.'+(dia?(' 💵 '+dia+' diária(s) registrada(s).'):'');
+}
+// grava as diárias do dia (cada pessoa da linha recebe a diária; ajudante "Chapa" fica de fora)
+const isChapa=n=>/^\s*chapa/i.test(String(n||''));
+function esDiariaRows(dataISO,linhas){
+  const rows=[];
+  (linhas||[]).forEach(l=>{
+    const v=parseNum(l.dia); if(v<=0)return;
+    const add=(nome,funcao)=>{const nm=norm(nome); if(nm&&!isChapa(nm))rows.push({unidade:SESSION.unidade,data_saida:dataISO,nome:nm,funcao,veiculo:norm(l.veic),lote:norm(l.lote),valor:v});};
+    add(l.mot,'motorista'); add(l.aj1,'ajudante'); add(l.aj2,'ajudante');
+  });
+  return rows;
+}
+async function esGravarDiarias(dataISO,linhas){
+  if(SESSION.offline||!supaReady()||!dataISO)return 0;
+  await sb.from('diarias').delete().eq('unidade',SESSION.unidade).eq('data_saida',dataISO); // re-salvar substitui o dia
+  const rows=esDiariaRows(dataISO,linhas);
+  if(rows.length){const {error}=await sb.from('diarias').insert(rows); if(error){document.getElementById('esMsg').textContent='⚠️ Diárias: '+error.message;return 0;}}
+  return rows.length;
 }
 async function esCarregarSalva(){
   const msg=document.getElementById('esMsg');
@@ -1875,7 +1862,7 @@ function esDoPrint(html){
 function esPrint(){ esDoPrint(esPrintHtml(ES.carrego,ES.saida,ES.linhas)); }
 
 // ---- escalas salvas (só visualizar / imprimir) ----
-let ESV_LIST=[], ESV_SEL=null;
+let ESV_LIST=[], ESV_SEL=null, ESV_PLACAS=new Set();
 async function esvListar(){
   const msg=document.getElementById('esvMsg');
   document.getElementById('esvUnidade').textContent=SESSION.unidade||'';
@@ -1890,13 +1877,36 @@ async function esvListar(){
     const n=(e.linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!=='')).length;
     return `<option value="${e.id}" ${String(e.id)===atual?'selected':''}>${deFmtData(e.data_saida)} — ${n} veículo(s)</option>`;}).join('');
   msg.textContent=ESV_LIST.length+' escala(s) salva(s)';
-  esvVer();
+  esvRenderPlacas(); esvVer();
+}
+function esvAllPlacas(){
+  const s=new Set(); ESV_LIST.forEach(e=>(e.linhas||[]).forEach(l=>{const v=norm(l.veic);if(v)s.add(v);}));
+  return [...s].sort();
+}
+function esvRenderPlacas(){
+  const placas=esvAllPlacas();
+  document.getElementById('esvPlacas').innerHTML=placas.map(p=>`<span class="spill ${ESV_PLACAS.has(p)?'on':''}" data-placa="${esc(p)}">${esc(p)}</span>`).join('')
+    +(ESV_PLACAS.size?'<span class="spill act" data-placa-act="clear">✖ Limpar placas</span>':'');
+}
+function esvByPlaca(){
+  const el=document.getElementById('esvView'), rows=[];
+  ESV_LIST.forEach(e=>(e.linhas||[]).forEach(l=>{ if(ESV_PLACAS.has(norm(l.veic)))rows.push({e,l}); }));
+  rows.sort((a,b)=>a.e.data_saida<b.e.data_saida?1:a.e.data_saida>b.e.data_saida?-1:0);
+  const placasTxt=[...ESV_PLACAS].join(', ');
+  el.innerHTML=`<div class="muted" style="margin:6px 0 10px">Placas: <b style="color:var(--txt)">${esc(placasTxt)}</b> &nbsp;·&nbsp; ${rows.length} saída(s) encontradas</div>`+
+    `<table class="estbl" style="min-width:900px"><thead><tr><th>DATA SAÍDA</th><th>VEÍCULO</th><th>LOTE</th><th>ROTA</th><th>MOTORISTA</th><th>AJUD.1</th><th>AJUD.2</th><th class="num">PESO</th></tr></thead><tbody>`+
+    (rows.map(({e,l})=>{const c=esCalcRow(l);
+      return `<tr><td style="text-align:center;padding:6px">${deFmtData(e.data_saida)}</td><td style="text-align:center">${esc(l.veic)}</td><td style="text-align:center">${esc(l.lote)}</td>
+        <td style="padding:6px">${esc(l.rota)}</td><td style="padding:6px">${esc(l.mot)}</td><td style="padding:6px">${esc(l.aj1)}</td><td style="padding:6px">${esc(l.aj2)}</td>
+        <td class="calc">${c.ptot?fmtKg(c.ptot):''}</td></tr>`;}).join('')||'<tr><td colspan="8" class="empty" style="padding:16px">Nenhuma saída dessas placas.</td></tr>')+
+    '</tbody></table>';
 }
 function esvVer(){
+  if(ESV_PLACAS.size){ esvByPlaca(); return; } // modo busca por placa (todas as datas)
   const id=document.getElementById('esvSelect').value;
   ESV_SEL=ESV_LIST.find(e=>String(e.id)===id)||null;
   const el=document.getElementById('esvView');
-  if(!ESV_SEL){el.innerHTML='<div class="empty">Escolha um dia salvo para visualizar.</div>';return;}
+  if(!ESV_SEL){el.innerHTML='<div class="empty">Escolha um dia salvo para visualizar, ou selecione placas acima.</div>';return;}
   const e=ESV_SEL, t=esTotaisDe(e.linhas);
   const linhas=(e.linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
   el.innerHTML=`<div class="muted" style="margin:6px 0 10px">Data de carrego: <b style="color:var(--txt)">${e.data_carrego?deFmtData(e.data_carrego):'—'}</b>
@@ -1992,6 +2002,57 @@ function raPrintHtml(){
     +bloco('🏙️ PRAÇA (na rua)',RASC.praca)+bloco('🛣️ VIAGEM (vários dias)',RASC.viagem);
 }
 
+// ---- histórico de diárias (sub-tela da Escala) ----
+let DI_ROWS=[], diEntrou=false, diAberto=new Set();
+function diInitDates(){ const f=new Date(), i=new Date(f.getFullYear(),f.getMonth(),1);
+  document.getElementById('diFim').value=f.toISOString().slice(0,10);
+  document.getElementById('diIni').value=i.toISOString().slice(0,10);
+  document.getElementById('diUnidade').textContent=SESSION.unidade||''; }
+async function diBuscar(){
+  const msg=document.getElementById('diMsg');
+  if(SESSION.offline||!supaReady()){msg.textContent='Banco não configurado.';return;}
+  msg.textContent='Buscando…';
+  const ini=document.getElementById('diIni').value, fim=document.getElementById('diFim').value;
+  let q=sb.from('diarias').select('*').eq('unidade',SESSION.unidade).order('data_saida',{ascending:false}).limit(5000);
+  if(ini)q=q.gte('data_saida',ini); if(fim)q=q.lte('data_saida',fim);
+  const {data,error}=await q;
+  if(error){msg.textContent='❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL das diárias.':'');return;}
+  DI_ROWS=data||[]; msg.textContent=DI_ROWS.length+' lançamento(s)';
+  renderDiarias();
+}
+function diResumo(){
+  const q=low(document.getElementById('diBusca').value), m={};
+  DI_ROWS.forEach(r=>{ if(q&&!low(r.nome).includes(q))return;
+    if(!m[r.nome])m[r.nome]={nome:r.nome,funcao:r.funcao,dias:0,total:0,itens:[]};
+    m[r.nome].dias++; m[r.nome].total+=+r.valor||0; m[r.nome].itens.push(r);});
+  return Object.values(m).sort((a,b)=>b.total-a.total);
+}
+function renderDiarias(){
+  const lista=diResumo(), totGeral=lista.reduce((a,x)=>a+x.total,0);
+  const body=lista.map(p=>{
+    const open=diAberto.has(p.nome);
+    const det=open?`<tr class="di-det"><td colspan="5"><table class="subtbl"><thead><tr><th>Data</th><th>Função</th><th>Veículo</th><th>Lote</th><th class="num">Valor</th></tr></thead><tbody>`+
+      p.itens.sort((a,b)=>a.data_saida<b.data_saida?1:-1).map(r=>`<tr><td>${deFmtData(r.data_saida)}</td><td class="muted">${r.funcao==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</td><td>${esc(r.veiculo)}</td><td class="muted">${esc(r.lote)}</td><td class="num">${fmtBRL(+r.valor||0)}</td></tr>`).join('')+
+      `</tbody></table></td></tr>`:'';
+    return `<tr class="di-main" data-nome="${esc(p.nome)}" style="cursor:pointer"><td class="exp">${open?'▾':'▸'}</td>
+      <td class="eqnm">${esc(p.nome)}</td><td class="muted">${p.funcao==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</td>
+      <td class="num">${p.dias}</td><td class="num calc">${fmtBRL(p.total)}</td></tr>`+det;}).join('');
+  document.getElementById('diTbl').innerHTML=
+    '<thead><tr><th style="width:26px"></th><th>Nome</th><th>Função</th><th class="num">Dias</th><th class="num">Total R$</th></tr></thead><tbody>'+
+    (body||'<tr><td colspan="5" class="empty" style="padding:16px">Nenhuma diária no período. Elas são gravadas ao Salvar escala.</td></tr>')+
+    '</tbody><tfoot><tr><td colspan="3" style="text-align:left">TOTAL · '+lista.length+' pessoa(s)</td><td class="num">'+lista.reduce((a,x)=>a+x.dias,0)+'</td><td class="num">'+fmtBRL(totGeral)+'</td></tr></tfoot>';
+}
+function diExport(){
+  const lista=diResumo(); if(!lista.length){document.getElementById('diMsg').textContent='Nada para exportar.';return;}
+  const aoa=[['NOME','FUNCAO','DATA','VEICULO','LOTE','VALOR']];
+  lista.forEach(p=>p.itens.forEach(r=>{const [y,mo,d]=String(r.data_saida).split('-');
+    aoa.push([r.nome,r.funcao,`${d}-${mo}-${y}`,r.veiculo,r.lote,+r.valor||0]);}));
+  aoa.push([]); aoa.push(['','','','','TOTAL',lista.reduce((a,x)=>a+x.total,0)]);
+  const ws=XLSX.utils.aoa_to_sheet(aoa); ws['!cols']=[{wch:24},{wch:12},{wch:12},{wch:12},{wch:10},{wch:12}];
+  for(let r=1;r<aoa.length;r++){const a=XLSX.utils.encode_cell({r,c:5});if(ws[a]&&typeof ws[a].v==='number')ws[a].z='"R$" #,##0.00';}
+  const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Diarias');XLSX.writeFile(wb,'diarias.xlsx');
+}
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -2040,34 +2101,12 @@ document.getElementById('prSelList').addEventListener('click',e=>{const tg=e.tar
 document.getElementById('prSelList').addEventListener('change',e=>{if(e.target.tagName==='SELECT'&&e.target.dataset.sel!==undefined){ensureCfg(e.target.dataset.id).roles[e.target.dataset.sel].cargo=e.target.value;renderProdPanel();}});
 document.getElementById('prSelList').addEventListener('input',e=>{if(e.target.tagName==='INPUT'&&e.target.dataset.key!==undefined){ensureCfg(e.target.dataset.id).roles[e.target.dataset.key].display=e.target.value;}});
 
-// reentregas
-['reSearch','reMot','reRota','reMotivo'].forEach(id=>{const el=document.getElementById(id);el.oninput=renderRe;el.onchange=renderRe;});
-document.getElementById('reStatus').addEventListener('click',e=>{const p=e.target.closest('.spill');if(!p)return;
-  if(p.dataset.act==='all')reStatusFilter=new Set(reStatusList.map(s=>s.stl));
-  else if(p.dataset.act==='none')reStatusFilter=new Set();
-  else if(p.dataset.st!==undefined){reStatusFilter.has(p.dataset.st)?reStatusFilter.delete(p.dataset.st):reStatusFilter.add(p.dataset.st);}
-  renderReStatusPills();renderRe();});
-document.getElementById('reExport').onclick=reExport;
-
-// pagamento
-document.getElementById('paySearch').oninput=renderPay;
-document.getElementById('payOnlyPag').onchange=renderPay;
-document.getElementById('payExport').onclick=payExport;
-document.getElementById('payTipoBulk').onchange=e=>{const t=e.target.value;if(!t)return;
-  payList().forEach(c=>{ensurePay(c.id).tipo=t;motoristaTipo[c.motorista]=t;});saveTipos();e.target.value='';renderPay();};
-document.querySelector('#payTbl tbody').addEventListener('change',e=>{
-  if(e.target.dataset.tipo!==undefined){const id=e.target.dataset.tipo,c=byCarga[id];
-    ensurePay(id).tipo=e.target.value; if(c.motorista){motoristaTipo[c.motorista]=e.target.value;saveTipos();} renderPay();}});
-document.querySelector('#payTbl tbody').addEventListener('click',e=>{
-  if(e.target.dataset.pag!==undefined){const p=ensurePay(e.target.dataset.pag);p.pagar=!p.pagar;renderPay();}});
-
 // cadastros: tipo motorista / ajudante
-document.getElementById('cadMot').addEventListener('change',e=>{if(e.target.dataset.cadmot!==undefined){const nome=e.target.dataset.cadmot;motoristaTipo[nome]=e.target.value;saveTipos();
-  CARGAS.forEach(c=>{if(c.motorista===nome&&payCfg[c.id])payCfg[c.id].tipo=e.target.value;});renderPay();}});
-document.getElementById('cadAju').addEventListener('change',e=>{if(e.target.dataset.cadaju!==undefined){ajudanteTipo[e.target.dataset.cadaju]=e.target.value;saveTipos();renderPay();}});
+document.getElementById('cadMot').addEventListener('change',e=>{if(e.target.dataset.cadmot!==undefined){motoristaTipo[e.target.dataset.cadmot]=e.target.value;saveTipos();}});
+document.getElementById('cadAju').addEventListener('change',e=>{if(e.target.dataset.cadaju!==undefined){ajudanteTipo[e.target.dataset.cadaju]=e.target.value;saveTipos();}});
 // cadastros: tabela de valores
-document.getElementById('cadPremio').addEventListener('input',e=>{if(e.target.dataset.cargo!==undefined){const cg=e.target.dataset.cargo,i=+e.target.dataset.i,v=parseFloat(e.target.value);PREMIO[cg][i]=isNaN(v)?0:v;savePremio();renderProd();renderPay();}});
-document.getElementById('cadPremio').addEventListener('click',e=>{if(e.target.id==='premioReset'){PREMIO=JSON.parse(JSON.stringify(PREMIO_DEFAULT));savePremio();renderCadPremio();renderProd();renderPay();}});
+document.getElementById('cadPremio').addEventListener('input',e=>{if(e.target.dataset.cargo!==undefined){const cg=e.target.dataset.cargo,i=+e.target.dataset.i,v=parseFloat(e.target.value);PREMIO[cg][i]=isNaN(v)?0:v;savePremio();renderProd();}});
+document.getElementById('cadPremio').addEventListener('click',e=>{if(e.target.id==='premioReset'){PREMIO=JSON.parse(JSON.stringify(PREMIO_DEFAULT));savePremio();renderCadPremio();renderProd();}});
 // configurações
 function onCfgChange(){CONFIG.horario=document.getElementById('cfgHorario').value||'17:30';
   CONFIG.meta90=Math.min(100,Math.max(0,parseFloat(document.getElementById('cfgMeta90').value)||90));
@@ -2186,20 +2225,34 @@ document.getElementById('eqLista').addEventListener('change',e=>{
 // escalas salvas
 document.getElementById('esvAtualizar').onclick=esvListar;
 document.getElementById('esvSelect').onchange=esvVer;
+document.getElementById('esvPlacas').addEventListener('click',e=>{
+  const p=e.target.closest('.spill'); if(!p)return;
+  if(p.dataset.placaAct==='clear')ESV_PLACAS.clear();
+  else if(p.dataset.placa!==undefined){const v=p.dataset.placa;ESV_PLACAS.has(v)?ESV_PLACAS.delete(v):ESV_PLACAS.add(v);}
+  esvRenderPlacas(); esvVer();
+});
 document.getElementById('esvImprimir').onclick=esvImprimir;
 document.getElementById('esvPortaria').onclick=()=>{
   if(!ESV_SEL){document.getElementById('esvMsg').textContent='Escolha um dia para imprimir a portaria.';return;}
   esDoPrint(esPortariaHtml(ESV_SEL.data_saida,ESV_SEL.linhas));
 };
 
-// sub-tela Escala <-> Rascunho
+// sub-telas da Escala: Escala / Rascunho / Diárias
 document.querySelectorAll('#view-escala .subtab').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('#view-escala .subtab').forEach(x=>x.classList.toggle('active',x===b));
   const sub=b.dataset.sub;
   document.getElementById('esPaneEscala').style.display=sub==='escala'?'':'none';
   document.getElementById('esPaneRascunho').style.display=sub==='rascunho'?'block':'none';
+  document.getElementById('esPaneDiarias').style.display=sub==='diarias'?'block':'none';
   if(sub==='rascunho'){ if(!rascEntrou){rascEntrou=true;rascLoad();} esBuildDatalists(); renderRasc(); }
+  if(sub==='diarias'){ if(!diEntrou){diEntrou=true;diInitDates();diBuscar();} else renderDiarias(); }
 });
+// diárias
+document.getElementById('diBuscar').onclick=diBuscar;
+document.getElementById('diBusca').oninput=renderDiarias;
+document.getElementById('diExport').onclick=diExport;
+document.getElementById('diTbl').addEventListener('click',e=>{const tr=e.target.closest('tr.di-main');if(!tr)return;
+  const nm=tr.dataset.nome; diAberto.has(nm)?diAberto.delete(nm):diAberto.add(nm); renderDiarias();});
 // rascunho: botões
 document.getElementById('raAddPraca').onclick=()=>{RASC.praca.push(raLinhaVazia());rascLocalSave();renderRascTabela('praca');};
 document.getElementById('raAddViagem').onclick=()=>{RASC.viagem.push(raLinhaVazia());rascLocalSave();renderRascTabela('viagem');};
