@@ -176,7 +176,21 @@
   .eq-row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
   .eq-row select{padding:5px 8px;font-size:12.5px}
   .eq-wrap{max-height:52vh;overflow:auto}
-  .st-disponivel{color:var(--green)} .st-ferias{color:var(--orange)} .st-viajando{color:var(--blue)} .st-afastado{color:var(--red)} .st-folga{color:var(--muted)}
+  .st-disponivel{color:var(--green)} .st-ferias{color:var(--orange)} .st-viajando{color:var(--blue)} .st-afastado{color:var(--red)} .st-folga{color:var(--muted)} .st-escalado{color:var(--accent2)}
+  .eqtbl{width:100%;border-collapse:collapse;font-size:13px}
+  .eqtbl thead th{position:static;text-align:left;padding:7px 10px;font-size:11px;text-transform:uppercase;letter-spacing:.4px;color:var(--muted);border-bottom:1px solid var(--line);background:#f2f6fb;cursor:default}
+  .eqtbl td{padding:6px 10px;border-top:1px solid var(--line)}
+  .eqtbl td.eqnm{font-weight:600}
+  .eqtbl tr.eqgrp td{background:#eef3f9;font-weight:800;color:var(--accent2);font-size:11px;text-transform:uppercase;letter-spacing:.6px}
+  .eqtbl select{padding:4px 8px;font-size:12.5px}
+  .eqtbl .sit{font-weight:700;font-size:12px;white-space:nowrap}
+  .eqr{transition:background .15s}
+  .eqr-escalado{background:rgba(0,93,168,.13)}
+  .eqr-disponivel{background:rgba(14,158,94,.09)}
+  .eqr-ferias{background:rgba(221,149,0,.14)}
+  .eqr-viajando{background:rgba(39,121,189,.13)}
+  .eqr-afastado{background:rgba(214,37,46,.11)}
+  .eqr-folga{background:rgba(93,112,137,.10)}
   /* impressão da escala (estilos fixos p/ medição igual à impressão) */
   #printEscala{display:none;color:#000;font-family:Arial,sans-serif;background:#fff}
   #printEscala .phead{display:flex;align-items:center;gap:16px;border-bottom:2.5px solid #005da8;padding-bottom:6px;margin-bottom:8px}
@@ -1612,8 +1626,16 @@ function esSeedEquipe(){
   rows.forEach(r=>{ESTATUS[r.nome]={tipo:r.tipo,status:r.status};});
   return rows;
 }
+// nomes já colocados na escala/rascunho (para "escalado" e p/ sumir das sugestões)
+function esUsedNames(){
+  const s=new Set(), add=arr=>(arr||[]).forEach(l=>[l.mot,l.aj1,l.aj2].forEach(n=>{const v=low(n);if(v)s.add(v);}));
+  add(ES.linhas);
+  if(typeof RASC!=='undefined'){add(RASC.praca);add(RASC.viagem);}
+  return s;
+}
 function esDisponiveis(tipo){
-  return Object.entries(ESTATUS).filter(([n,i])=>i.tipo===tipo&&i.status==='disponivel').map(([n])=>n).sort();
+  const used=esUsedNames();
+  return Object.entries(ESTATUS).filter(([n,i])=>i.tipo===tipo&&i.status==='disponivel'&&!used.has(low(n))).map(([n])=>n).sort();
 }
 function esBuildDatalists(){
   document.getElementById('dlMot').innerHTML=esDisponiveis('motorista').map(n=>`<option value="${esc(n)}">`).join('');
@@ -1622,6 +1644,8 @@ function esBuildDatalists(){
   document.getElementById('dlVeic').innerHTML=[...veics].map(v=>`<option value="${esc(v)}">`).join('');
   const rotas=new Set();workBase().forEach(p=>{if(p.rota)rotas.add(p.rota);});ES.linhas.forEach(l=>{if(l.rota)rotas.add(l.rota);});
   document.getElementById('dlRota').innerHTML=[...rotas].sort().map(r=>`<option value="${esc(r)}">`).join('');
+  const card=document.getElementById('esEquipeCard'); // reflete "escalado" ao vivo se o quadro estiver aberto
+  if(card&&card.style.display!=='none')renderEquipe();
 }
 // ---- disponibilidade da equipe (banco) ----
 async function esLoadEquipe(){
@@ -1648,21 +1672,27 @@ async function esSetStatus(nome,tipo,status){
   const {error}=await sb.from('equipe_status').upsert({unidade:SESSION.unidade,nome,tipo,status},{onConflict:'unidade,nome'});
   if(error)document.getElementById('esMsg').textContent='❌ Equipe: '+error.message;
 }
+const EQ_SIT={escalado:'🟦 Escalado',disponivel:'✅ Disponível',ferias:'🏖️ Férias',viajando:'🚚 Viajando',afastado:'⛔ Afastado',folga:'😴 Folga'};
 function renderEquipe(){
   const q=low(document.getElementById('eqBusca').value);
-  const grupo=tipo=>Object.entries(ESTATUS)
+  const used=esUsedNames();
+  const rowsFor=tipo=>Object.entries(ESTATUS)
     .filter(([n,i])=>i.tipo===tipo&&(!q||low(n).includes(q)))
     .sort((a,b)=>a[0]<b[0]?-1:1)
     .map(([n,info])=>{
+      const eff=used.has(low(n))?'escalado':info.status;
       const opts=Object.entries(ES_STATUS_LBL).map(([k,v])=>`<option value="${k}" ${k===info.status?'selected':''}>${v}</option>`).join('');
-      return `<div class="eq-row"><span class="nm st-${info.status}" title="${esc(n)}">${esc(n)}</span>
-        <span class="muted" style="font-size:11.5px">${tipo==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</span>
-        <select data-eqnome="${esc(n)}" data-eqtipo="${tipo}">${opts}</select></div>`;}).join('');
-  const mots=grupo('motorista'), ajs=grupo('ajudante');
-  document.getElementById('eqLista').innerHTML=
-    (mots?'<b style="color:var(--accent)">MOTORISTAS</b>'+mots:'')+
-    (ajs?'<b style="display:block;margin-top:12px;color:var(--accent)">AJUDANTES</b>'+ajs:'')||
-    '<div class="muted">Nenhum nome registrado. Use "Adicionar" acima.</div>';
+      return `<tr class="eqr eqr-${eff}">
+        <td class="eqnm">${esc(n)}</td>
+        <td class="muted">${tipo==='motorista'?'🚚 Motorista':'🧑‍🔧 Ajudante'}</td>
+        <td><span class="sit st-${eff}">${EQ_SIT[eff]}</span></td>
+        <td><select data-eqnome="${esc(n)}" data-eqtipo="${tipo}">${opts}</select></td></tr>`;}).join('');
+  const mots=rowsFor('motorista'), ajs=rowsFor('ajudante');
+  const grp=t=>`<tr class="eqgrp"><td colspan="4">${t}</td></tr>`;
+  const body=(mots?grp('Motoristas')+mots:'')+(ajs?grp('Ajudantes')+ajs:'');
+  document.getElementById('eqLista').innerHTML=body?
+    `<table class="eqtbl"><thead><tr><th>Nome</th><th>Função</th><th>Situação</th><th>Alterar status</th></tr></thead><tbody>${body}</tbody></table>`
+    :'<div class="muted">Nenhum nome registrado. Use "Adicionar" acima.</div>';
 }
 // ---- salvar / abrir ----
 async function esSalvar(){
@@ -2113,7 +2143,7 @@ document.querySelector('#esTbl tbody').addEventListener('input',e=>{
 document.querySelector('#esTbl tbody').addEventListener('click',e=>{
   if(e.target.classList.contains('esdel')){const i=+e.target.closest('tr').dataset.i;
     ES.linhas.splice(i,1); if(!ES.linhas.length)ES.linhas.push(esLinhaVazia());
-    esDraftSave(); renderEscala();}
+    esDraftSave(); renderEscala(); esBuildDatalists();}
 });
 // colar bloco do Excel (Ctrl+V) em qualquer célula: distribui pela grade
 document.querySelector('#esTbl tbody').addEventListener('paste',e=>{
@@ -2127,9 +2157,8 @@ document.querySelector('#esTbl tbody').addEventListener('paste',e=>{
 document.querySelector('#esTbl tbody').addEventListener('change',e=>{
   const f=e.target.dataset.f; if(!f||!['mot','aj1','aj2'].includes(f))return;
   const tr=e.target.closest('tr'); if(!tr)return;
-  const i=+tr.dataset.i, val=norm(e.target.value); if(!val)return;
-  const lv=low(val);
-  for(let j=0;j<ES.linhas.length;j++){
+  const i=+tr.dataset.i, val=norm(e.target.value), lv=low(val);
+  if(val) for(let j=0;j<ES.linhas.length;j++){
     for(const g of ['mot','aj1','aj2']){
       if(j===i&&g===f)continue;
       if(low(ES.linhas[j][g]||'')===lv){
@@ -2139,10 +2168,11 @@ document.querySelector('#esTbl tbody').addEventListener('change',e=>{
         }else{
           ES.linhas[i][f]='';   // cancela: mantém onde estava
         }
-        esDraftSave(); renderEscala(); return;
+        esDraftSave(); renderEscala(); esBuildDatalists(); return;
       }
     }
   }
+  esBuildDatalists(); // recalcula sugestões e "escalado" (mesmo ao limpar um nome)
 });
 document.getElementById('eqBusca').oninput=renderEquipe;
 document.getElementById('eqAdd').onclick=()=>{const n=norm(document.getElementById('eqNovo').value);
@@ -2193,9 +2223,12 @@ document.getElementById('esPaneRascunho').addEventListener('input',e=>{
   const tf=document.querySelector('#'+raTblId(tr.dataset.b)+' tfoot'); if(tf)tf.innerHTML=raTfootRow(tr.dataset.b);
   rascLocalSave();
 });
+document.getElementById('esPaneRascunho').addEventListener('change',e=>{
+  if(['mot','aj1','aj2'].includes(e.target.dataset&&e.target.dataset.f))esBuildDatalists();
+});
 document.getElementById('esPaneRascunho').addEventListener('click',e=>{
   if(e.target.classList.contains('esdel')){const tr=e.target.closest('tr');
-    RASC[tr.dataset.b].splice(+tr.dataset.i,1); rascLocalSave(); renderRascTabela(tr.dataset.b);}
+    RASC[tr.dataset.b].splice(+tr.dataset.i,1); rascLocalSave(); renderRascTabela(tr.dataset.b); esBuildDatalists();}
 });
 document.getElementById('esPaneRascunho').addEventListener('paste',e=>{
   const f=e.target.dataset&&e.target.dataset.f, tr=e.target.closest('tr'); if(!f||!tr)return;
@@ -2204,7 +2237,7 @@ document.getElementById('esPaneRascunho').addEventListener('paste',e=>{
   e.preventDefault();
   const bloco=tr.dataset.b;
   const n=esGridPaste(RASC[bloco],RA_SEQ,raLinhaVazia,f,+tr.dataset.i,txt);
-  rascLocalSave(); renderRascTabela(bloco);
+  rascLocalSave(); renderRascTabela(bloco); esBuildDatalists();
   document.getElementById('raMsg').textContent='📋 Colado: '+n+' linha(s) no bloco '+(bloco==='praca'?'Praça':'Viagem')+'.';
 });
 
