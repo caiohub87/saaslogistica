@@ -115,6 +115,31 @@ create policy "escrita admin diarias" on diarias
   using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
   with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
 
+-- Agendamentos (dois tipos: 'enviar' = montador de cargas | 'receber' = depósito)
+create table if not exists agendamentos (
+  id bigint generated always as identity primary key,
+  unidade text not null,
+  tipo text not null,               -- 'enviar' | 'receber'
+  data date not null,
+  hora text,                        -- usado no tipo 'receber'
+  cliente text,                     -- enviar
+  rota text,                        -- enviar
+  descricao text,                   -- receber: o que vai receber
+  fornecedor text,                  -- receber: origem/fornecedor
+  volumes text,                     -- receber: quantidade/volumes
+  status text default 'Agendado',   -- enviar: Agendado|Montado|Enviado|Cancelado · receber: Agendado|Recebido|Cancelado
+  obs text,
+  created_at timestamptz default now()
+);
+alter table agendamentos enable row level security;
+create policy "leitura unidade agendamentos" on agendamentos
+  for select to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) );
+create policy "escrita admin agendamentos" on agendamentos
+  for all to authenticated
+  using ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' )
+  with check ( lower(unidade) = split_part(auth.email(), '.', 1) and auth.email() like '%.admin@%' );
+
 -- ============================================================
 -- USUÁRIOS (criar no painel: Authentication → Users → Add user → marcar "Auto Confirm User")
 --   dilnor.admin@gestao.app      → senha de administrador da Dilnor

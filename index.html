@@ -88,6 +88,9 @@
   .kpi .s{font-size:11.5px;color:var(--muted);margin-top:2px}
   .kpi.green .v{color:var(--green)}.kpi.blue .v{color:var(--blue)}.kpi.orange .v{color:var(--orange)}.kpi.red .v{color:var(--red)}.kpi.accent .v{color:var(--accent)}
 
+  .agcard{transition:transform .18s,box-shadow .18s}
+  .agcard:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(0,93,168,.25), 0 14px 30px rgba(15,45,80,.14)}
+
   .flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:12.5px;margin:6px 0 2px}
   .flow b{color:var(--txt)} .flow .ar{color:var(--accent)}
 
@@ -351,6 +354,7 @@
       <button data-view="salvos" data-icon="archive"><span class="nav-label">Salvos</span></button>
       <button data-view="escala" data-icon="calendar"><span class="nav-label">Escala</span></button>
       <button data-view="escalasalvas" data-icon="calendar"><span class="nav-label">Escalas salvas</span></button>
+      <button data-view="agendamentos" data-icon="calendar"><span class="nav-label">Agendamentos</span></button>
       <button data-view="cadastros" data-icon="users"><span class="nav-label">Cadastros</span></button>
       <button data-view="config" data-icon="settings"><span class="nav-label">Configura&ccedil;&otilde;es</span></button>
       <div class="sep"></div>
@@ -384,6 +388,10 @@
 
     <!-- ===== INÍCIO ===== -->
     <section class="view active" id="view-inicio">
+      <div class="grid2" id="homeAgs" style="display:none;margin-bottom:16px">
+        <div class="card agcard" id="homeAgEnviar" style="cursor:pointer" title="Abrir Cargas a Enviar"></div>
+        <div class="card agcard" id="homeAgReceber" style="cursor:pointer" title="Abrir Cargas a Receber"></div>
+      </div>
       <div id="homeNoData">
         <div class="card"><div class="pad">
           <div class="flow">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Salvos <span class="ar">→</span> Escala <span class="ar">→</span> Diárias</div>
@@ -483,6 +491,64 @@
           <div class="status-bar" id="esvPlacas"></div>
         </div>
         <div class="pad eswrap" id="esvView" style="padding-top:0"><div class="empty">Escolha um dia salvo para visualizar, ou selecione placas acima.</div></div>
+      </div>
+    </section>
+
+    <!-- ===== AGENDAMENTOS ===== -->
+    <section class="view" id="view-agendamentos">
+      <div class="subtabs">
+        <button class="subtab active" data-agsub="enviar">🚚 Cargas a Enviar</button>
+        <button class="subtab" data-agsub="receber">📦 Cargas a Receber</button>
+      </div>
+
+      <div id="agPaneEnviar">
+        <div class="card">
+          <h3>Agendar carga a enviar <span class="pill">para o montador de cargas</span></h3>
+          <div class="pad toolbar" style="flex-wrap:wrap">
+            <label class="muted">Data <input type="date" id="aeData"></label>
+            <input type="text" id="aeCliente" placeholder="Cliente *" style="min-width:220px;flex:1">
+            <input type="text" id="aeRota" placeholder="Rota *" style="min-width:150px">
+            <input type="text" id="aeObs" placeholder="Observações" style="min-width:200px;flex:1">
+            <button id="aeAdd" data-icon="plus">Agendar</button>
+            <button class="ghost" id="aeCancel" style="display:none">Cancelar edição</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Cargas agendadas para envio <span id="aeCount" class="pill"></span></h3>
+          <div class="pad toolbar">
+            <input type="search" id="aeBusca" placeholder="Buscar cliente, rota...">
+            <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="aeConcl"> mostrar enviados/cancelados</label>
+            <span class="muted" id="aeMsg" style="margin-left:auto"></span>
+          </div>
+          <div class="tablewrap"><table id="aeTbl"></table></div>
+          <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Montado → Enviado → Cancelado.</div>
+        </div>
+      </div>
+
+      <div id="agPaneReceber" style="display:none">
+        <div class="card">
+          <h3>Agendar recebimento <span class="pill">para a equipe do depósito</span></h3>
+          <div class="pad toolbar" style="flex-wrap:wrap">
+            <label class="muted">Data <input type="date" id="arData"></label>
+            <label class="muted">Hora <input type="time" id="arHora"></label>
+            <input type="text" id="arDesc" placeholder="O que vai receber *" style="min-width:220px;flex:1">
+            <input type="text" id="arForn" placeholder="Fornecedor / origem" style="min-width:170px">
+            <input type="text" id="arVol" placeholder="Qtd / volumes" style="min-width:120px">
+            <input type="text" id="arObs" placeholder="Observações" style="min-width:200px;flex:1">
+            <button id="arAdd" data-icon="plus">Agendar</button>
+            <button class="ghost" id="arCancel" style="display:none">Cancelar edição</button>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Recebimentos agendados <span id="arCount" class="pill"></span></h3>
+          <div class="pad toolbar">
+            <input type="search" id="arBusca" placeholder="Buscar descrição, fornecedor...">
+            <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="arConcl"> mostrar recebidos/cancelados</label>
+            <span class="muted" id="arMsg" style="margin-left:auto"></span>
+          </div>
+          <div class="tablewrap"><table id="arTbl"></table></div>
+          <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Recebido → Cancelado.</div>
+        </div>
       </div>
     </section>
 
@@ -880,6 +946,7 @@ function go(view){
   if(view==='salvos'&&!SESSION.offline&&typeof svConsultar==='function'&&!SV_ROWS.length) svConsultar();
   if(view==='escala'&&typeof esEnter==='function') esEnter();
   if(view==='escalasalvas'&&!SESSION.offline&&typeof esvListar==='function') esvListar();
+  if(view==='agendamentos'&&typeof agEnter==='function') agEnter();
   window.scrollTo(0,0);
 }
 
@@ -1295,7 +1362,7 @@ function applyAccess(){
   });
   document.getElementById('btnLoad').style.display=isConsulta?'none':'';
   if(isConsulta){ document.getElementById('btnClear').style.display='none'; go('desempenho'); }
-  else loadUnitData(); // carrega SÓ os dados da unidade logada
+  else { loadUnitData(); agEntrou=true; agBuscar(); } // carrega SÓ os dados da unidade logada (+ agendamentos p/ os cards da home)
   // desempenho e salvos precisam de banco
   if(SESSION.offline){ document.querySelector('#nav button[data-view="desempenho"]').style.display='none';
     document.querySelector('#nav button[data-view="salvos"]').style.display='none';
@@ -2053,6 +2120,166 @@ function diExport(){
   const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,'Diarias');XLSX.writeFile(wb,'diarias.xlsx');
 }
 
+// ===================== AGENDAMENTOS =====================
+// Dois tipos SEPARADOS: 'enviar' (montador de cargas) e 'receber' (depósito).
+// Online: tabela `agendamentos` no Supabase (compartilhada entre PCs da unidade).
+// Offline: localStorage por unidade (lsk) — só naquela máquina.
+let AG_ROWS=[], AG_SUB='enviar', AG_EDIT=null, agEntrou=false;
+const AG_CYCLE={enviar:['Agendado','Montado','Enviado','Cancelado'],receber:['Agendado','Recebido','Cancelado']};
+const AG_DONE={enviar:['Enviado','Cancelado'],receber:['Recebido','Cancelado']};
+const AG_BADGE={Agendado:'b-blue',Montado:'b-orange',Enviado:'b-green',Recebido:'b-green',Cancelado:'b-red'};
+const AG_IDS={enviar:{data:'aeData',busca:'aeBusca',concl:'aeConcl',msg:'aeMsg',count:'aeCount',tbl:'aeTbl',add:'aeAdd',cancel:'aeCancel'},
+              receber:{data:'arData',busca:'arBusca',concl:'arConcl',msg:'arMsg',count:'arCount',tbl:'arTbl',add:'arAdd',cancel:'arCancel'}};
+
+function agLocal(){ return SESSION.offline||!supaReady(); }
+function agLocalLoad(){ try{AG_ROWS=JSON.parse(localStorage.getItem(lsk('agendamentos'))||'[]');}catch(e){AG_ROWS=[];} }
+function agLocalSave(){ try{localStorage.setItem(lsk('agendamentos'),JSON.stringify(AG_ROWS));}catch(e){} }
+function agMsg(tipo,txt){ const el=document.getElementById(AG_IDS[tipo].msg); if(el)el.textContent=txt||''; }
+function agHojeISO(){ return new Date().toISOString().slice(0,10); }
+
+async function agBuscar(){
+  if(agLocal()){ agLocalLoad(); agRenderAll(); return; }
+  const {data,error}=await sb.from('agendamentos').select('*').eq('unidade',SESSION.unidade)
+    .order('data',{ascending:true}).order('hora',{ascending:true}).limit(3000);
+  if(error){ AG_ROWS=[];
+    agMsg(AG_SUB,'❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL dos agendamentos (supabase-setup.sql).':''));
+    agRenderAll(); return; }
+  AG_ROWS=data||[]; agRenderAll();
+}
+
+function agFormRead(tipo){
+  const g=id=>document.getElementById(id).value.trim();
+  if(tipo==='enviar'){
+    const v={data:g('aeData'),cliente:g('aeCliente'),rota:g('aeRota'),obs:g('aeObs')};
+    if(!v.data||!v.cliente||!v.rota){agMsg(tipo,'Preencha data, cliente e rota.');return null;}
+    return v;
+  }
+  const v={data:g('arData'),hora:g('arHora'),descricao:g('arDesc'),fornecedor:g('arForn'),volumes:g('arVol'),obs:g('arObs')};
+  if(!v.data||!v.descricao){agMsg(tipo,'Preencha data e o que vai receber.');return null;}
+  return v;
+}
+function agFormClear(tipo){
+  const ids=tipo==='enviar'?['aeCliente','aeRota','aeObs']:['arHora','arDesc','arForn','arVol','arObs'];
+  ids.forEach(id=>document.getElementById(id).value='');
+  document.getElementById(AG_IDS[tipo].data).value=agHojeISO();
+  AG_EDIT=null;
+  document.getElementById(AG_IDS[tipo].add).innerHTML=iconSvg('plus')+'Agendar';
+  document.getElementById(AG_IDS[tipo].cancel).style.display='none';
+}
+function agFormFill(r){
+  const tipo=r.tipo;
+  if(tipo==='enviar'){
+    document.getElementById('aeData').value=r.data||''; document.getElementById('aeCliente').value=r.cliente||'';
+    document.getElementById('aeRota').value=r.rota||''; document.getElementById('aeObs').value=r.obs||'';
+  }else{
+    document.getElementById('arData').value=r.data||''; document.getElementById('arHora').value=r.hora||'';
+    document.getElementById('arDesc').value=r.descricao||''; document.getElementById('arForn').value=r.fornecedor||'';
+    document.getElementById('arVol').value=r.volumes||''; document.getElementById('arObs').value=r.obs||'';
+  }
+  AG_EDIT=r.id;
+  document.getElementById(AG_IDS[tipo].add).innerHTML=iconSvg('save')+'Salvar alterações';
+  document.getElementById(AG_IDS[tipo].cancel).style.display='';
+  agMsg(tipo,'✏️ Editando agendamento — altere e clique em Salvar.');
+}
+
+async function agSalvar(tipo){
+  const v=agFormRead(tipo); if(!v)return;
+  if(agLocal()){
+    if(AG_EDIT!=null){ const i=AG_ROWS.findIndex(r=>r.id===AG_EDIT); if(i>-1)Object.assign(AG_ROWS[i],v); }
+    else AG_ROWS.push(Object.assign({id:'l'+Date.now(),unidade:SESSION.unidade,tipo,status:'Agendado',created_at:new Date().toISOString()},v));
+    agLocalSave(); agFormClear(tipo); agMsg(tipo,'✅ Salvo neste computador (modo local).'); agRenderAll(); return;
+  }
+  agMsg(tipo,'Salvando…');
+  let error;
+  if(AG_EDIT!=null) ({error}=await sb.from('agendamentos').update(v).eq('id',AG_EDIT));
+  else ({error}=await sb.from('agendamentos').insert(Object.assign({unidade:SESSION.unidade,tipo,status:'Agendado'},v)));
+  if(error){agMsg(tipo,'❌ '+error.message+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL dos agendamentos.':(/permission|policy|row-level/i.test(error.message)?' — apenas o usuário admin pode gravar.':'')));return;}
+  agFormClear(tipo); agMsg(tipo,'✅ Agendamento salvo.'); agBuscar();
+}
+async function agStatus(id,tipo){
+  const r=AG_ROWS.find(x=>String(x.id)===String(id)); if(!r)return;
+  const seq=AG_CYCLE[tipo], novo=seq[(seq.indexOf(r.status)+1)%seq.length];
+  if(agLocal()){ r.status=novo; agLocalSave(); agRenderAll(); return; }
+  const {error}=await sb.from('agendamentos').update({status:novo}).eq('id',id);
+  if(error){agMsg(tipo,'❌ '+error.message);return;}
+  r.status=novo; agRenderAll();
+}
+async function agExcluir(id,tipo){
+  const r=AG_ROWS.find(x=>String(x.id)===String(id)); if(!r)return;
+  const nome=tipo==='enviar'?(r.cliente||''):(r.descricao||'');
+  if(!confirm('Excluir o agendamento de '+deFmtData(r.data)+' — '+nome+'?'))return;
+  if(agLocal()){ AG_ROWS=AG_ROWS.filter(x=>String(x.id)!==String(id)); agLocalSave(); agRenderAll(); return; }
+  const {error}=await sb.from('agendamentos').delete().eq('id',id);
+  if(error){agMsg(tipo,'❌ '+error.message);return;}
+  AG_ROWS=AG_ROWS.filter(x=>String(x.id)!==String(id)); agRenderAll();
+}
+
+function agDataBadge(r,tipo){
+  const hoje=agHojeISO(), pendente=!AG_DONE[tipo].includes(r.status);
+  if(!pendente) return '';
+  if(r.data===hoje) return ' <span class="badge b-orange" style="font-size:10px">HOJE</span>';
+  if(r.data<hoje)  return ' <span class="badge b-red" style="font-size:10px">ATRASADO</span>';
+  return '';
+}
+function agLista(tipo){
+  const q=low(document.getElementById(AG_IDS[tipo].busca).value);
+  const mostrarConcl=document.getElementById(AG_IDS[tipo].concl).checked;
+  return AG_ROWS.filter(r=>r.tipo===tipo)
+    .filter(r=>mostrarConcl||!AG_DONE[tipo].includes(r.status))
+    .filter(r=>!q||[r.cliente,r.rota,r.descricao,r.fornecedor,r.obs,r.volumes].some(x=>low(x||'').includes(q)))
+    .sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
+}
+function renderAgTable(tipo){
+  const lista=agLista(tipo), tbl=document.getElementById(AG_IDS[tipo].tbl);
+  document.getElementById(AG_IDS[tipo].count).textContent=lista.length+' agendamento(s)';
+  const badge=r=>`<span class="badge ${AG_BADGE[r.status]||'b-blue'} agst" data-id="${r.id}" data-tipo="${tipo}" style="cursor:pointer" title="Clique para mudar o status">${esc(r.status)}</span>`;
+  const acoes=r=>`<td style="white-space:nowrap"><button class="ghost agedit" data-id="${r.id}" data-tipo="${tipo}" title="Editar">✏️</button> <button class="ghost agdel" data-id="${r.id}" data-tipo="${tipo}" title="Excluir">🗑️</button></td>`;
+  if(tipo==='enviar'){
+    tbl.innerHTML='<thead><tr><th>Data</th><th>Cliente</th><th>Rota</th><th>Observações</th><th>Status</th><th></th></tr></thead><tbody>'+
+      (lista.map(r=>`<tr><td style="white-space:nowrap">${deFmtData(r.data)}${agDataBadge(r,tipo)}</td><td><b>${esc(r.cliente)}</b></td><td>${esc(r.rota)}</td><td class="muted">${esc(r.obs)}</td><td>${badge(r)}</td>${acoes(r)}</tr>`).join('')||
+       '<tr><td colspan="6" class="empty" style="padding:16px">Nenhuma carga a enviar agendada.</td></tr>')+'</tbody>';
+  }else{
+    tbl.innerHTML='<thead><tr><th>Data</th><th>Hora</th><th>O que vai receber</th><th>Fornecedor</th><th>Qtd/Vol.</th><th>Observações</th><th>Status</th><th></th></tr></thead><tbody>'+
+      (lista.map(r=>`<tr><td style="white-space:nowrap">${deFmtData(r.data)}${agDataBadge(r,tipo)}</td><td>${esc(r.hora)}</td><td><b>${esc(r.descricao)}</b></td><td>${esc(r.fornecedor)}</td><td>${esc(r.volumes)}</td><td class="muted">${esc(r.obs)}</td><td>${badge(r)}</td>${acoes(r)}</tr>`).join('')||
+       '<tr><td colspan="8" class="empty" style="padding:16px">Nenhum recebimento agendado.</td></tr>')+'</tbody>';
+  }
+}
+function renderHomeAgs(){
+  const wrap=document.getElementById('homeAgs'); if(!wrap)return;
+  if(SESSION.role==='consulta'){wrap.style.display='none';return;}
+  wrap.style.display='';
+  const hoje=agHojeISO();
+  const card=(tipo,titulo,icone,sub)=>{
+    const pend=AG_ROWS.filter(r=>r.tipo===tipo&&!AG_DONE[tipo].includes(r.status)).sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
+    const nHoje=pend.filter(r=>r.data===hoje).length, nAtras=pend.filter(r=>r.data<hoje).length;
+    const prox=pend[0];
+    const proxTxt=prox?('Próximo: <b>'+deFmtData(prox.data)+(prox.hora?' '+esc(prox.hora):'')+'</b> · '+esc(tipo==='enviar'?(prox.cliente+(prox.rota?' ('+prox.rota+')':'')):prox.descricao)):'Nenhum agendamento pendente';
+    return `<div class="pad">
+      <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
+        <b style="font-size:15px">${icone} ${titulo}</b><span class="pill">${sub}</span>
+      </div>
+      <div style="font-size:30px;font-weight:700;margin:8px 0 2px">${pend.length}<span class="muted" style="font-size:13px;font-weight:400"> pendente(s)</span></div>
+      <div class="muted" style="font-size:12.5px">${proxTxt}</div>
+      <div style="margin-top:6px">${nHoje?'<span class="badge b-orange" style="font-size:11px">'+nHoje+' hoje</span> ':''}${nAtras?'<span class="badge b-red" style="font-size:11px">'+nAtras+' atrasado(s)</span>':''}</div>
+    </div>`;
+  };
+  document.getElementById('homeAgEnviar').innerHTML=card('enviar','Cargas a Enviar','🚚','montador de cargas');
+  document.getElementById('homeAgReceber').innerHTML=card('receber','Cargas a Receber','📦','depósito');
+}
+function agRenderAll(){ renderAgTable('enviar'); renderAgTable('receber'); renderHomeAgs(); }
+function agSetSub(sub){
+  AG_SUB=sub;
+  document.querySelectorAll('#view-agendamentos .subtab').forEach(b=>b.classList.toggle('active',b.dataset.agsub===sub));
+  document.getElementById('agPaneEnviar').style.display=sub==='enviar'?'':'none';
+  document.getElementById('agPaneReceber').style.display=sub==='receber'?'block':'none';
+}
+function goAg(sub){ go('agendamentos'); agSetSub(sub); }
+function agEnter(){
+  if(!document.getElementById('aeData').value)document.getElementById('aeData').value=agHojeISO();
+  if(!document.getElementById('arData').value)document.getElementById('arData').value=agHojeISO();
+  if(!agEntrou){agEntrou=true;agBuscar();} else agRenderAll();
+}
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -2295,6 +2522,25 @@ document.getElementById('esPaneRascunho').addEventListener('paste',e=>{
   rascLocalSave(); renderRascTabela(bloco); esBuildDatalists();
   document.getElementById('raMsg').textContent='📋 Colado: '+n+' linha(s) no bloco '+(bloco==='praca'?'Praça':'Viagem')+'.';
 });
+
+// agendamentos: sub-telas, formulários e tabelas
+document.querySelectorAll('#view-agendamentos .subtab').forEach(b=>b.onclick=()=>agSetSub(b.dataset.agsub));
+document.getElementById('homeAgEnviar').onclick=()=>goAg('enviar');
+document.getElementById('homeAgReceber').onclick=()=>goAg('receber');
+document.getElementById('aeAdd').onclick=()=>agSalvar('enviar');
+document.getElementById('arAdd').onclick=()=>agSalvar('receber');
+document.getElementById('aeCancel').onclick=()=>{agFormClear('enviar');agMsg('enviar','');};
+document.getElementById('arCancel').onclick=()=>{agFormClear('receber');agMsg('receber','');};
+document.getElementById('aeBusca').oninput=()=>renderAgTable('enviar');
+document.getElementById('arBusca').oninput=()=>renderAgTable('receber');
+document.getElementById('aeConcl').onchange=()=>renderAgTable('enviar');
+document.getElementById('arConcl').onchange=()=>renderAgTable('receber');
+['aeTbl','arTbl'].forEach(id=>document.getElementById(id).addEventListener('click',e=>{
+  const st=e.target.closest('.agst'), ed=e.target.closest('.agedit'), del=e.target.closest('.agdel');
+  if(st) agStatus(st.dataset.id,st.dataset.tipo);
+  else if(ed){ const r=AG_ROWS.find(x=>String(x.id)===String(ed.dataset.id)); if(r)agFormFill(r); }
+  else if(del) agExcluir(del.dataset.id,del.dataset.tipo);
+}));
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
