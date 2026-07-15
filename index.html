@@ -2161,15 +2161,9 @@ const AG_BADGE={Agendado:'b-blue',Montado:'b-orange',Enviado:'b-green',Recebido:
 const AG_IDS={enviar:{data:'aeData',busca:'aeBusca',concl:'aeConcl',msg:'aeMsg',count:'aeCount',tbl:'aeTbl',add:'aeAdd',cancel:'aeCancel',ini:'aeIni',fim:'aeFim',print:'aePrint'},
               receber:{data:'arData',busca:'arBusca',concl:'arConcl',msg:'arMsg',count:'arCount',tbl:'arTbl',add:'arAdd',cancel:'arCancel',ini:'arIni',fim:'arFim',print:'arPrint'}};
 
-// senha exigida para adicionar, salvar edição e excluir agendamentos (status continua livre)
-const AG_SENHA='1609';
-function agSenha(acao){
-  const dig=prompt('🔒 '+acao+'\nDigite a senha:');
-  if(dig===null) return false;
-  if(String(dig).trim()===AG_SENHA) return true;
-  alert('Senha incorreta.');
-  return false;
-}
+// senha por SUB-ABA (pedida ao entrar): receber = 1609; enviar = livre (sem entrada no mapa)
+const AG_SUB_SENHA={receber:'1609'};
+const AG_SUB_NOME={enviar:'Cargas a Enviar',receber:'Cargas a Receber'};
 function agLocal(){ return SESSION.offline||!supaReady(); }
 function agLocalLoad(){ try{AG_ROWS=JSON.parse(localStorage.getItem(lsk('agendamentos'))||'[]');}catch(e){AG_ROWS=[];} }
 function agLocalSave(){ try{localStorage.setItem(lsk('agendamentos'),JSON.stringify(AG_ROWS));}catch(e){} }
@@ -2223,7 +2217,6 @@ function agFormFill(r){
 
 async function agSalvar(tipo){
   const v=agFormRead(tipo); if(!v)return;
-  if(!agSenha(AG_EDIT!=null?'Salvar alterações do agendamento':'Adicionar agendamento'))return;
   if(agLocal()){
     if(AG_EDIT!=null){ const i=AG_ROWS.findIndex(r=>r.id===AG_EDIT); if(i>-1)Object.assign(AG_ROWS[i],v); }
     else AG_ROWS.push(Object.assign({id:'l'+Date.now(),unidade:SESSION.unidade,tipo,status:'Agendado',created_at:new Date().toISOString()},v));
@@ -2247,7 +2240,7 @@ async function agStatus(id,tipo){
 async function agExcluir(id,tipo){
   const r=AG_ROWS.find(x=>String(x.id)===String(id)); if(!r)return;
   const nome=tipo==='enviar'?(r.cliente||''):(r.fornecedor||r.volumes||'');
-  if(!agSenha('Excluir o agendamento de '+deFmtData(r.data)+' — '+nome))return;
+  if(!confirm('Excluir o agendamento de '+deFmtData(r.data)+' — '+nome+'?'))return;
   if(agLocal()){ AG_ROWS=AG_ROWS.filter(x=>String(x.id)!==String(id)); agLocalSave(); agRenderAll(); return; }
   const {error}=await sb.from('agendamentos').delete().eq('id',id);
   if(error){agMsg(tipo,'❌ '+error.message);return;}
@@ -2352,6 +2345,12 @@ function agPrint(tipo){
   esDoPrint(agPrintHtml(tipo,lista));
 }
 function agSetSub(sub){
+  const senha=AG_SUB_SENHA[sub];
+  if(senha&&AG_SUB!==sub){ // pede a senha ao ENTRAR na sub-aba protegida
+    const dig=prompt('🔒 Acessar '+(AG_SUB_NOME[sub]||sub)+'\nDigite a senha:');
+    if(dig===null) return;
+    if(String(dig).trim()!==senha){ alert('Senha incorreta.'); return; }
+  }
   AG_SUB=sub;
   document.querySelectorAll('#view-agendamentos .subtab').forEach(b=>b.classList.toggle('active',b.dataset.agsub===sub));
   document.getElementById('agPaneEnviar').style.display=sub==='enviar'?'':'none';
@@ -2361,6 +2360,7 @@ function goAg(sub){ go('agendamentos'); agSetSub(sub); }
 function agEnter(){
   if(!document.getElementById('aeData').value)document.getElementById('aeData').value=agHojeISO();
   if(!document.getElementById('arData').value)document.getElementById('arData').value=agHojeISO();
+  if(AG_SUB_SENHA[AG_SUB]){ AG_SUB='enviar'; agSetSub('enviar'); } // ao reentrar na aba, volta p/ Enviar — a protegida pede senha de novo
   if(!agEntrou){agEntrou=true;agBuscar();} else agRenderAll();
 }
 
