@@ -124,7 +124,7 @@ create table if not exists agendamentos (
   hora text,                        -- usado no tipo 'receber'
   cliente text,                     -- enviar
   rota text,                        -- enviar
-  descricao text,                   -- receber: o que vai receber
+  descricao text,                   -- (não usado — mantido por compatibilidade)
   fornecedor text,                  -- receber: origem/fornecedor
   volumes text,                     -- receber: quantidade/volumes
   status text default 'Agendado',   -- enviar: Agendado|Montado|Enviado|Cancelado · receber: Agendado|Recebido|Cancelado

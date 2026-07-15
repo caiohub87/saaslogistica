@@ -531,8 +531,7 @@
           <div class="pad toolbar" style="flex-wrap:wrap">
             <label class="muted">Data <input type="date" id="arData"></label>
             <label class="muted">Hora <input type="time" id="arHora"></label>
-            <input type="text" id="arDesc" placeholder="O que vai receber *" style="min-width:220px;flex:1">
-            <input type="text" id="arForn" placeholder="Fornecedor / origem" style="min-width:170px">
+            <input type="text" id="arForn" placeholder="Fornecedor / origem" style="min-width:220px;flex:1">
             <input type="text" id="arVol" placeholder="Qtd / volumes" style="min-width:120px">
             <input type="text" id="arObs" placeholder="Observações" style="min-width:200px;flex:1">
             <button id="arAdd" data-icon="plus">Agendar</button>
@@ -542,7 +541,7 @@
         <div class="card" style="margin-top:16px">
           <h3>Recebimentos agendados <span id="arCount" class="pill"></span></h3>
           <div class="pad toolbar">
-            <input type="search" id="arBusca" placeholder="Buscar descrição, fornecedor...">
+            <input type="search" id="arBusca" placeholder="Buscar fornecedor, volumes...">
             <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="arConcl"> mostrar recebidos/cancelados</label>
             <span class="muted" id="arMsg" style="margin-left:auto"></span>
           </div>
@@ -2154,12 +2153,12 @@ function agFormRead(tipo){
     if(!v.data||!v.cliente||!v.rota){agMsg(tipo,'Preencha data, cliente e rota.');return null;}
     return v;
   }
-  const v={data:g('arData'),hora:g('arHora'),descricao:g('arDesc'),fornecedor:g('arForn'),volumes:g('arVol'),obs:g('arObs')};
-  if(!v.data||!v.descricao){agMsg(tipo,'Preencha data e o que vai receber.');return null;}
+  const v={data:g('arData'),hora:g('arHora'),fornecedor:g('arForn'),volumes:g('arVol'),obs:g('arObs')};
+  if(!v.data){agMsg(tipo,'Preencha a data.');return null;}
   return v;
 }
 function agFormClear(tipo){
-  const ids=tipo==='enviar'?['aeCliente','aeRota','aeObs']:['arHora','arDesc','arForn','arVol','arObs'];
+  const ids=tipo==='enviar'?['aeCliente','aeRota','aeObs']:['arHora','arForn','arVol','arObs'];
   ids.forEach(id=>document.getElementById(id).value='');
   document.getElementById(AG_IDS[tipo].data).value=agHojeISO();
   AG_EDIT=null;
@@ -2173,7 +2172,7 @@ function agFormFill(r){
     document.getElementById('aeRota').value=r.rota||''; document.getElementById('aeObs').value=r.obs||'';
   }else{
     document.getElementById('arData').value=r.data||''; document.getElementById('arHora').value=r.hora||'';
-    document.getElementById('arDesc').value=r.descricao||''; document.getElementById('arForn').value=r.fornecedor||'';
+    document.getElementById('arForn').value=r.fornecedor||'';
     document.getElementById('arVol').value=r.volumes||''; document.getElementById('arObs').value=r.obs||'';
   }
   AG_EDIT=r.id;
@@ -2206,7 +2205,7 @@ async function agStatus(id,tipo){
 }
 async function agExcluir(id,tipo){
   const r=AG_ROWS.find(x=>String(x.id)===String(id)); if(!r)return;
-  const nome=tipo==='enviar'?(r.cliente||''):(r.descricao||'');
+  const nome=tipo==='enviar'?(r.cliente||''):(r.fornecedor||r.volumes||'');
   if(!confirm('Excluir o agendamento de '+deFmtData(r.data)+' — '+nome+'?'))return;
   if(agLocal()){ AG_ROWS=AG_ROWS.filter(x=>String(x.id)!==String(id)); agLocalSave(); agRenderAll(); return; }
   const {error}=await sb.from('agendamentos').delete().eq('id',id);
@@ -2239,9 +2238,9 @@ function renderAgTable(tipo){
       (lista.map(r=>`<tr><td style="white-space:nowrap">${deFmtData(r.data)}${agDataBadge(r,tipo)}</td><td><b>${esc(r.cliente)}</b></td><td>${esc(r.rota)}</td><td class="muted">${esc(r.obs)}</td><td>${badge(r)}</td>${acoes(r)}</tr>`).join('')||
        '<tr><td colspan="6" class="empty" style="padding:16px">Nenhuma carga a enviar agendada.</td></tr>')+'</tbody>';
   }else{
-    tbl.innerHTML='<thead><tr><th>Data</th><th>Hora</th><th>O que vai receber</th><th>Fornecedor</th><th>Qtd/Vol.</th><th>Observações</th><th>Status</th><th></th></tr></thead><tbody>'+
-      (lista.map(r=>`<tr><td style="white-space:nowrap">${deFmtData(r.data)}${agDataBadge(r,tipo)}</td><td>${esc(r.hora)}</td><td><b>${esc(r.descricao)}</b></td><td>${esc(r.fornecedor)}</td><td>${esc(r.volumes)}</td><td class="muted">${esc(r.obs)}</td><td>${badge(r)}</td>${acoes(r)}</tr>`).join('')||
-       '<tr><td colspan="8" class="empty" style="padding:16px">Nenhum recebimento agendado.</td></tr>')+'</tbody>';
+    tbl.innerHTML='<thead><tr><th>Data</th><th>Hora</th><th>Fornecedor / origem</th><th>Qtd/Vol.</th><th>Observações</th><th>Status</th><th></th></tr></thead><tbody>'+
+      (lista.map(r=>`<tr><td style="white-space:nowrap">${deFmtData(r.data)}${agDataBadge(r,tipo)}</td><td>${esc(r.hora)}</td><td><b>${esc(r.fornecedor)}</b></td><td>${esc(r.volumes)}</td><td class="muted">${esc(r.obs)}</td><td>${badge(r)}</td>${acoes(r)}</tr>`).join('')||
+       '<tr><td colspan="7" class="empty" style="padding:16px">Nenhum recebimento agendado.</td></tr>')+'</tbody>';
   }
 }
 function renderHomeAgs(){
@@ -2253,7 +2252,7 @@ function renderHomeAgs(){
     const pend=AG_ROWS.filter(r=>r.tipo===tipo&&!AG_DONE[tipo].includes(r.status)).sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
     const nHoje=pend.filter(r=>r.data===hoje).length, nAtras=pend.filter(r=>r.data<hoje).length;
     const prox=pend[0];
-    const proxTxt=prox?('Próximo: <b>'+deFmtData(prox.data)+(prox.hora?' '+esc(prox.hora):'')+'</b> · '+esc(tipo==='enviar'?(prox.cliente+(prox.rota?' ('+prox.rota+')':'')):prox.descricao)):'Nenhum agendamento pendente';
+    const proxTxt=prox?('Próximo: <b>'+deFmtData(prox.data)+(prox.hora?' '+esc(prox.hora):'')+'</b> · '+esc(tipo==='enviar'?(prox.cliente+(prox.rota?' ('+prox.rota+')':'')):(prox.fornecedor||prox.volumes||prox.obs||'recebimento'))):'Nenhum agendamento pendente';
     return `<div class="pad">
       <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
         <b style="font-size:15px">${icone} ${titulo}</b><span class="pill">${sub}</span>
