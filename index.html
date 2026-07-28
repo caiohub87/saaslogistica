@@ -209,6 +209,32 @@
   #printEscala tfoot td{font-weight:800;background:#ffc400!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   /* linhas concluídas dos agendamentos ficam esmaecidas (mas nunca somem) */
   tr.agdone td{opacity:.55}
+  /* CALENDÁRIO DE AGENDAMENTOS */
+  .ag-cal-header{display:flex;align-items:center;gap:12px;margin-bottom:16px;padding:0 0 8px;border-bottom:2px solid var(--border)}
+  .ag-cal-header input{padding:6px 10px;border:1px solid var(--border);border-radius:4px;font-size:14px;background:var(--input-bg);color:var(--txt)}
+  .ag-cal-mes{font-weight:600;color:var(--txt);font-size:14px;flex:1}
+  .ag-cal-weekdays{display:grid;grid-template-columns:repeat(7,1fr);gap:8px;margin-bottom:12px;font-weight:600;text-align:center;color:var(--accent2);font-size:12px;text-transform:uppercase}
+  .ag-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:8px}
+  .ag-cal-day{border:1px solid var(--border);border-radius:8px;padding:8px;min-height:90px;background:var(--input-bg);position:relative;overflow:hidden;transition:all .2s}
+  .ag-cal-day:hover{border-color:var(--accent);box-shadow:0 2px 8px rgba(0,0,0,.1);transform:translateY(-2px)}
+  .ag-cal-day.ag-cal-hoje{background:rgba(0,93,168,.08);border-color:var(--accent2)}
+  .ag-cal-day.ag-cal-atras{opacity:.5}
+  .ag-cal-empty{background:transparent}
+  .ag-cal-num{font-weight:600;font-size:14px;color:var(--txt);margin-bottom:4px}
+  .ag-cal-items{display:flex;flex-direction:column;gap:4px;font-size:11px}
+  .ag-cal-badge{display:inline-block;background:var(--accent2);color:#fff;padding:2px 6px;border-radius:3px;font-weight:600;font-size:10px;width:fit-content}
+  .ag-cal-text{color:var(--txt);line-height:1.3;white-space:normal;word-break:break-word}
+  /* MODAL DE AGENDAMENTOS */
+  .ag-modal-overlay{position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.4);display:flex;align-items:center;justify-content:center;z-index:1000}
+  .ag-modal{background:var(--bg);border-radius:12px;padding:24px;max-width:500px;width:90%;max-height:80vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,.2);position:relative}
+  .ag-modal-close{position:absolute;top:12px;right:12px;font-size:28px;cursor:pointer;color:var(--muted);transition:color .2s}
+  .ag-modal-close:hover{color:var(--txt)}
+  .ag-modal h3{margin:0 0 16px;color:var(--txt);font-size:18px}
+  .ag-modal-list{display:flex;flex-direction:column;gap:12px}
+  .ag-modal-item{border:1px solid var(--border);border-radius:8px;padding:12px;background:var(--input-bg);transition:background .2s}
+  .ag-modal-item:hover{background:rgba(0,93,168,.05)}
+  .ag-modal-item div:first-child{font-weight:600;color:var(--txt);margin-bottom:4px}
+  .ag-modal-item .badge{font-size:11px;margin-top:4px}
   /* impressão moderna dos agendamentos */
   #printEscala .agprint{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038}
   #printEscala .agprint .ph{display:flex;align-items:center;gap:18px;border-bottom:3px solid #005da8;padding-bottom:10px;margin-bottom:12px}
@@ -539,17 +565,25 @@
           </div>
         </div>
         <div class="card" style="margin-top:16px">
-          <h3>Cargas agendadas para envio <span id="aeCount" class="pill"></span></h3>
-          <div class="pad toolbar">
-            <input type="search" id="aeBusca" placeholder="Buscar cliente, rota...">
-            <label class="muted">De <input type="date" id="aeIni"></label>
-            <label class="muted">Até <input type="date" id="aeFim"></label>
-            <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="aeConcl"> ocultar enviados/cancelados</label>
-            <button class="yellow" id="aePrint" data-icon="print">Imprimir PDF</button>
-            <span class="muted" id="aeMsg" style="margin-left:auto"></span>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <h3 style="margin:0">Cargas agendadas para envio <span id="aeCount" class="pill"></span></h3>
+            <button class="ghost" id="aeViewToggle" data-view="tabela" style="font-size:12px">📅 Ver calendário</button>
           </div>
-          <div class="tablewrap"><table id="aeTbl"></table></div>
-          <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Montado → Enviado → Cancelado. Concluídos ficam esmaecidos no fim da lista (nada é apagado).</div>
+          <div id="aeViewTabela">
+            <div class="pad toolbar">
+              <input type="search" id="aeBusca" placeholder="Buscar cliente, rota...">
+              <label class="muted">De <input type="date" id="aeIni"></label>
+              <label class="muted">Até <input type="date" id="aeFim"></label>
+              <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="aeConcl"> ocultar enviados/cancelados</label>
+              <button class="yellow" id="aePrint" data-icon="print">Imprimir PDF</button>
+              <span class="muted" id="aeMsg" style="margin-left:auto"></span>
+            </div>
+            <div class="tablewrap"><table id="aeTbl"></table></div>
+            <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Montado → Enviado → Cancelado. Concluídos ficam esmaecidos no fim da lista (nada é apagado).</div>
+          </div>
+          <div id="aeViewCalendar" style="display:none;padding:16px">
+            <div id="agCalEnviar"></div>
+          </div>
         </div>
       </div>
 
@@ -567,17 +601,25 @@
           </div>
         </div>
         <div class="card" style="margin-top:16px">
-          <h3>Recebimentos agendados <span id="arCount" class="pill"></span></h3>
-          <div class="pad toolbar">
-            <input type="search" id="arBusca" placeholder="Buscar fornecedor, volumes...">
-            <label class="muted">De <input type="date" id="arIni"></label>
-            <label class="muted">Até <input type="date" id="arFim"></label>
-            <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="arConcl"> ocultar recebidos/cancelados</label>
-            <button class="yellow" id="arPrint" data-icon="print">Imprimir PDF</button>
-            <span class="muted" id="arMsg" style="margin-left:auto"></span>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+            <h3 style="margin:0">Recebimentos agendados <span id="arCount" class="pill"></span></h3>
+            <button class="ghost" id="arViewToggle" data-view="tabela" style="font-size:12px">📅 Ver calendário</button>
           </div>
-          <div class="tablewrap"><table id="arTbl"></table></div>
-          <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Recebido → Cancelado. Concluídos ficam esmaecidos no fim da lista (nada é apagado).</div>
+          <div id="arViewTabela">
+            <div class="pad toolbar">
+              <input type="search" id="arBusca" placeholder="Buscar fornecedor, volumes...">
+              <label class="muted">De <input type="date" id="arIni"></label>
+              <label class="muted">Até <input type="date" id="arFim"></label>
+              <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="arConcl"> ocultar recebidos/cancelados</label>
+              <button class="yellow" id="arPrint" data-icon="print">Imprimir PDF</button>
+              <span class="muted" id="arMsg" style="margin-left:auto"></span>
+            </div>
+            <div class="tablewrap"><table id="arTbl"></table></div>
+            <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Recebido → Cancelado. Concluídos ficam esmaecidos no fim da lista (nada é apagado).</div>
+          </div>
+          <div id="arViewCalendar" style="display:none;padding:16px">
+            <div id="agCalReceber"></div>
+          </div>
         </div>
       </div>
     </section>
@@ -2305,7 +2347,11 @@ function renderHomeAgs(){
   document.getElementById('homeAgEnviar').innerHTML=card('enviar','Cargas a Enviar','🚚','montador de cargas');
   document.getElementById('homeAgReceber').innerHTML=card('receber','Cargas a Receber','📦','depósito');
 }
-function agRenderAll(){ renderAgTable('enviar'); renderAgTable('receber'); renderHomeAgs(); }
+function agRenderAll(){
+  renderAgTable('enviar'); renderAgTable('receber'); renderHomeAgs();
+  if(document.getElementById('aeViewCalendar').style.display!=='none') agRenderCalendar('enviar');
+  if(document.getElementById('arViewCalendar').style.display!=='none') agRenderCalendar('receber');
+}
 
 // impressão em PDF (período selecionado; usa a lista exatamente como está filtrada na tela)
 function agPrintHtml(tipo,lista){
@@ -2344,6 +2390,73 @@ function agPrint(tipo){
   agMsg(tipo,'');
   esDoPrint(agPrintHtml(tipo,lista));
 }
+
+// ====== CALENDÁRIO DE AGENDAMENTOS ======
+function agGetCalendarMonth(){
+  const input=document.getElementById('agCalMes');
+  if(!input||!input.value)return new Date();
+  const [y,m]=input.value.split('-');
+  return new Date(y,parseInt(m)-1,1);
+}
+window.agRenderCalendar=function(tipo){
+  const mes=agGetCalendarMonth();
+  const ano=mes.getFullYear(), mês=mes.getMonth();
+  const lista=AG_ROWS.filter(r=>r.tipo===tipo);
+  const agsByDay={}; // agrupar por dia
+  lista.forEach(r=>{
+    if(!agsByDay[r.data])agsByDay[r.data]=[];
+    agsByDay[r.data].push(r);
+  });
+  const primeiroDia=new Date(ano,mês,1).getDay();
+  const diasDoMes=new Date(ano,mês+1,0).getDate();
+  const nomeMes=new Date(ano,mês,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
+  let html=`<div class="ag-cal-header">
+    <input type="month" id="agCalMes" value="${ano}-${String(mês+1).padStart(2,'0')}" onchange="agRenderCalendar('${tipo}')">
+    <span class="ag-cal-mes">${nomeMes.charAt(0).toUpperCase()+nomeMes.slice(1)}</span>
+  </div>
+  <div class="ag-cal-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sab</div></div>
+  <div class="ag-cal-grid">`;
+  for(let i=0;i<primeiroDia;i++)html+='<div class="ag-cal-empty"></div>';
+  const hoje=agHojeISO();
+  for(let dia=1;dia<=diasDoMes;dia++){
+    const dataStr=`${ano}-${String(mês+1).padStart(2,'0')}-${String(dia).padStart(2,'0')}`;
+    const ags=agsByDay[dataStr]||[];
+    const isHoje=dataStr===hoje;
+    const isAtras=dataStr<hoje;
+    let cls='ag-cal-day';
+    if(isHoje)cls+=' ag-cal-hoje';
+    if(isAtras)cls+=' ag-cal-atras';
+    const nomes=ags.map(r=>tipo==='enviar'?r.cliente:r.fornecedor).filter(x=>x).slice(0,2).join(' / ');
+    const plus=ags.length>2?` +${ags.length-2}`:''
+    html+=`<div class="${cls}" data-data="${dataStr}" onclick="agShowDayModal('${dataStr}','${tipo}')" style="cursor:pointer">
+      <div class="ag-cal-num">${dia}</div>
+      <div class="ag-cal-items">${ags.length>0?'<div class="ag-cal-badge">'+ags.length+'</div>':''}
+        ${nomes?'<div class="ag-cal-text">'+esc(nomes)+plus+'</div>':''}</div>
+    </div>`;
+  }
+  html+='</div>';
+  const containerId='agCal'+tipo.charAt(0).toUpperCase()+tipo.slice(1);
+  const container=document.getElementById(containerId);
+  if(container)container.innerHTML=html;
+}
+window.agShowDayModal=function(data,tipo){
+  const ags=AG_ROWS.filter(r=>r.tipo===tipo&&r.data===data);
+  if(!ags.length)return;
+  const diaFmt=deFmtData(data);
+  const icone=tipo==='enviar'?'🚚':'📦';
+  const titulo=tipo==='enviar'?'Cargas a Enviar':'Cargas a Receber';
+  let linhas='';
+  ags.forEach(r=>{
+    if(tipo==='enviar'){
+      linhas+=`<div class="ag-modal-item"><div><b>${esc(r.cliente)}</b> - ${esc(r.rota||'')}</div><div class="muted" style="font-size:12px">${r.obs?esc(r.obs):''}</div><div style="margin-top:4px"><span class="badge ${AG_BADGE[r.status]||'b-blue'}">${esc(r.status)}</span></div></div>`;
+    }else{
+      linhas+=`<div class="ag-modal-item"><div><b>${esc(r.fornecedor||'')}</b> ${r.hora?'às '+esc(r.hora):''}</div><div class="muted" style="font-size:12px">Volumes: ${esc(r.volumes||'')} ${r.obs?'· '+esc(r.obs):''}</div><div style="margin-top:4px"><span class="badge ${AG_BADGE[r.status]||'b-blue'}">${esc(r.status)}</span></div></div>`;
+    }
+  });
+  const html=`<div class="ag-modal-overlay" onclick="if(event.target===this){const el=this;setTimeout(()=>el.remove(),0)}"><div class="ag-modal"><div class="ag-modal-close" onclick="this.closest('.ag-modal-overlay').remove()">&times;</div><h3>${icone} ${titulo} — ${diaFmt}</h3><div class="ag-modal-list">${linhas}</div></div></div>`;
+  document.body.insertAdjacentHTML('beforeend',html);
+};
+
 function agSetSub(sub){
   const senha=AG_SUB_SENHA[sub];
   if(senha&&AG_SUB!==sub){ // pede a senha ao ENTRAR na sub-aba protegida
@@ -2631,6 +2744,23 @@ document.getElementById('arPrint').onclick=()=>agPrint('receber');
   else if(ed){ const r=AG_ROWS.find(x=>String(x.id)===String(ed.dataset.id)); if(r)agFormFill(r); }
   else if(del) agExcluir(del.dataset.id,del.dataset.tipo);
 }));
+// toggle calendário/tabela
+document.getElementById('aeViewToggle').onclick=function(){
+  const v=this.dataset.view==='tabela'?'calendario':'tabela';
+  this.dataset.view=v;
+  this.textContent=v==='tabela'?'📅 Ver calendário':'📋 Ver tabela';
+  document.getElementById('aeViewTabela').style.display=v==='tabela'?'':'none';
+  document.getElementById('aeViewCalendar').style.display=v==='calendario'?'':'none';
+  if(v==='calendario') agRenderCalendar('enviar');
+};
+document.getElementById('arViewToggle').onclick=function(){
+  const v=this.dataset.view==='tabela'?'calendario':'tabela';
+  this.dataset.view=v;
+  this.textContent=v==='tabela'?'📅 Ver calendário':'📋 Ver tabela';
+  document.getElementById('arViewTabela').style.display=v==='tabela'?'':'none';
+  document.getElementById('arViewCalendar').style.display=v==='calendario'?'':'none';
+  if(v==='calendario') agRenderCalendar('receber');
+};
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
