@@ -567,9 +567,9 @@
         <div class="card" style="margin-top:16px">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <h3 style="margin:0">Cargas agendadas para envio <span id="aeCount" class="pill"></span></h3>
-            <button class="ghost" id="aeViewToggle" data-view="tabela" style="font-size:12px">📅 Ver calendário</button>
+            <button class="ghost" id="aeViewToggle" data-view="calendario" style="font-size:12px">📋 Ver tabela</button>
           </div>
-          <div id="aeViewTabela">
+          <div id="aeViewTabela" style="display:none">
             <div class="pad toolbar">
               <input type="search" id="aeBusca" placeholder="Buscar cliente, rota...">
               <label class="muted">De <input type="date" id="aeIni"></label>
@@ -581,7 +581,7 @@
             <div class="tablewrap"><table id="aeTbl"></table></div>
             <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Montado → Enviado → Cancelado. Concluídos ficam esmaecidos no fim da lista (nada é apagado).</div>
           </div>
-          <div id="aeViewCalendar" style="display:none;padding:16px">
+          <div id="aeViewCalendar" style="padding:16px">
             <div id="agCalEnviar"></div>
           </div>
         </div>
@@ -603,9 +603,9 @@
         <div class="card" style="margin-top:16px">
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <h3 style="margin:0">Recebimentos agendados <span id="arCount" class="pill"></span></h3>
-            <button class="ghost" id="arViewToggle" data-view="tabela" style="font-size:12px">📅 Ver calendário</button>
+            <button class="ghost" id="arViewToggle" data-view="calendario" style="font-size:12px">📋 Ver tabela</button>
           </div>
-          <div id="arViewTabela">
+          <div id="arViewTabela" style="display:none">
             <div class="pad toolbar">
               <input type="search" id="arBusca" placeholder="Buscar fornecedor, volumes...">
               <label class="muted">De <input type="date" id="arIni"></label>
@@ -617,7 +617,7 @@
             <div class="tablewrap"><table id="arTbl"></table></div>
             <div class="pad muted" style="font-size:12px;padding-top:0">Clique no status para avançar: Agendado → Recebido → Cancelado. Concluídos ficam esmaecidos no fim da lista (nada é apagado).</div>
           </div>
-          <div id="arViewCalendar" style="display:none;padding:16px">
+          <div id="arViewCalendar" style="padding:16px">
             <div id="agCalReceber"></div>
           </div>
         </div>
@@ -2392,14 +2392,14 @@ function agPrint(tipo){
 }
 
 // ====== CALENDÁRIO DE AGENDAMENTOS ======
-function agGetCalendarMonth(){
-  const input=document.getElementById('agCalMes');
+function agGetCalendarMonth(tipo){
+  const input=document.getElementById('agCalMes_'+tipo); // um seletor por sub-aba (os dois calendários coexistem no DOM)
   if(!input||!input.value)return new Date();
   const [y,m]=input.value.split('-');
   return new Date(y,parseInt(m)-1,1);
 }
 window.agRenderCalendar=function(tipo){
-  const mes=agGetCalendarMonth();
+  const mes=agGetCalendarMonth(tipo);
   const ano=mes.getFullYear(), mês=mes.getMonth();
   const lista=AG_ROWS.filter(r=>r.tipo===tipo);
   const agsByDay={}; // agrupar por dia
@@ -2411,7 +2411,7 @@ window.agRenderCalendar=function(tipo){
   const diasDoMes=new Date(ano,mês+1,0).getDate();
   const nomeMes=new Date(ano,mês,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
   let html=`<div class="ag-cal-header">
-    <input type="month" id="agCalMes" value="${ano}-${String(mês+1).padStart(2,'0')}" onchange="agRenderCalendar('${tipo}')">
+    <input type="month" id="agCalMes_${tipo}" value="${ano}-${String(mês+1).padStart(2,'0')}" onchange="agRenderCalendar('${tipo}')">
     <span class="ag-cal-mes">${nomeMes.charAt(0).toUpperCase()+nomeMes.slice(1)}</span>
   </div>
   <div class="ag-cal-weekdays"><div>Dom</div><div>Seg</div><div>Ter</div><div>Qua</div><div>Qui</div><div>Sex</div><div>Sab</div></div>
