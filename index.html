@@ -271,6 +271,13 @@
   .ivrank .track{background:var(--border);border-radius:99px;height:15px;overflow:hidden;position:relative}
   .ivrank .fill{height:100%;border-radius:99px}
   .ivrank .vv{white-space:nowrap;font-weight:700;font-size:12px}
+  /* linhas de totalizador do comparativo — mesmo visual do Excel da gerência */
+  #icTbl tr.ivtotrow td{background:#1F3864;color:#ffe45c;font-weight:800;border-top:none;border-bottom:none}
+  #icTbl tr.ivtotrow td.dpos,#icTbl tr.ivtotrow td.dneg{color:#ffe45c}
+  #icTbl tr.ivano td{background:#0f2444;font-size:13px}
+  #icTbl td.num,#icTbl th.num{text-align:right;white-space:nowrap}
+  #icTbl td.dpos{color:#1e7d43;font-weight:700}
+  #icTbl td.dneg{color:#b3261e;font-weight:700}
   /* impressão do inventário */
   #printEscala .ivprint{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038}
   #printEscala .ivprint .ph{display:flex;align-items:center;gap:18px;border-bottom:3px solid #005da8;padding-bottom:10px;margin-bottom:12px}
@@ -742,6 +749,7 @@
               <select id="icForn" style="min-width:200px"></select>
               <label class="muted">De <input type="date" id="icIni"></label>
               <label class="muted">At&eacute; <input type="date" id="icFim"></label>
+              <button class="yellow" id="icExport" data-icon="download">Excel para a ger&ecirc;ncia</button>
               <span class="muted" id="icMsg" style="margin-left:auto"></span>
             </div>
             <div id="icKpis" class="ivtot"></div>
@@ -2700,8 +2708,8 @@ function ivMontar(rows,dataInv,fornecedor){
 }
 // acuracidade = % de itens contados sem nenhuma divergência
 function ivAcuracidade(t){ return t.total?(t.total-t.ndiv)/t.total*100:0; }
-// peso da divergência sobre o estoque do fornecedor (só faz sentido com o valor informado)
-function ivPctEstoque(lanc,t){ const v=+lanc.valor_estoque||0; return v?Math.abs(t.fin)/v*100:null; }
+// peso da divergência sobre o estoque do fornecedor — com sinal, igual ao "% DIF" da gerência
+function ivPctEstoque(lanc,t){ const v=+lanc.valor_estoque||0; return v?t.fin/v*100:null; }
 // Div Ant = Dif Qtde do produto no inventário anterior do MESMO fornecedor (0 se não existir)
 function ivDivAnt(lanc){
   const prev=IV_ROWS.filter(l=>l.fornecedor===lanc.fornecedor&&l.data_inventario<lanc.data_inventario)
@@ -2869,7 +2877,7 @@ function ivTabelaHtml(prods){
     `<td class="num"></td><td${cls(t.qtd)}>${ivFmtQ(t.qtd)}</td><td${cls(t.fin)}>${fmtBRL(t.fin)}</td></tr></tbody></table>`;
 }
 function ivCabecalhoHtml(titulo,sub,t,valorEstoque){
-  const pct=valorEstoque?Math.abs(t.fin)/valorEstoque*100:null;
+  const pct=valorEstoque?t.fin/valorEstoque*100:null;
   return `<div class="ph">
       <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
       <div class="tt"><small>Sistema de Gestão Logística · ${esc(SESSION.unidade||'')}</small><h2>${titulo}</h2></div>
@@ -2997,10 +3005,13 @@ function ivRenderComp(){
   const seta=(a,b,inverso)=>{ if(b==null)return ''; const d=a-b; if(!d)return ' <span class="muted">=</span>';
     const bom=inverso?d<0:d>0; return ` <span style="color:${bom?'#1e7d43':'#b3261e'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(1).replace('.',',')}</span>`; };
   document.getElementById('icKpis').innerHTML=ult?`
-    <div class="box">Invent&aacute;rios<b>${linha.length}</b></div>
-    <div class="box hl">&Uacute;ltimo<b>${deFmtData(ult.l.data_inventario)}</b></div>
-    <div class="box">Acuracidade<b>${ivAcuracidade(ult.t).toFixed(1).replace('.',',')}%${pen?seta(ivAcuracidade(ult.t),ivAcuracidade(pen.t)):''}</b></div>
-    <div class="box ${ult.t.fin<0?'neg':'pos'}">Diverg&ecirc;ncia<b>${fmtBRL(ult.t.fin)}</b></div>
+    <div class="box hl">&Uacute;ltimo invent&aacute;rio<b>${esc(ult.l.fornecedor)} &middot; ${deFmtData(ult.l.data_inventario)}</b></div>
+    <div class="box">R$ est. invent.<b>${ult.l.valor_estoque?fmtBRL(ult.l.valor_estoque):'—'}</b></div>
+    <div class="box">Acuracidade<b>${ivAcuracidade(ult.t).toFixed(2).replace('.',',')}%${pen?seta(ivAcuracidade(ult.t),ivAcuracidade(pen.t)):''}</b></div>
+    <div class="box pos">Entrada<b>${fmtBRL(ult.t.pos)}</b></div>
+    <div class="box neg">Sa&iacute;da<b>${fmtBRL(Math.abs(ult.t.neg))}</b></div>
+    <div class="box ${ult.t.fin<0?'neg':'pos'}">Diferen&ccedil;a<b>${fmtBRL(ult.t.fin)}</b></div>
+    <div class="box ${(ivPctEstoque(ult.l,ult.t)||0)<0?'neg':'pos'}">% Dif<b>${ivPctEstoque(ult.l,ult.t)!=null?ivPctEstoque(ult.l,ult.t).toFixed(2).replace('.',',')+'%':'—'}</b></div>
     <div class="box">Itens divergentes<b>${ult.t.ndiv}${pen?seta(ult.t.ndiv,pen.t.ndiv,true):''}</b></div>`
     :'<div class="box">Sem inventários no período<b>—</b></div>';
   document.getElementById('icMsg').textContent=lancs.length?'':'Nenhum inventário lançado no período.';
@@ -3024,18 +3035,138 @@ function ivRenderComp(){
       .map(p=>({label:p.descricao||p.id,value:p.dif_financeira})):[],
     v=>fmtBRL(v), 'Nenhuma divergência no último inventário.');
 
-  // tabela inventário a inventário (mais recente primeiro)
+  // tabela no mesmo formato do Excel da gerência: ordem cronológica, totalizador por mês e do ano
+  const rs=ivLinhasGerencia(lancs);
+  const pctCls=v=>v<0?'num dneg':v>0?'num dpos':'num';
+  const brPct=n=>n.toFixed(2).replace('.',',')+'%';
+  const cels=(r,extra)=>`<td class="num">${fmtBRL(r.est)}</td><td class="num">${brPct(r.acu)}</td>`+
+    `<td class="num dpos">${r.entrada?fmtBRL(r.entrada):'—'}</td>`+
+    `<td class="num dneg">${r.saida?fmtBRL(r.saida):'—'}</td>`+
+    `<td class="${extra||pctCls(r.dif)}">${fmtBRL(r.dif)}</td>`+
+    `<td class="${extra||pctCls(r.pct)}">${brPct(r.pct)}</td>`;
+  // contagem de produtos/divergentes por lançamento, para as linhas e para os totalizadores
+  const cont={}; linha.forEach(x=>cont[x.l.fornecedor+'|'+x.l.data_inventario]=x.t);
+  const somaCont=lista=>lista.reduce((a,r)=>{ const t=cont[r.forn+'|'+r.data]||{total:0,ndiv:0};
+    return {total:a.total+t.total,ndiv:a.ndiv+t.ndiv}; },{total:0,ndiv:0});
+  const totRow=(rot,lista,cls)=>{ const t=ivTotalGerencia(lista), c=somaCont(lista);
+    return `<tr class="ivtotrow${cls||''}"><td>${esc(rot)}</td><td>TOTALIZADORES ——&gt;</td>`+
+      `<td class="num">${c.total}</td><td class="num">${c.ndiv}</td>${cels(t,'num')}</tr>`; };
+  let corpo='';
+  const meses=[...new Set(rs.map(r=>r.data.slice(0,7)))].sort();
+  meses.forEach(mk=>{
+    const doMes=rs.filter(r=>r.data.slice(0,7)===mk);
+    corpo+=doMes.map(r=>{ const t=cont[r.forn+'|'+r.data]||{total:0,ndiv:0};
+      return `<tr><td>${deFmtData(r.data)}</td><td><b>${esc(r.forn)}</b></td>`+
+        `<td class="num">${t.total}</td><td class="num">${t.ndiv}</td>${cels(r)}</tr>`;}).join('');
+    corpo+=totRow(IV_MESES[+mk.slice(5,7)-1],doMes);
+  });
+  [...new Set(rs.map(r=>r.data.slice(0,4)))].sort().forEach(a=>{
+    corpo+=totRow(a,rs.filter(r=>r.data.slice(0,4)===a),' ivano');
+  });
   document.getElementById('icTbl').innerHTML=
-    '<thead><tr><th>Data</th><th>Fornecedor</th><th class="num">Produtos</th><th class="num">Divergentes</th><th class="num">Acuracidade</th><th class="num">Saldo qtde</th><th class="num">Divergência</th><th class="num">Valor estoque</th><th class="num">% do estoque</th></tr></thead><tbody>'+
-    (linha.slice().reverse().map(x=>{ const pct=ivPctEstoque(x.l,x.t);
-      return `<tr><td>${deFmtData(x.l.data_inventario)}</td><td><b>${esc(x.l.fornecedor)}</b></td>`+
-        `<td class="num">${x.t.total}</td><td class="num">${x.t.ndiv}</td>`+
-        `<td class="num">${ivAcuracidade(x.t).toFixed(1).replace('.',',')}%</td>`+
-        `<td class="num">${ivFmtQ(x.t.qtd)}</td>`+
-        `<td class="num ${x.t.fin<0?'dneg':'dpos'}">${fmtBRL(x.t.fin)}</td>`+
-        `<td class="num">${x.l.valor_estoque?fmtBRL(x.l.valor_estoque):'—'}</td>`+
-        `<td class="num">${pct!=null?pct.toFixed(2).replace('.',',')+'%':'—'}</td></tr>`;}).join('')
-     ||'<tr><td colspan="9" class="empty" style="padding:16px">Nenhum inventário no período.</td></tr>')+'</tbody>';
+    '<thead><tr><th>Data</th><th>Fornecedor</th><th class="num">Produtos</th><th class="num">Divergentes</th>'+
+    '<th class="num">R$ Est. Invent.</th><th class="num">Acuracidade</th><th class="num">Entrada</th>'+
+    '<th class="num">Sa&iacute;da</th><th class="num">Diferen&ccedil;a</th><th class="num">% Dif</th></tr></thead><tbody>'+
+    (corpo||'<tr><td colspan="10" class="empty" style="padding:16px">Nenhum inventário no período.</td></tr>')+'</tbody>';
+}
+// ---------- EXPORTAÇÃO PARA A GERÊNCIA ----------
+// Excel no formato da planilha da gerência: uma linha por inventário, totalizador por
+// mês e totalizador do ano. Sai como HTML-Excel (mesmo formato que o ERP gera) porque
+// é o único jeito de levar as cores e a logo junto.
+const IV_MESES=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','AGOSTO','SETEMBRO','OUTUBRO','NOVEMBRO','DEZEMBRO'];
+function ivLinhasGerencia(lancs){
+  return lancs.map(l=>{
+    const t=ivTotais(l.produtos||[]), est=+l.valor_estoque||0;
+    return {data:l.data_inventario, forn:l.fornecedor, est, acu:ivAcuracidade(t),
+      entrada:t.pos, saida:Math.abs(t.neg), dif:t.fin, pct:est?t.fin/est*100:0};
+  });
+}
+function ivTotalGerencia(rs){
+  const est=rs.reduce((a,r)=>a+r.est,0), entrada=rs.reduce((a,r)=>a+r.entrada,0), saida=rs.reduce((a,r)=>a+r.saida,0);
+  const dif=entrada-saida;
+  return {est, acu:rs.length?rs.reduce((a,r)=>a+r.acu,0)/rs.length:0,
+    entrada, saida, dif, pct:est?dif/est*100:0};
+}
+async function ivLogoDataUri(){
+  try{
+    const r=await fetch(LOGOS[SESSION.unidade]||LOGOS['Dilnor']);
+    if(!r.ok) return '';
+    const b=await r.blob();
+    return await new Promise(res=>{const fr=new FileReader();fr.onload=()=>res(String(fr.result));fr.onerror=()=>res('');fr.readAsDataURL(b);});
+  }catch(e){ return ''; }
+}
+async function ivExportGerencia(){
+  const icMsg=document.getElementById('icMsg');
+  const lancs=ivCompPeriodo().slice().sort((a,b)=>a.data_inventario<b.data_inventario?-1:1);
+  if(!lancs.length){ icMsg.textContent='Nenhum inventário no período para exportar.'; return; }
+  icMsg.textContent='Gerando o Excel…';
+  const linhas=ivLinhasGerencia(lancs);
+  const anos=[...new Set(linhas.map(r=>r.data.slice(0,4)))].sort();
+  const empresa=(SESSION.unidade||'Dilnor').toUpperCase()+' DISTRIBUIDORA';
+  const titulo='INVENTÁRIOS '+empresa+' '+(anos.length===1?anos[0]:anos[0]+' a '+anos[anos.length-1]);
+
+  // x:num guarda o valor numérico (a célula continua somável no Excel) e o mso-number-format
+  // cuida da exibição; o texto dentro da célula fica em pt-BR para quem abrir fora do Excel
+  const MOEDA='#,##0.00;[Red]-#,##0.00', PCT='0.00%;[Red]-0.00%';
+  const brMoeda=n=>(+n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const brPct=n=>(+n).toFixed(2).replace('.',',')+'%';
+  const num=(v,fmt,txt,cls)=>`<td class="${cls||'n'}" style='mso-number-format:"${fmt}"' x:num="${v}">${txt}</td>`;
+  const cels=(r,cls)=>num(r.est.toFixed(2),'#,##0.00',brMoeda(r.est),cls)+
+    num((r.acu/100).toFixed(6),'0.00%',brPct(r.acu),cls)+
+    num(r.entrada.toFixed(2),'#,##0.00',brMoeda(r.entrada),cls)+
+    num(r.saida.toFixed(2),'#,##0.00',brMoeda(r.saida),cls)+
+    num(r.dif.toFixed(2),MOEDA,brMoeda(r.dif),cls)+
+    num((r.pct/100).toFixed(6),PCT,brPct(r.pct),cls);
+  const dado=r=>`<tr><td class="d">${deFmtData(r.data)}</td><td class="f">${esc(r.forn)}</td>${cels(r)}</tr>`;
+  const totalizador=(rotulo,t)=>`<tr class="tt"><td>${esc(rotulo)}</td><td>TOTALIZADORES ------&gt;&gt;&gt;</td>${cels(t,'tn')}</tr>`;
+
+  let corpo='';
+  const meses=[...new Set(linhas.map(r=>r.data.slice(0,7)))].sort();
+  meses.forEach(mk=>{
+    const rs=linhas.filter(r=>r.data.slice(0,7)===mk);
+    corpo+=rs.map(dado).join('');
+    corpo+=totalizador(IV_MESES[+mk.slice(5,7)-1],ivTotalGerencia(rs));
+    corpo+='<tr class="vazia"><td colspan="8"></td></tr>';
+  });
+  anos.forEach(a=>{
+    const rs=linhas.filter(r=>r.data.slice(0,4)===a);
+    corpo+=totalizador(a,ivTotalGerencia(rs));
+  });
+
+  const logo=await ivLogoDataUri();
+  const html=`<html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel">
+<head><meta charset="utf-8">
+<!--[if gte mso 9]><xml><x:ExcelWorkbook><x:ExcelWorksheets><x:ExcelWorksheet>
+<x:Name>Inventários</x:Name><x:WorksheetOptions><x:DisplayGridlines/></x:WorksheetOptions>
+</x:ExcelWorksheet></x:ExcelWorksheets></x:ExcelWorkbook></xml><![endif]-->
+<style>
+ table{border-collapse:collapse;font-family:Arial,sans-serif;font-size:11pt}
+ td{border:.5pt solid #000;padding:3px 7px;vertical-align:middle}
+ .tit{background:#1F3864;color:#FFFF00;font-size:18pt;font-weight:bold;text-align:center;height:38px;border:.5pt solid #1F3864}
+ .logo{background:#1F3864;text-align:center;border:.5pt solid #1F3864}
+ .h{background:#1F3864;color:#FFFF00;font-weight:bold;text-align:center}
+ .d{text-align:center;mso-number-format:"@"}
+ .f{text-align:left}
+ .n{text-align:right}
+ .tt td{background:#1F3864;color:#FFFF00;font-weight:bold}
+ .tt .tn{text-align:right;background:#1F3864;color:#FFFF00;font-weight:bold}
+ .vazia td{border:none;height:10px}
+</style></head><body>
+<table>
+ <tr><td class="logo" width="130">${logo?`<img src="${logo}" width="118" height="58">`:''}</td>
+     <td class="tit" colspan="7">${esc(titulo)}</td></tr>
+ <tr><td class="h">DATA</td><td class="h">FORNECEDOR</td><td class="h">R$ EST. INVENT.</td>
+     <td class="h">ACURACIDADE</td><td class="h">ENTRADA</td><td class="h">SAÍDA</td>
+     <td class="h">DIFERENÇA</td><td class="h">% DIF</td></tr>
+ ${corpo}
+</table></body></html>`;
+
+  const nome='Inventarios_'+(SESSION.unidade||'Dilnor')+'_'+(anos.join('-'))+'.xls';
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob(['﻿'+html],{type:'application/vnd.ms-excel;charset=utf-8'}));
+  a.download=nome; document.body.appendChild(a); a.click();
+  setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
+  icMsg.textContent='✅ '+nome+' — '+linhas.length+' inventário(s), '+meses.length+' mês(es).';
 }
 function ivSetSub(sub){
   document.querySelectorAll('#view-inventario > .subtabs .subtab').forEach(b=>b.classList.toggle('active',b.dataset.ivsub===sub));
@@ -3361,6 +3492,7 @@ document.getElementById('ivPrint').onclick=ivPrint;
 document.getElementById('ivPrintAll').onclick=ivPrintAll;
 document.getElementById('ivDel').onclick=ivExcluir;
 document.querySelectorAll('#view-inventario > .subtabs .subtab').forEach(b=>b.onclick=()=>ivSetSub(b.dataset.ivsub));
+document.getElementById('icExport').onclick=ivExportGerencia;
 document.getElementById('icForn').onchange=ivRenderComp;
 document.getElementById('icIni').onchange=ivRenderComp;
 document.getElementById('icFim').onchange=ivRenderComp;
