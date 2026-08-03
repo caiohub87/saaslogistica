@@ -235,6 +235,43 @@
   .ag-modal-item:hover{background:rgba(0,93,168,.05)}
   .ag-modal-item div:first-child{font-weight:600;color:var(--txt);margin-bottom:4px}
   .ag-modal-item .badge{font-size:11px;margin-top:4px}
+  /* INVENTÁRIO — totalizadores e tabela */
+  .ivtot{display:flex;gap:10px;flex-wrap:wrap;margin:12px 0}
+  .ivtot .box{border:1px solid var(--border);border-radius:10px;padding:8px 16px;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;flex:1;min-width:120px}
+  .ivtot .box b{display:block;font-size:19px;color:var(--txt);letter-spacing:0;margin-top:2px}
+  .ivtot .box.pos b{color:#1e7d43}
+  .ivtot .box.neg b{color:#b3261e}
+  .ivtot .box.hl b{color:var(--accent2)}
+  #ivTbl td.num,#ivTbl th.num{text-align:right;white-space:nowrap}
+  #ivTbl tr.ivzero td{opacity:.5}
+  #ivTbl td.dpos{color:#1e7d43;font-weight:700}
+  #ivTbl td.dneg{color:#b3261e;font-weight:700}
+  #ivFornTabs .subtab{font-size:12px}
+  /* impressão do inventário */
+  #printEscala .ivprint{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038}
+  #printEscala .ivprint .ph{display:flex;align-items:center;gap:18px;border-bottom:3px solid #005da8;padding-bottom:10px;margin-bottom:12px}
+  #printEscala .ivprint .ph img{height:52px;width:auto}
+  #printEscala .ivprint .ph .tt{flex:1}
+  #printEscala .ivprint .ph .tt h2{margin:0;font-size:19px;color:#005da8;text-transform:uppercase;letter-spacing:.5px;text-align:left}
+  #printEscala .ivprint .ph .tt small{color:#5b6b80;font-size:10.5px;letter-spacing:1.5px;text-transform:uppercase}
+  #printEscala .ivprint .ph .pd{text-align:right;font-size:10.5px;color:#33465e;white-space:nowrap}
+  #printEscala .ivprint .ph .pd b{display:block;font-size:12.5px;color:#0d2038}
+  #printEscala .ivprint .sum{display:flex;gap:10px;margin:0 0 12px}
+  #printEscala .ivprint .sum .box{border:1px solid #cfdae8;border-radius:10px;padding:7px 14px;font-size:9px;color:#5b6b80;text-transform:uppercase;letter-spacing:.5px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .ivprint .sum .box b{display:block;font-size:16px;color:#0d2038;letter-spacing:0}
+  #printEscala .ivprint .sum .box.hl b{color:#005da8}
+  #printEscala .ivprint .sum .box.pos b{color:#1e7d43}
+  #printEscala .ivprint .sum .box.neg b{color:#b3261e}
+  #printEscala .ivprint h4{margin:14px 0 6px;font-size:12px;color:#005da8;text-transform:uppercase;letter-spacing:.6px;border-bottom:1.5px solid #cfdae8;padding-bottom:3px}
+  #printEscala .ivprint table{width:100%;border-collapse:collapse;font-size:10px}
+  #printEscala .ivprint th{background:#005da8!important;color:#fff!important;border:none;text-align:left;font-size:9px;text-transform:uppercase;letter-spacing:.5px;padding:6px 8px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .ivprint td{border:none;border-bottom:1px solid #dbe4ef;text-align:left;padding:5px 8px}
+  #printEscala .ivprint tbody tr:nth-child(even) td{background:#f2f6fb!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .ivprint td.num,#printEscala .ivprint th.num{text-align:right;white-space:nowrap}
+  #printEscala .ivprint td.dpos{color:#1e7d43;font-weight:700}
+  #printEscala .ivprint td.dneg{color:#b3261e;font-weight:700}
+  #printEscala .ivprint tr.tot td{background:#e8eef7!important;font-weight:800;border-top:2px solid #005da8;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .ivprint .pfoot{margin-top:14px;padding-top:8px;border-top:1.5px solid #cfdae8;display:flex;justify-content:space-between;font-size:9.5px;color:#5b6b80}
   /* impressão moderna dos agendamentos */
   #printEscala .agprint{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038}
   #printEscala .agprint .ph{display:flex;align-items:center;gap:18px;border-bottom:3px solid #005da8;padding-bottom:10px;margin-bottom:12px}
@@ -406,6 +443,7 @@
       <button data-view="escala" data-icon="calendar"><span class="nav-label">Escala</span></button>
       <button data-view="escalasalvas" data-icon="calendar"><span class="nav-label">Escalas salvas</span></button>
       <button data-view="agendamentos" data-icon="calendar"><span class="nav-label">Agendamentos</span></button>
+      <button data-view="inventario" data-icon="box"><span class="nav-label">Invent&aacute;rio</span></button>
       <button data-view="cadastros" data-icon="users"><span class="nav-label">Cadastros</span></button>
       <button data-view="config" data-icon="settings"><span class="nav-label">Configura&ccedil;&otilde;es</span></button>
       <div class="sep"></div>
@@ -624,6 +662,45 @@
       </div>
     </section>
 
+    <!-- ===== INVENTÁRIO ===== -->
+    <section class="view" id="view-inventario">
+      <div class="card">
+        <h3>Lan&ccedil;ar invent&aacute;rio <span class="pill">relat&oacute;rio de confer&ecirc;ncia do ERP</span></h3>
+        <div class="pad">
+          <div class="toolbar" style="flex-wrap:wrap;margin-bottom:12px">
+            <label class="muted">Data do invent&aacute;rio <input type="date" id="ivData"></label>
+            <button id="ivPick" data-icon="upload">Escolher arquivo</button>
+            <input type="file" id="ivFile" accept=".xls,.xlsx,.htm,.html" style="display:none">
+            <span class="muted" id="ivMsg" style="margin-left:auto"></span>
+          </div>
+          <div class="drop" id="ivDrop">
+            <b>Arraste o relat&oacute;rio do invent&aacute;rio aqui</b>
+            <div class="muted" style="font-size:12.5px;margin-top:4px">Aceita o .xls do ERP (HTML) e .xlsx &middot; o fornecedor vem da coluna DESCR_271</div>
+          </div>
+          <div id="ivPreview" style="display:none;margin-top:14px"></div>
+        </div>
+      </div>
+
+      <div class="card" style="margin-top:16px">
+        <h3>Diverg&ecirc;ncias <span id="ivCount" class="pill"></span></h3>
+        <div class="pad">
+          <div class="subtabs" id="ivFornTabs" style="margin:0 0 12px"></div>
+          <div class="toolbar" style="flex-wrap:wrap">
+            <select id="ivLanc" style="min-width:190px"></select>
+            <input type="search" id="ivBusca" placeholder="Buscar produto (id ou descri&ccedil;&atilde;o)..." style="min-width:220px;flex:1">
+            <label class="muted">De <input type="date" id="ivIni"></label>
+            <label class="muted">At&eacute; <input type="date" id="ivFim"></label>
+            <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="ivSoDiv"> s&oacute; diverg&ecirc;ncias</label>
+            <button class="yellow" id="ivPrint" data-icon="print">PDF deste fornecedor</button>
+            <button class="ghost" id="ivPrintAll" data-icon="print">PDF consolidado</button>
+            <button class="ghost" id="ivDel" title="Excluir este lan&ccedil;amento">&#128465;&#65039;</button>
+          </div>
+          <div id="ivTotais" class="ivtot"></div>
+          <div class="tablewrap"><table id="ivTbl"></table></div>
+        </div>
+      </div>
+    </section>
+
     <!-- ===== CADASTROS ===== -->
     <section class="view" id="view-cadastros">
       <div class="card"><h3>Tabela de valores de premiação (editável) <span class="pill">R$ por cargo × faixa</span></h3><div class="pad" id="cadPremio"></div></div>
@@ -807,6 +884,7 @@ const ICONS={
   refresh:'M21 12a9 9 0 0 1-15.5 6.2M3 12A9 9 0 0 1 18.5 5.8M18 3v4h4M6 21v-4H2',
   wallet:'M3 7a3 3 0 0 1 3-3h13v16H6a3 3 0 0 1-3-3zM16 12h4v4h-4a2 2 0 0 1 0-4Z',
   archive:'M4 7h16M5 7l1 14h12l1-14M8 7V3h8v4M10 12h4',
+  box:'M21 8v8a2 2 0 0 1-1 1.73l-7 4a2 2 0 0 1-2 0l-7-4A2 2 0 0 1 3 16V8a2 2 0 0 1 1-1.73l7-4a2 2 0 0 1 2 0l7 4A2 2 0 0 1 21 8ZM3.3 7 12 12l8.7-5M12 22V12',
   calendar:'M7 3v4M17 3v4M4 9h16M5 5h14a1 1 0 0 1 1 1v14a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V6a1 1 0 0 1 1-1Z',
   users:'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75',
   settings:'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6ZM19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06A1.65 1.65 0 0 0 15 19.4a1.65 1.65 0 0 0-1 .6 1.65 1.65 0 0 0-.4 1.08V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 8.6 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.6 15a1.65 1.65 0 0 0-.6-1 1.65 1.65 0 0 0-1.08-.4H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 8.6a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-.6 1.65 1.65 0 0 0 .4-1.08V3a2 2 0 1 1 4 0v.09A1.65 1.65 0 0 0 15.4 4.6a1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.18.38.4.72.6 1 .33.27.7.4 1.08.4H21a2 2 0 1 1 0 4h-.09A1.65 1.65 0 0 0 19.4 15Z',
@@ -1019,6 +1097,7 @@ function go(view){
   if(view==='escala'&&typeof esEnter==='function') esEnter();
   if(view==='escalasalvas'&&!SESSION.offline&&typeof esvListar==='function') esvListar();
   if(view==='agendamentos'&&typeof agEnter==='function') agEnter();
+  if(view==='inventario'&&typeof ivEnter==='function') ivEnter();
   window.scrollTo(0,0);
 }
 
@@ -2477,6 +2556,277 @@ function agEnter(){
   if(!agEntrou){agEntrou=true;agBuscar();} else agRenderAll();
 }
 
+// ===================== INVENTÁRIO =====================
+// Lê o relatório de conferência do ERP (o .xls dele é HTML em ISO-8859-1) e monta a
+// divergência por fornecedor (coluna DESCR_271). O único campo que o ERP não traz é o
+// Div Ant = Dif Qtde do produto no inventário ANTERIOR do mesmo fornecedor.
+let IV_ROWS=[], IV_FORN='', IV_LANC='', IV_PEND=null, ivEntrou=false;
+const ivFmtQ=n=>(+n||0).toLocaleString('pt-BR');
+function ivLocal(){ return SESSION.offline||!supaReady(); }
+function ivLocalLoad(){ try{IV_ROWS=JSON.parse(localStorage.getItem(lsk('inventarios'))||'[]');}catch(e){IV_ROWS=[];} }
+function ivLocalSave(){ try{localStorage.setItem(lsk('inventarios'),JSON.stringify(IV_ROWS));}catch(e){} }
+function ivMsg(t){ const el=document.getElementById('ivMsg'); if(el)el.innerHTML=t||''; }
+
+// --- leitura do arquivo (HTML do ERP ou xlsx de verdade) ---
+function ivLerArquivo(file){
+  return new Promise((resolve,reject)=>{
+    const r=new FileReader();
+    r.onerror=()=>reject(new Error('Não consegui ler o arquivo.'));
+    r.onload=e=>{
+      try{
+        const buf=new Uint8Array(e.target.result);
+        let cabeca=''; for(let i=0;i<Math.min(buf.length,512);i++) cabeca+=String.fromCharCode(buf[i]);
+        if(/<html|<!doctype|<table/i.test(cabeca)){
+          // o ERP exporta HTML rotulado como .xls, em ISO-8859-1 — decodificar como UTF-8 quebra os acentos
+          let txt=new TextDecoder('iso-8859-1').decode(buf);
+          if(/charset\s*=\s*["']?utf-?8/i.test(txt.slice(0,2000))) txt=new TextDecoder('utf-8').decode(buf);
+          const tbl=new DOMParser().parseFromString(txt,'text/html').querySelector('table');
+          if(!tbl) return reject(new Error('Não encontrei nenhuma tabela dentro do arquivo.'));
+          return resolve([...tbl.rows].map(tr=>[...tr.cells].map(td=>td.textContent.replace(/\s+/g,' ').trim())));
+        }
+        if(!window.XLSX) return reject(new Error('Biblioteca de leitura não carregou.'));
+        const wb=XLSX.read(buf,{type:'array'});
+        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null}));
+      }catch(err){ reject(err); }
+    };
+    r.readAsArrayBuffer(file);
+  });
+}
+function ivColmap(hdr){
+  const L=(hdr||[]).map(h=>low(h));
+  const idx=(...nomes)=>{ for(const n of nomes){ const i=L.indexOf(n); if(i>=0)return i; } return -1; };
+  const ocorr=(nome,n)=>{ let c=0; for(let i=0;i<L.length;i++){ if(L[i]===nome&&++c===n) return i; } return -1; };
+  return {
+    id:idx('id','codigo','cod produto'),
+    descricao:idx('descricao','produto'),
+    // "Embalagem" aparece 2x: a 1ª é a unitária (UN / UN/1), a 2ª é a da contagem (UN/72) — é essa que vale
+    embalagem:ocorr('embalagem',2)>=0?ocorr('embalagem',2):ocorr('embalagem',1),
+    sld_estoq:idx('sld estoq','saldo estoque'),
+    sld_contagem:idx('sld contagem','saldo contagem'),
+    dif_qtde:idx('dif qtde','dif qtd'),
+    dif_financeira:idx('dif financeira'),
+    fornecedor:idx('descr_271','familia'),
+  };
+}
+// devolve um lançamento por fornecedor encontrado no arquivo
+function ivMontar(rows,dataInv){
+  let hi=rows.findIndex(r=>r&&r.some(c=>['sld contagem','dif qtde','sld estoq'].includes(low(c))));
+  if(hi<0) hi=0;
+  const cm=ivColmap(rows[hi]);
+  if(cm.id<0||cm.sld_contagem<0) throw new Error('Não encontrei as colunas "Id" e "Sld Contagem" no arquivo.');
+  const g=(row,k)=>cm[k]>=0?row[cm[k]]:null;
+  const porForn={};
+  rows.slice(hi+1).forEach(row=>{
+    if(!row) return;
+    const id=norm(g(row,'id'));
+    if(!id||/total/i.test(id)) return;
+    const forn=(norm(g(row,'fornecedor'))||'SEM FORNECEDOR').toUpperCase();
+    const est=parseNum(g(row,'sld_estoq')), cont=parseNum(g(row,'sld_contagem'));
+    (porForn[forn]=porForn[forn]||[]).push({
+      id, descricao:norm(g(row,'descricao')), embalagem:norm(g(row,'embalagem')),
+      sld_estoq:est, sld_contagem:cont,
+      dif_qtde:cm.dif_qtde>=0?parseNum(g(row,'dif_qtde')):(cont-est),
+      dif_financeira:parseNum(g(row,'dif_financeira')),
+    });
+  });
+  const fs=Object.keys(porForn);
+  if(!fs.length) throw new Error('O arquivo não tem nenhuma linha de produto.');
+  return fs.map(f=>({fornecedor:f,data_inventario:dataInv,produtos:porForn[f]}));
+}
+// Div Ant = Dif Qtde do produto no inventário anterior do MESMO fornecedor (0 se não existir)
+function ivDivAnt(lanc){
+  const prev=IV_ROWS.filter(l=>l.fornecedor===lanc.fornecedor&&l.data_inventario<lanc.data_inventario)
+                    .sort((a,b)=>a.data_inventario<b.data_inventario?1:-1)[0];
+  const m={};
+  if(prev)(prev.produtos||[]).forEach(p=>{ if(p.dif_qtde) m[p.id]=p.dif_qtde; });
+  return m;
+}
+function ivTotais(prods){
+  const t={total:prods.length,ndiv:0,qtd:0,fin:0,pos:0,neg:0};
+  prods.forEach(p=>{ const q=+p.dif_qtde||0, f=+p.dif_financeira||0;
+    t.qtd+=q; t.fin+=f; if(f>0)t.pos+=f; else t.neg+=f; if(q)t.ndiv++; });
+  return t;
+}
+
+// --- upload ---
+async function ivProcessar(file){
+  const dataInv=document.getElementById('ivData').value;
+  if(!dataInv){ ivMsg('<span style="color:#b3261e">Escolha a data do inventário antes de subir o arquivo.</span>'); return; }
+  ivMsg('Lendo '+esc(file.name)+'…');
+  try{
+    const lancs=ivMontar(await ivLerArquivo(file),dataInv);
+    IV_PEND=lancs;
+    const cards=lancs.map(l=>{
+      const t=ivTotais(l.produtos), ja=IV_ROWS.find(x=>x.fornecedor===l.fornecedor&&x.data_inventario===dataInv);
+      return `<div class="pad" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
+        <b>${esc(l.fornecedor)}</b> <span class="pill">${t.total} produtos</span>
+        ${ja?'<span class="badge b-orange" style="font-size:10px">já existe nesta data — será substituído</span>':''}
+        <div class="muted" style="font-size:12.5px;margin-top:4px">${t.ndiv} com divergência · saldo ${ivFmtQ(t.qtd)} un · ${fmtBRL(t.fin)}</div>
+      </div>`;}).join('');
+    document.getElementById('ivPreview').style.display='';
+    document.getElementById('ivPreview').innerHTML=cards+
+      `<div class="toolbar"><button id="ivSalvar" data-icon="save">Lançar ${lancs.length>1?lancs.length+' inventários':'inventário'}</button>
+       <button class="ghost" id="ivCancelar">Cancelar</button></div>`;
+    document.getElementById('ivSalvar').onclick=ivSalvar;
+    document.getElementById('ivCancelar').onclick=()=>{IV_PEND=null;document.getElementById('ivPreview').style.display='none';ivMsg('');};
+    decorateIcons(); ivMsg('Arquivo lido. Confira e clique em Lançar.');
+  }catch(err){ ivMsg('<span style="color:#b3261e">❌ '+esc(err.message)+'</span>'); }
+}
+async function ivSalvar(){
+  if(!IV_PEND) return;
+  ivMsg('Salvando…');
+  for(const l of IV_PEND){
+    const reg=Object.assign({unidade:SESSION.unidade},l);
+    if(ivLocal()){
+      IV_ROWS=IV_ROWS.filter(x=>!(x.fornecedor===l.fornecedor&&x.data_inventario===l.data_inventario));
+      IV_ROWS.push(Object.assign({id:'l'+Date.now()+Math.random().toString(36).slice(2,6)},reg));
+    }else{
+      const {error}=await sb.from('inventarios').upsert(reg,{onConflict:'unidade,fornecedor,data_inventario'});
+      if(error){ ivMsg('<span style="color:#b3261e">❌ '+esc(error.message)+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL dos inventários (supabase-setup.sql).':(/permission|policy|row-level/i.test(error.message)?' — apenas o usuário admin pode gravar.':''))+'</span>'); return; }
+    }
+  }
+  const f=IV_PEND[0].fornecedor, d=IV_PEND[0].data_inventario;
+  IV_PEND=null; document.getElementById('ivPreview').style.display='none';
+  if(ivLocal()){ ivLocalSave(); IV_FORN=f; IV_LANC=''; ivRender(); ivMsg('✅ Lançado neste computador (modo local).'); }
+  else { await ivBuscar(); IV_FORN=f; IV_LANC=(IV_ROWS.find(l=>l.fornecedor===f&&l.data_inventario===d)||{}).id||''; ivRender(); ivMsg('✅ Inventário lançado.'); }
+}
+async function ivBuscar(){
+  if(ivLocal()){ ivLocalLoad(); ivRender(); return; }
+  const {data,error}=await sb.from('inventarios').select('*').eq('unidade',SESSION.unidade)
+    .order('data_inventario',{ascending:false}).limit(500);
+  if(error){ IV_ROWS=[];
+    ivMsg('<span style="color:#b3261e">❌ '+esc(error.message)+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL dos inventários (supabase-setup.sql).':'')+'</span>');
+    ivRender(); return; }
+  IV_ROWS=data||[]; ivRender();
+}
+async function ivExcluir(){
+  const l=ivLancAtivo(); if(!l) return;
+  if(!confirm('Excluir o inventário de '+l.fornecedor+' de '+deFmtData(l.data_inventario)+'?')) return;
+  if(!ivLocal()){ const {error}=await sb.from('inventarios').delete().eq('id',l.id);
+    if(error){ ivMsg('<span style="color:#b3261e">❌ '+esc(error.message)+'</span>'); return; } }
+  IV_ROWS=IV_ROWS.filter(x=>String(x.id)!==String(l.id));
+  if(ivLocal()) ivLocalSave();
+  IV_LANC=''; ivRender(); ivMsg('Lançamento excluído.');
+}
+
+// --- consultas / render ---
+function ivNoPeriodo(){
+  const ini=document.getElementById('ivIni').value, fim=document.getElementById('ivFim').value;
+  return IV_ROWS.filter(l=>(!ini||l.data_inventario>=ini)&&(!fim||l.data_inventario<=fim));
+}
+function ivFornecedores(){ return [...new Set(ivNoPeriodo().map(l=>l.fornecedor))].sort(); }
+function ivLancsDoForn(){ return ivNoPeriodo().filter(l=>l.fornecedor===IV_FORN)
+  .sort((a,b)=>a.data_inventario<b.data_inventario?1:-1); }
+function ivLancAtivo(){ const ls=ivLancsDoForn(); return ls.find(l=>String(l.id)===String(IV_LANC))||ls[0]||null; }
+function ivProdutos(lanc){
+  if(!lanc) return [];
+  const ant=ivDivAnt(lanc);
+  const q=low(document.getElementById('ivBusca').value), so=document.getElementById('ivSoDiv').checked;
+  return (lanc.produtos||[]).map(p=>Object.assign({},p,{div_ant:ant[p.id]||0}))
+    .filter(p=>!so||p.dif_qtde)
+    .filter(p=>!q||low(p.id).includes(q)||low(p.descricao).includes(q));
+}
+function ivRender(){
+  const forns=ivFornecedores();
+  if(!forns.includes(IV_FORN)) IV_FORN=forns[0]||'';
+  document.getElementById('ivFornTabs').innerHTML=forns.length
+    ? forns.map(f=>`<button class="subtab${f===IV_FORN?' active':''}" data-forn="${esc(f)}">${esc(f)}</button>`).join('')
+    : '<span class="muted" style="font-size:13px">Nenhum inventário lançado ainda.</span>';
+  const lancs=ivLancsDoForn(), lanc=ivLancAtivo();
+  IV_LANC=lanc?lanc.id:'';
+  document.getElementById('ivLanc').innerHTML=lancs.map(l=>
+    `<option value="${esc(l.id)}"${String(l.id)===String(IV_LANC)?' selected':''}>${deFmtData(l.data_inventario)} — ${(l.produtos||[]).length} produtos</option>`).join('')
+    ||'<option>—</option>';
+  const prods=ivProdutos(lanc), t=ivTotais(prods);
+  document.getElementById('ivCount').textContent=lanc?(prods.length+' de '+(lanc.produtos||[]).length+' produtos'):'';
+  document.getElementById('ivTotais').innerHTML=lanc?`
+    <div class="box">Produtos<b>${t.total}</b></div>
+    <div class="box hl">Com diverg&ecirc;ncia<b>${t.ndiv}</b></div>
+    <div class="box">Saldo qtde<b>${ivFmtQ(t.qtd)}</b></div>
+    <div class="box pos">Positivo<b>${fmtBRL(t.pos)}</b></div>
+    <div class="box neg">Negativo<b>${fmtBRL(t.neg)}</b></div>
+    <div class="box ${t.fin<0?'neg':'pos'}">Diverg&ecirc;ncia total<b>${fmtBRL(t.fin)}</b></div>`:'';
+  const cls=v=>v>0?' class="num dpos"':v<0?' class="num dneg"':' class="num"';
+  document.getElementById('ivTbl').innerHTML=
+    '<thead><tr><th>Id</th><th>Descrição</th><th>Embalagem</th><th class="num">Sld Estoq</th><th class="num">Sld Contagem</th><th class="num">Div Ant</th><th class="num">Dif Qtde</th><th class="num">Dif Financeira</th></tr></thead><tbody>'+
+    (prods.map(p=>`<tr${p.dif_qtde?'':' class="ivzero"'}><td>${esc(p.id)}</td><td>${esc(p.descricao)}</td><td>${esc(p.embalagem)}</td>`+
+      `<td class="num">${ivFmtQ(p.sld_estoq)}</td><td class="num">${ivFmtQ(p.sld_contagem)}</td>`+
+      `<td${cls(p.div_ant)}>${p.div_ant?ivFmtQ(p.div_ant):'—'}</td>`+
+      `<td${cls(p.dif_qtde)}>${p.dif_qtde?ivFmtQ(p.dif_qtde):'—'}</td>`+
+      `<td${cls(p.dif_financeira)}>${p.dif_financeira?fmtBRL(p.dif_financeira):'—'}</td></tr>`).join('')
+     ||'<tr><td colspan="8" class="empty" style="padding:16px">'+(IV_ROWS.length?'Nenhum produto no filtro atual.':'Suba o relatório do inventário para começar.')+'</td></tr>')+'</tbody>';
+}
+
+// --- impressão ---
+function ivTabelaHtml(prods){
+  const t=ivTotais(prods);
+  const cls=v=>v>0?' class="num dpos"':v<0?' class="num dneg"':' class="num"';
+  return '<table><thead><tr><th style="width:52px">Id</th><th>Descrição</th><th style="width:62px">Emb.</th>'+
+    '<th class="num" style="width:60px">Sld Estoq</th><th class="num" style="width:66px">Sld Cont.</th>'+
+    '<th class="num" style="width:52px">Div Ant</th><th class="num" style="width:56px">Dif Qtde</th><th class="num" style="width:76px">Dif Financ.</th></tr></thead><tbody>'+
+    prods.map(p=>`<tr><td>${esc(p.id)}</td><td>${esc(p.descricao)}</td><td>${esc(p.embalagem)}</td>`+
+      `<td class="num">${ivFmtQ(p.sld_estoq)}</td><td class="num">${ivFmtQ(p.sld_contagem)}</td>`+
+      `<td${cls(p.div_ant)}>${p.div_ant||''}</td><td${cls(p.dif_qtde)}>${p.dif_qtde||''}</td>`+
+      `<td${cls(p.dif_financeira)}>${p.dif_financeira?fmtBRL(p.dif_financeira):''}</td></tr>`).join('')+
+    `<tr class="tot"><td colspan="5">TOTALIZADORES — ${t.total} produtos, ${t.ndiv} com divergência</td>`+
+    `<td class="num"></td><td${cls(t.qtd)}>${ivFmtQ(t.qtd)}</td><td${cls(t.fin)}>${fmtBRL(t.fin)}</td></tr></tbody></table>`;
+}
+function ivCabecalhoHtml(titulo,sub,t){
+  return `<div class="ph">
+      <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
+      <div class="tt"><small>Sistema de Gestão Logística · ${esc(SESSION.unidade||'')}</small><h2>${titulo}</h2></div>
+      <div class="pd">${sub}Gerado em ${new Date().toLocaleString('pt-BR')}</div>
+    </div>
+    <div class="sum">
+      <div class="box">Produtos<b>${t.total}</b></div>
+      <div class="box hl">Com divergência<b>${t.ndiv}</b></div>
+      <div class="box">Saldo qtde<b>${ivFmtQ(t.qtd)}</b></div>
+      <div class="box pos">Positivo<b>${fmtBRL(t.pos)}</b></div>
+      <div class="box neg">Negativo<b>${fmtBRL(t.neg)}</b></div>
+      <div class="box ${t.fin<0?'neg':'pos'}">Divergência total<b>${fmtBRL(t.fin)}</b></div>
+    </div>`;
+}
+function ivPrint(){
+  const lanc=ivLancAtivo(); if(!lanc){ ivMsg('Nada para imprimir.'); return; }
+  const prods=ivProdutos(lanc);
+  if(!prods.length){ ivMsg('Nada para imprimir no filtro atual.'); return; }
+  ivMsg('');
+  esDoPrint(`<div class="ivprint" data-print-pages="true">
+    ${ivCabecalhoHtml('Divergência '+esc(lanc.fornecedor),'Inventário<b>'+deFmtData(lanc.data_inventario)+'</b>',ivTotais(prods))}
+    ${ivTabelaHtml(prods)}
+    <div class="pfoot"><span>Conferência de inventário — ${esc(lanc.fornecedor)}</span><span>${esc(SESSION.unidade||'')} · página gerada pelo sistema</span></div>
+  </div>`);
+}
+function ivPrintAll(){
+  // consolidado: o lançamento mais recente de cada fornecedor dentro do período
+  const forns=ivFornecedores();
+  if(!forns.length){ ivMsg('Nada para imprimir.'); return; }
+  const blocos=[]; let geral={total:0,ndiv:0,qtd:0,fin:0,pos:0,neg:0};
+  forns.forEach(f=>{
+    const lanc=ivNoPeriodo().filter(l=>l.fornecedor===f).sort((a,b)=>a.data_inventario<b.data_inventario?1:-1)[0];
+    if(!lanc) return;
+    const ant=ivDivAnt(lanc), so=document.getElementById('ivSoDiv').checked;
+    const prods=(lanc.produtos||[]).map(p=>Object.assign({},p,{div_ant:ant[p.id]||0})).filter(p=>!so||p.dif_qtde);
+    if(!prods.length) return;
+    const t=ivTotais(prods);
+    Object.keys(geral).forEach(k=>geral[k]+=t[k]);
+    blocos.push(`<h4>${esc(f)} — inventário de ${deFmtData(lanc.data_inventario)}</h4>${ivTabelaHtml(prods)}`);
+  });
+  if(!blocos.length){ ivMsg('Nada para imprimir no filtro atual.'); return; }
+  const ini=document.getElementById('ivIni').value, fim=document.getElementById('ivFim').value;
+  const periodo=(ini||fim)?((ini?deFmtData(ini):'início')+' a '+(fim?deFmtData(fim):'hoje')):'Todos os lançamentos';
+  ivMsg('');
+  esDoPrint(`<div class="ivprint" data-print-pages="true">
+    ${ivCabecalhoHtml('Divergência de inventário — consolidado','Período<b>'+periodo+'</b>',geral)}
+    ${blocos.join('')}
+    <div class="pfoot"><span>Conferência de inventário — ${blocos.length} fornecedor(es)</span><span>${esc(SESSION.unidade||'')} · página gerada pelo sistema</span></div>
+  </div>`);
+}
+function ivEnter(){
+  if(!document.getElementById('ivData').value) document.getElementById('ivData').value=agHojeISO();
+  if(!ivEntrou){ ivEntrou=true; ivBuscar(); } else ivRender();
+}
+
 // ===================== EVENTOS =====================
 const fileEl=document.getElementById('file');
 document.getElementById('btnLoad').onclick=()=>fileEl.click();
@@ -2761,6 +3111,28 @@ document.getElementById('arViewToggle').onclick=function(){
   document.getElementById('arViewCalendar').style.display=v==='calendario'?'':'none';
   if(v==='calendario') agRenderCalendar('receber');
 };
+
+// inventário
+const ivFileEl=document.getElementById('ivFile');
+document.getElementById('ivPick').onclick=()=>ivFileEl.click();
+ivFileEl.onchange=e=>{ if(e.target.files[0]){ ivProcessar(e.target.files[0]); e.target.value=''; } };
+const ivDropEl=document.getElementById('ivDrop');
+ivDropEl.onclick=()=>ivFileEl.click();
+ivDropEl.ondragover=e=>{e.preventDefault();ivDropEl.classList.add('over');};
+ivDropEl.ondragleave=()=>ivDropEl.classList.remove('over');
+ivDropEl.ondrop=e=>{e.preventDefault();ivDropEl.classList.remove('over');if(e.dataTransfer.files[0])ivProcessar(e.dataTransfer.files[0]);};
+document.getElementById('ivFornTabs').addEventListener('click',e=>{
+  const b=e.target.closest('.subtab'); if(!b)return;
+  IV_FORN=b.dataset.forn; IV_LANC=''; ivRender();
+});
+document.getElementById('ivLanc').onchange=e=>{IV_LANC=e.target.value;ivRender();};
+document.getElementById('ivBusca').oninput=ivRender;
+document.getElementById('ivSoDiv').onchange=ivRender;
+document.getElementById('ivIni').onchange=()=>{IV_LANC='';ivRender();};
+document.getElementById('ivFim').onchange=()=>{IV_LANC='';ivRender();};
+document.getElementById('ivPrint').onclick=ivPrint;
+document.getElementById('ivPrintAll').onclick=ivPrintAll;
+document.getElementById('ivDel').onclick=ivExcluir;
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
