@@ -235,13 +235,16 @@ create policy "escrita admin metas" on metas
 create table if not exists inventarios (
   id bigint generated always as identity primary key,
   unidade text not null,
-  fornecedor text not null,           -- DESCR_271 do ERP (RAYOVAC, ADL, COLGATE...)
+  fornecedor text not null,           -- escolhido na tela (COLGATE, MARILAN, ADL...)
   data_inventario date not null,      -- dia em que o inventário foi feito
+  valor_estoque numeric default 0,    -- valor total do estoque do fornecedor, digitado no lançamento
   produtos jsonb not null default '[]',
   -- cada item: {id, descricao, embalagem, sld_estoq, sld_contagem, dif_qtde, dif_financeira}
   created_at timestamptz default now(),
   unique (unidade, fornecedor, data_inventario)
 );
+-- se a tabela já foi criada antes da coluna existir, rode só esta linha:
+alter table inventarios add column if not exists valor_estoque numeric default 0;
 create index if not exists inventarios_busca on inventarios (unidade, fornecedor, data_inventario desc);
 alter table inventarios enable row level security;
 drop policy if exists "leitura unidade inventarios" on inventarios;

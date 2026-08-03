@@ -247,6 +247,30 @@
   #ivTbl td.dpos{color:#1e7d43;font-weight:700}
   #ivTbl td.dneg{color:#b3261e;font-weight:700}
   #ivFornTabs .subtab{font-size:12px}
+  /* mensagem do lançamento — em bloco, para erro de validação não passar despercebido */
+  .ivmsg{margin-top:10px;font-size:13px;min-height:0}
+  .ivmsg:empty{display:none}
+  .ivmsg .ok{display:block;padding:9px 13px;border-radius:8px;background:rgba(30,125,67,.12);border:1px solid rgba(30,125,67,.35);color:#1e7d43;font-weight:600}
+  .ivmsg .err{display:block;padding:9px 13px;border-radius:8px;background:rgba(179,38,30,.1);border:1px solid rgba(179,38,30,.35);color:#b3261e;font-weight:600}
+  .ivmsg .info{display:block;padding:9px 13px;border-radius:8px;background:var(--input-bg);border:1px solid var(--border);color:var(--muted)}
+  .ivprev{border:2px solid var(--accent2);border-radius:12px;padding:14px 16px;background:var(--input-bg)}
+  .ivprev .tt{font-size:16px;font-weight:700;color:var(--txt)}
+  .ivprev .lin{color:var(--muted);font-size:13px;margin-top:5px}
+  /* gráficos do comparativo */
+  .ivchart svg{width:100%;height:auto;display:block;overflow:visible}
+  .ivchart .gl{stroke:var(--border);stroke-width:1}
+  .ivchart .zl{stroke:var(--muted);stroke-width:1.2}
+  .ivchart .ax{fill:var(--muted);font-size:10px}
+  .ivchart .vl{fill:var(--txt);font-size:10px;font-weight:700}
+  .ivchart .lbl{fill:var(--muted);font-size:10px}
+  .ivchart .ln{fill:none;stroke:var(--accent2);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
+  .ivchart .dot{fill:var(--accent2)}
+  .ivrank{display:flex;flex-direction:column;gap:7px}
+  .ivrank .row{display:grid;grid-template-columns:1fr 2.1fr auto;gap:9px;align-items:center;font-size:12.5px}
+  .ivrank .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
+  .ivrank .track{background:var(--border);border-radius:99px;height:15px;overflow:hidden;position:relative}
+  .ivrank .fill{height:100%;border-radius:99px}
+  .ivrank .vv{white-space:nowrap;font-weight:700;font-size:12px}
   /* impressão do inventário */
   #printEscala .ivprint{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038}
   #printEscala .ivprint .ph{display:flex;align-items:center;gap:18px;border-bottom:3px solid #005da8;padding-bottom:10px;margin-bottom:12px}
@@ -664,41 +688,76 @@
 
     <!-- ===== INVENTÁRIO ===== -->
     <section class="view" id="view-inventario">
-      <div class="card">
-        <h3>Lan&ccedil;ar invent&aacute;rio <span class="pill">relat&oacute;rio de confer&ecirc;ncia do ERP</span></h3>
-        <div class="pad">
-          <div class="toolbar" style="flex-wrap:wrap;margin-bottom:12px">
-            <label class="muted">Fornecedor <input type="text" id="ivForn" list="ivFornLista" placeholder="Selecione..." style="min-width:200px" autocomplete="off"></label>
-            <datalist id="ivFornLista"></datalist>
-            <label class="muted">Data do invent&aacute;rio <input type="date" id="ivData"></label>
-            <button id="ivPick" data-icon="upload">Escolher arquivo</button>
-            <input type="file" id="ivFile" accept=".xls,.xlsx,.htm,.html" style="display:none">
-            <span class="muted" id="ivMsg" style="margin-left:auto"></span>
+      <div class="subtabs">
+        <button class="subtab active" data-ivsub="lancamentos">&#128203; Lan&ccedil;amentos</button>
+        <button class="subtab" data-ivsub="comparativo">&#128200; Comparativo</button>
+      </div>
+
+      <div id="ivPaneLanc">
+        <div class="card">
+          <h3>Lan&ccedil;ar invent&aacute;rio <span class="pill">relat&oacute;rio de confer&ecirc;ncia do ERP</span></h3>
+          <div class="pad">
+            <div class="toolbar" style="flex-wrap:wrap;margin-bottom:12px">
+              <label class="muted">Fornecedor <input type="text" id="ivForn" list="ivFornLista" placeholder="Selecione..." style="min-width:190px" autocomplete="off"></label>
+              <datalist id="ivFornLista"></datalist>
+              <label class="muted">Data do invent&aacute;rio <input type="date" id="ivData"></label>
+              <label class="muted">Valor do estoque (R$) <input type="text" id="ivValor" placeholder="286.130,96" style="min-width:130px" autocomplete="off"></label>
+              <button id="ivPick" data-icon="upload">Escolher arquivo</button>
+              <input type="file" id="ivFile" accept=".xls,.xlsx,.htm,.html" style="display:none">
+            </div>
+            <div class="drop" id="ivDrop">
+              <b>Arraste o relat&oacute;rio do invent&aacute;rio aqui</b>
+              <div class="muted" style="font-size:12.5px;margin-top:4px">Aceita o .xls do ERP (HTML) e .xlsx &middot; preencha fornecedor, data e valor do estoque antes de subir</div>
+            </div>
+            <div id="ivMsg" class="ivmsg"></div>
+            <div id="ivPreview" style="display:none;margin-top:14px"></div>
           </div>
-          <div class="drop" id="ivDrop">
-            <b>Arraste o relat&oacute;rio do invent&aacute;rio aqui</b>
-            <div class="muted" style="font-size:12.5px;margin-top:4px">Aceita o .xls do ERP (HTML) e .xlsx &middot; todos os produtos do arquivo entram no fornecedor selecionado</div>
+        </div>
+
+        <div class="card" style="margin-top:16px">
+          <h3>Diverg&ecirc;ncias <span id="ivCount" class="pill"></span></h3>
+          <div class="pad">
+            <div class="subtabs" id="ivFornTabs" style="margin:0 0 12px"></div>
+            <div class="toolbar" style="flex-wrap:wrap">
+              <select id="ivLanc" style="min-width:190px"></select>
+              <input type="search" id="ivBusca" placeholder="Buscar produto (id ou descri&ccedil;&atilde;o)..." style="min-width:220px;flex:1">
+              <label class="muted">De <input type="date" id="ivIni"></label>
+              <label class="muted">At&eacute; <input type="date" id="ivFim"></label>
+              <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="ivSoDiv"> s&oacute; diverg&ecirc;ncias</label>
+              <button class="yellow" id="ivPrint" data-icon="print">PDF deste fornecedor</button>
+              <button class="ghost" id="ivPrintAll" data-icon="print">PDF consolidado</button>
+              <button class="ghost" id="ivDel" title="Excluir este lan&ccedil;amento">&#128465;&#65039;</button>
+            </div>
+            <div id="ivTotais" class="ivtot"></div>
+            <div class="tablewrap"><table id="ivTbl"></table></div>
           </div>
-          <div id="ivPreview" style="display:none;margin-top:14px"></div>
         </div>
       </div>
 
-      <div class="card" style="margin-top:16px">
-        <h3>Diverg&ecirc;ncias <span id="ivCount" class="pill"></span></h3>
-        <div class="pad">
-          <div class="subtabs" id="ivFornTabs" style="margin:0 0 12px"></div>
-          <div class="toolbar" style="flex-wrap:wrap">
-            <select id="ivLanc" style="min-width:190px"></select>
-            <input type="search" id="ivBusca" placeholder="Buscar produto (id ou descri&ccedil;&atilde;o)..." style="min-width:220px;flex:1">
-            <label class="muted">De <input type="date" id="ivIni"></label>
-            <label class="muted">At&eacute; <input type="date" id="ivFim"></label>
-            <label class="muted" style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="ivSoDiv"> s&oacute; diverg&ecirc;ncias</label>
-            <button class="yellow" id="ivPrint" data-icon="print">PDF deste fornecedor</button>
-            <button class="ghost" id="ivPrintAll" data-icon="print">PDF consolidado</button>
-            <button class="ghost" id="ivDel" title="Excluir este lan&ccedil;amento">&#128465;&#65039;</button>
+      <div id="ivPaneComp" style="display:none">
+        <div class="card">
+          <h3>Comparativo entre invent&aacute;rios <span class="pill">evolu&ccedil;&atilde;o e ranking</span></h3>
+          <div class="pad">
+            <div class="toolbar" style="flex-wrap:wrap">
+              <select id="icForn" style="min-width:200px"></select>
+              <label class="muted">De <input type="date" id="icIni"></label>
+              <label class="muted">At&eacute; <input type="date" id="icFim"></label>
+              <span class="muted" id="icMsg" style="margin-left:auto"></span>
+            </div>
+            <div id="icKpis" class="ivtot"></div>
           </div>
-          <div id="ivTotais" class="ivtot"></div>
-          <div class="tablewrap"><table id="ivTbl"></table></div>
+        </div>
+        <div class="grid2" style="margin-top:16px">
+          <div class="card"><h3>Diverg&ecirc;ncia financeira por invent&aacute;rio</h3><div class="pad" id="icChartFin"></div></div>
+          <div class="card"><h3>Acuracidade da contagem <span class="pill">% de itens sem diverg&ecirc;ncia</span></h3><div class="pad" id="icChartAcu"></div></div>
+        </div>
+        <div class="grid2" style="margin-top:16px">
+          <div class="card"><h3>Diverg&ecirc;ncia por fornecedor <span class="pill">no per&iacute;odo</span></h3><div class="pad" id="icChartForn"></div></div>
+          <div class="card"><h3>Maiores diverg&ecirc;ncias <span class="pill">&uacute;ltimo invent&aacute;rio</span></h3><div class="pad" id="icChartProd"></div></div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <h3>Invent&aacute;rio a invent&aacute;rio</h3>
+          <div class="tablewrap"><table id="icTbl"></table></div>
         </div>
       </div>
     </section>
@@ -2571,7 +2630,10 @@ const ivFmtQ=n=>(+n||0).toLocaleString('pt-BR');
 function ivLocal(){ return SESSION.offline||!supaReady(); }
 function ivLocalLoad(){ try{IV_ROWS=JSON.parse(localStorage.getItem(lsk('inventarios'))||'[]');}catch(e){IV_ROWS=[];} }
 function ivLocalSave(){ try{localStorage.setItem(lsk('inventarios'),JSON.stringify(IV_ROWS));}catch(e){} }
-function ivMsg(t){ const el=document.getElementById('ivMsg'); if(el)el.innerHTML=t||''; }
+function ivMsg(t,tipo){ const el=document.getElementById('ivMsg'); if(el)el.innerHTML=t?`<span class="${tipo||'info'}">${t}</span>`:''; }
+function ivErroSupa(e){ return e.message+(/(relation|does not exist)/i.test(e.message)?' — rode o SQL dos inventários (supabase-setup.sql).'
+  :/valor_estoque/i.test(e.message)?' — falta a coluna valor_estoque: rode o ALTER TABLE do supabase-setup.sql.'
+  :/permission|policy|row-level/i.test(e.message)?' — apenas o usuário admin pode gravar.':''); }
 
 // --- leitura do arquivo (HTML do ERP ou xlsx de verdade) ---
 function ivLerArquivo(file){
@@ -2636,6 +2698,10 @@ function ivMontar(rows,dataInv,fornecedor){
   if(!produtos.length) throw new Error('O arquivo não tem nenhuma linha de produto.');
   return [{fornecedor:ivNormForn(fornecedor),data_inventario:dataInv,produtos}];
 }
+// acuracidade = % de itens contados sem nenhuma divergência
+function ivAcuracidade(t){ return t.total?(t.total-t.ndiv)/t.total*100:0; }
+// peso da divergência sobre o estoque do fornecedor (só faz sentido com o valor informado)
+function ivPctEstoque(lanc,t){ const v=+lanc.valor_estoque||0; return v?Math.abs(t.fin)/v*100:null; }
 // Div Ant = Dif Qtde do produto no inventário anterior do MESMO fornecedor (0 se não existir)
 function ivDivAnt(lanc){
   const prev=IV_ROWS.filter(l=>l.fornecedor===lanc.fornecedor&&l.data_inventario<lanc.data_inventario)
@@ -2652,67 +2718,86 @@ function ivTotais(prods){
 }
 
 // --- upload ---
-async function ivProcessar(file){
-  const dataInv=document.getElementById('ivData').value;
+// valida os 3 campos obrigatórios; devolve null e aponta o campo que falta
+function ivLerCampos(){
   const forn=ivNormForn(document.getElementById('ivForn').value);
-  if(!forn){ ivMsg('<span style="color:#b3261e">Selecione o fornecedor antes de subir o arquivo.</span>');
-    document.getElementById('ivForn').focus(); return; }
-  if(!dataInv){ ivMsg('<span style="color:#b3261e">Escolha a data do inventário antes de subir o arquivo.</span>'); return; }
+  const data=document.getElementById('ivData').value;
+  const valor=parseNum(document.getElementById('ivValor').value);
+  if(!forn){ ivMsg('Selecione o <b>fornecedor</b> antes de subir o arquivo.','err'); document.getElementById('ivForn').focus(); return null; }
+  if(!data){ ivMsg('Escolha a <b>data do inventário</b> antes de subir o arquivo.','err'); document.getElementById('ivData').focus(); return null; }
+  if(!valor){ ivMsg('Digite o <b>valor do estoque</b> de '+esc(forn)+' antes de subir o arquivo.','err'); document.getElementById('ivValor').focus(); return null; }
+  return {forn,data,valor};
+}
+async function ivProcessar(file){
+  const c=ivLerCampos(); if(!c) return;
   ivMsg('Lendo '+esc(file.name)+'…');
   try{
-    const lancs=ivMontar(await ivLerArquivo(file),dataInv,forn);
+    const lancs=ivMontar(await ivLerArquivo(file),c.data,c.forn);
+    lancs.forEach(l=>l.valor_estoque=c.valor);
     IV_PEND=lancs;
     const cards=lancs.map(l=>{
-      const t=ivTotais(l.produtos), ja=IV_ROWS.find(x=>x.fornecedor===l.fornecedor&&x.data_inventario===dataInv);
-      return `<div class="pad" style="border:1px solid var(--border);border-radius:10px;margin-bottom:8px">
-        <b>${esc(l.fornecedor)}</b> <span class="pill">${t.total} produtos</span>
-        ${ja?'<span class="badge b-orange" style="font-size:10px">já existe nesta data — será substituído</span>':''}
-        <div class="muted" style="font-size:12.5px;margin-top:4px">${t.ndiv} com divergência · saldo ${ivFmtQ(t.qtd)} un · ${fmtBRL(t.fin)}</div>
+      const t=ivTotais(l.produtos), ja=IV_ROWS.find(x=>x.fornecedor===l.fornecedor&&x.data_inventario===c.data);
+      const pct=ivPctEstoque(l,t);
+      return `<div class="ivprev">
+        <div class="tt">${esc(l.fornecedor)} — ${deFmtData(l.data_inventario)}
+          ${ja?'<span class="badge b-orange" style="font-size:10px;vertical-align:middle">já existe nesta data — será substituído</span>':''}</div>
+        <div class="lin"><b>${t.total}</b> produtos · <b>${t.ndiv}</b> com divergência · saldo <b>${ivFmtQ(t.qtd)}</b> un · <b>${fmtBRL(t.fin)}</b></div>
+        <div class="lin">Valor do estoque: <b>${fmtBRL(l.valor_estoque)}</b>${pct!=null?' · divergência representa <b>'+pct.toFixed(2).replace('.',',')+'%</b> do estoque':''}</div>
       </div>`;}).join('');
     document.getElementById('ivPreview').style.display='';
     document.getElementById('ivPreview').innerHTML=cards+
-      `<div class="toolbar"><button id="ivSalvar" data-icon="save">Lançar ${lancs.length>1?lancs.length+' inventários':'inventário'}</button>
+      `<div class="toolbar" style="margin-top:12px"><button id="ivSalvar" data-icon="save">Salvar inventário</button>
        <button class="ghost" id="ivCancelar">Cancelar</button></div>`;
     document.getElementById('ivSalvar').onclick=ivSalvar;
     document.getElementById('ivCancelar').onclick=()=>{IV_PEND=null;document.getElementById('ivPreview').style.display='none';ivMsg('');};
-    decorateIcons(); ivMsg('Arquivo lido. Confira e clique em Lançar.');
-  }catch(err){ ivMsg('<span style="color:#b3261e">❌ '+esc(err.message)+'</span>'); }
+    decorateIcons(); ivMsg('Arquivo lido. Confira os números e clique em <b>Salvar inventário</b>.','info');
+  }catch(err){ ivMsg('❌ '+esc(err.message),'err'); }
 }
 async function ivSalvar(){
-  if(!IV_PEND) return;
-  ivMsg('Salvando…');
-  for(const l of IV_PEND){
-    const reg=Object.assign({unidade:SESSION.unidade},l);
-    if(ivLocal()){
-      IV_ROWS=IV_ROWS.filter(x=>!(x.fornecedor===l.fornecedor&&x.data_inventario===l.data_inventario));
-      IV_ROWS.push(Object.assign({id:'l'+Date.now()+Math.random().toString(36).slice(2,6)},reg));
-    }else{
-      const {error}=await sb.from('inventarios').upsert(reg,{onConflict:'unidade,fornecedor,data_inventario'});
-      if(error){ ivMsg('<span style="color:#b3261e">❌ '+esc(error.message)+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL dos inventários (supabase-setup.sql).':(/permission|policy|row-level/i.test(error.message)?' — apenas o usuário admin pode gravar.':''))+'</span>'); return; }
+  if(!IV_PEND){ ivMsg('Nada para salvar — suba o arquivo primeiro.','err'); return; }
+  const btn=document.getElementById('ivSalvar');
+  if(btn){ btn.disabled=true; btn.textContent='Salvando…'; }
+  ivMsg('Salvando…','info');
+  try{
+    for(const l of IV_PEND){
+      const reg=Object.assign({unidade:SESSION.unidade},l);
+      if(ivLocal()){
+        IV_ROWS=IV_ROWS.filter(x=>!(x.fornecedor===l.fornecedor&&x.data_inventario===l.data_inventario));
+        IV_ROWS.push(Object.assign({id:'l'+Date.now()+Math.random().toString(36).slice(2,6)},reg));
+      }else{
+        const {error}=await sb.from('inventarios').upsert(reg,{onConflict:'unidade,fornecedor,data_inventario'});
+        if(error) throw new Error(ivErroSupa(error));
+      }
     }
+    const f=IV_PEND[0].fornecedor, d=IV_PEND[0].data_inventario, n=IV_PEND[0].produtos.length;
+    IV_PEND=null;
+    document.getElementById('ivPreview').style.display='none';
+    document.getElementById('ivValor').value='';
+    if(ivLocal()){ ivLocalSave(); IV_FORN=f; IV_LANC=''; ivRender();
+      ivMsg('✅ '+esc(f)+' de '+deFmtData(d)+' salvo neste computador ('+n+' produtos) — modo local.','ok'); }
+    else { await ivBuscar(); IV_FORN=f;
+      IV_LANC=(IV_ROWS.find(l=>l.fornecedor===f&&l.data_inventario===d)||{}).id||'';
+      ivRender(); ivMsg('✅ '+esc(f)+' de '+deFmtData(d)+' salvo no banco ('+n+' produtos).','ok'); }
+  }catch(err){
+    ivMsg('❌ Não salvou: '+esc(err.message),'err');
+    if(btn){ btn.disabled=false; btn.innerHTML=''; btn.textContent='Salvar inventário'; decorateIcons(); }
   }
-  const f=IV_PEND[0].fornecedor, d=IV_PEND[0].data_inventario;
-  IV_PEND=null; document.getElementById('ivPreview').style.display='none';
-  if(ivLocal()){ ivLocalSave(); IV_FORN=f; IV_LANC=''; ivRender(); ivMsg('✅ Lançado neste computador (modo local).'); }
-  else { await ivBuscar(); IV_FORN=f; IV_LANC=(IV_ROWS.find(l=>l.fornecedor===f&&l.data_inventario===d)||{}).id||''; ivRender(); ivMsg('✅ Inventário lançado.'); }
 }
 async function ivBuscar(){
   if(ivLocal()){ ivLocalLoad(); ivRender(); return; }
   const {data,error}=await sb.from('inventarios').select('*').eq('unidade',SESSION.unidade)
     .order('data_inventario',{ascending:false}).limit(500);
-  if(error){ IV_ROWS=[];
-    ivMsg('<span style="color:#b3261e">❌ '+esc(error.message)+(/(relation|does not exist)/i.test(error.message)?' — rode o SQL dos inventários (supabase-setup.sql).':'')+'</span>');
-    ivRender(); return; }
+  if(error){ IV_ROWS=[]; ivMsg('❌ '+esc(ivErroSupa(error)),'err'); ivRender(); return; }
   IV_ROWS=data||[]; ivRender();
 }
 async function ivExcluir(){
   const l=ivLancAtivo(); if(!l) return;
   if(!confirm('Excluir o inventário de '+l.fornecedor+' de '+deFmtData(l.data_inventario)+'?')) return;
   if(!ivLocal()){ const {error}=await sb.from('inventarios').delete().eq('id',l.id);
-    if(error){ ivMsg('<span style="color:#b3261e">❌ '+esc(error.message)+'</span>'); return; } }
+    if(error){ ivMsg('❌ '+esc(ivErroSupa(error)),'err'); return; } }
   IV_ROWS=IV_ROWS.filter(x=>String(x.id)!==String(l.id));
   if(ivLocal()) ivLocalSave();
-  IV_LANC=''; ivRender(); ivMsg('Lançamento excluído.');
+  IV_LANC=''; ivRender(); ivMsg('Lançamento excluído.','info');
 }
 
 // --- consultas / render ---
@@ -2746,13 +2831,17 @@ function ivRender(){
     ||'<option>—</option>';
   const prods=ivProdutos(lanc), t=ivTotais(prods);
   document.getElementById('ivCount').textContent=lanc?(prods.length+' de '+(lanc.produtos||[]).length+' produtos'):'';
+  const pct=lanc?ivPctEstoque(lanc,t):null;
   document.getElementById('ivTotais').innerHTML=lanc?`
     <div class="box">Produtos<b>${t.total}</b></div>
     <div class="box hl">Com diverg&ecirc;ncia<b>${t.ndiv}</b></div>
+    <div class="box">Acuracidade<b>${ivAcuracidade(t).toFixed(1).replace('.',',')}%</b></div>
     <div class="box">Saldo qtde<b>${ivFmtQ(t.qtd)}</b></div>
     <div class="box pos">Positivo<b>${fmtBRL(t.pos)}</b></div>
     <div class="box neg">Negativo<b>${fmtBRL(t.neg)}</b></div>
-    <div class="box ${t.fin<0?'neg':'pos'}">Diverg&ecirc;ncia total<b>${fmtBRL(t.fin)}</b></div>`:'';
+    <div class="box ${t.fin<0?'neg':'pos'}">Diverg&ecirc;ncia total<b>${fmtBRL(t.fin)}</b></div>
+    ${lanc.valor_estoque?`<div class="box">Valor do estoque<b>${fmtBRL(lanc.valor_estoque)}</b></div>`:''}
+    ${pct!=null?`<div class="box hl">% do estoque<b>${pct.toFixed(2).replace('.',',')}%</b></div>`:''}`:'';
   const cls=v=>v>0?' class="num dpos"':v<0?' class="num dneg"':' class="num"';
   document.getElementById('ivTbl').innerHTML=
     '<thead><tr><th>Id</th><th>Descrição</th><th>Embalagem</th><th class="num">Sld Estoq</th><th class="num">Sld Contagem</th><th class="num">Div Ant</th><th class="num">Dif Qtde</th><th class="num">Dif Financeira</th></tr></thead><tbody>'+
@@ -2762,6 +2851,7 @@ function ivRender(){
       `<td${cls(p.dif_qtde)}>${p.dif_qtde?ivFmtQ(p.dif_qtde):'—'}</td>`+
       `<td${cls(p.dif_financeira)}>${p.dif_financeira?fmtBRL(p.dif_financeira):'—'}</td></tr>`).join('')
      ||'<tr><td colspan="8" class="empty" style="padding:16px">'+(IV_ROWS.length?'Nenhum produto no filtro atual.':'Suba o relatório do inventário para começar.')+'</td></tr>')+'</tbody>';
+  if(document.getElementById('ivPaneComp').style.display!=='none') ivRenderComp();
 }
 
 // --- impressão ---
@@ -2778,7 +2868,8 @@ function ivTabelaHtml(prods){
     `<tr class="tot"><td colspan="5">TOTALIZADORES — ${t.total} produtos, ${t.ndiv} com divergência</td>`+
     `<td class="num"></td><td${cls(t.qtd)}>${ivFmtQ(t.qtd)}</td><td${cls(t.fin)}>${fmtBRL(t.fin)}</td></tr></tbody></table>`;
 }
-function ivCabecalhoHtml(titulo,sub,t){
+function ivCabecalhoHtml(titulo,sub,t,valorEstoque){
+  const pct=valorEstoque?Math.abs(t.fin)/valorEstoque*100:null;
   return `<div class="ph">
       <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
       <div class="tt"><small>Sistema de Gestão Logística · ${esc(SESSION.unidade||'')}</small><h2>${titulo}</h2></div>
@@ -2787,19 +2878,21 @@ function ivCabecalhoHtml(titulo,sub,t){
     <div class="sum">
       <div class="box">Produtos<b>${t.total}</b></div>
       <div class="box hl">Com divergência<b>${t.ndiv}</b></div>
-      <div class="box">Saldo qtde<b>${ivFmtQ(t.qtd)}</b></div>
+      <div class="box">Acuracidade<b>${ivAcuracidade(t).toFixed(1).replace('.',',')}%</b></div>
       <div class="box pos">Positivo<b>${fmtBRL(t.pos)}</b></div>
       <div class="box neg">Negativo<b>${fmtBRL(t.neg)}</b></div>
       <div class="box ${t.fin<0?'neg':'pos'}">Divergência total<b>${fmtBRL(t.fin)}</b></div>
+      ${valorEstoque?`<div class="box">Valor do estoque<b>${fmtBRL(valorEstoque)}</b></div>`:''}
+      ${pct!=null?`<div class="box hl">% do estoque<b>${pct.toFixed(2).replace('.',',')}%</b></div>`:''}
     </div>`;
 }
 function ivPrint(){
-  const lanc=ivLancAtivo(); if(!lanc){ ivMsg('Nada para imprimir.'); return; }
+  const lanc=ivLancAtivo(); if(!lanc){ ivMsg('Nada para imprimir.','err'); return; }
   const prods=ivProdutos(lanc);
-  if(!prods.length){ ivMsg('Nada para imprimir no filtro atual.'); return; }
+  if(!prods.length){ ivMsg('Nada para imprimir no filtro atual.','err'); return; }
   ivMsg('');
   esDoPrint(`<div class="ivprint" data-print-pages="true">
-    ${ivCabecalhoHtml('Divergência '+esc(lanc.fornecedor),'Inventário<b>'+deFmtData(lanc.data_inventario)+'</b>',ivTotais(prods))}
+    ${ivCabecalhoHtml('Divergência '+esc(lanc.fornecedor),'Inventário<b>'+deFmtData(lanc.data_inventario)+'</b>',ivTotais(prods),+lanc.valor_estoque||0)}
     ${ivTabelaHtml(prods)}
     <div class="pfoot"><span>Conferência de inventário — ${esc(lanc.fornecedor)}</span><span>${esc(SESSION.unidade||'')} · página gerada pelo sistema</span></div>
   </div>`);
@@ -2807,11 +2900,12 @@ function ivPrint(){
 function ivPrintAll(){
   // consolidado: o lançamento mais recente de cada fornecedor dentro do período
   const forns=ivFornecedores();
-  if(!forns.length){ ivMsg('Nada para imprimir.'); return; }
-  const blocos=[]; let geral={total:0,ndiv:0,qtd:0,fin:0,pos:0,neg:0};
+  if(!forns.length){ ivMsg('Nada para imprimir.','err'); return; }
+  const blocos=[]; let geral={total:0,ndiv:0,qtd:0,fin:0,pos:0,neg:0}, valorGeral=0;
   forns.forEach(f=>{
     const lanc=ivNoPeriodo().filter(l=>l.fornecedor===f).sort((a,b)=>a.data_inventario<b.data_inventario?1:-1)[0];
     if(!lanc) return;
+    valorGeral+=+lanc.valor_estoque||0;
     const ant=ivDivAnt(lanc), so=document.getElementById('ivSoDiv').checked;
     const prods=(lanc.produtos||[]).map(p=>Object.assign({},p,{div_ant:ant[p.id]||0})).filter(p=>!so||p.dif_qtde);
     if(!prods.length) return;
@@ -2819,15 +2913,135 @@ function ivPrintAll(){
     Object.keys(geral).forEach(k=>geral[k]+=t[k]);
     blocos.push(`<h4>${esc(f)} — inventário de ${deFmtData(lanc.data_inventario)}</h4>${ivTabelaHtml(prods)}`);
   });
-  if(!blocos.length){ ivMsg('Nada para imprimir no filtro atual.'); return; }
+  if(!blocos.length){ ivMsg('Nada para imprimir no filtro atual.','err'); return; }
   const ini=document.getElementById('ivIni').value, fim=document.getElementById('ivFim').value;
   const periodo=(ini||fim)?((ini?deFmtData(ini):'início')+' a '+(fim?deFmtData(fim):'hoje')):'Todos os lançamentos';
   ivMsg('');
   esDoPrint(`<div class="ivprint" data-print-pages="true">
-    ${ivCabecalhoHtml('Divergência de inventário — consolidado','Período<b>'+periodo+'</b>',geral)}
+    ${ivCabecalhoHtml('Divergência de inventário — consolidado','Período<b>'+periodo+'</b>',geral,valorGeral)}
     ${blocos.join('')}
     <div class="pfoot"><span>Conferência de inventário — ${blocos.length} fornecedor(es)</span><span>${esc(SESSION.unidade||'')} · página gerada pelo sistema</span></div>
   </div>`);
+}
+// ---------- COMPARATIVO ----------
+// barras verticais divergentes: comparar valores que sobem e descem do zero
+function ivChartBarras(el,dados,fmt){
+  if(!dados.length){ el.innerHTML='<div class="muted">Sem inventários no período.</div>'; return; }
+  const W=620,H=240,pl=14,pr=14,pt=26,pb=42, iw=W-pl-pr, ih=H-pt-pb;
+  const vals=dados.map(d=>d.value);
+  const max=Math.max(0,...vals), min=Math.min(0,...vals), span=(max-min)||1;
+  const y=v=>pt+ih-((v-min)/span*ih), y0=y(0);
+  const step=iw/dados.length, bw=Math.min(56,step*0.6);
+  const barras=dados.map((d,i)=>{
+    const cx=pl+step*i+step/2, v=d.value, yy=v>=0?y(v):y0, h=Math.max(1.5,Math.abs(y(v)-y0));
+    const cor=v>=0?'#1e7d43':'#b3261e';
+    return `<rect x="${(cx-bw/2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${cor}"/>
+      <text class="vl" x="${cx.toFixed(1)}" y="${(v>=0?yy-6:yy+h+13).toFixed(1)}" text-anchor="middle" fill="${cor}">${fmt(v)}</text>
+      <text class="lbl" x="${cx.toFixed(1)}" y="${(H-14).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`;
+  }).join('');
+  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">
+    <line class="zl" x1="${pl}" y1="${y0.toFixed(1)}" x2="${W-pr}" y2="${y0.toFixed(1)}"/>${barras}</svg></div>`;
+}
+// linha: tendência de um percentual ao longo dos inventários
+function ivChartLinha(el,dados){
+  if(!dados.length){ el.innerHTML='<div class="muted">Sem inventários no período.</div>'; return; }
+  const W=620,H=240,pl=42,pr=14,pt=20,pb=42, iw=W-pl-pr, ih=H-pt-pb;
+  const vals=dados.map(d=>d.value);
+  let lo=Math.min(...vals), hi=Math.max(...vals);
+  lo=Math.max(0,Math.floor(lo/5)*5-2); hi=Math.min(100,Math.ceil(hi/5)*5+2);
+  if(hi-lo<6){ hi=Math.min(100,lo+6); }
+  const y=v=>pt+ih-((v-lo)/(hi-lo)*ih);
+  const px=i=>dados.length===1?pl+iw/2:pl+iw/(dados.length-1)*i;
+  const grade=[0,.25,.5,.75,1].map(f=>{ const v=lo+(hi-lo)*f, yy=y(v);
+    return `<line class="gl" x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}"/>
+      <text class="ax" x="${pl-7}" y="${(yy+3.5).toFixed(1)}" text-anchor="end">${v.toFixed(0)}%</text>`; }).join('');
+  const pts=dados.map((d,i)=>`${px(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(' ');
+  const bolas=dados.map((d,i)=>`<circle class="dot" cx="${px(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="4"/>
+    <text class="vl" x="${px(i).toFixed(1)}" y="${(y(d.value)-11).toFixed(1)}" text-anchor="middle">${d.value.toFixed(1).replace('.',',')}%</text>
+    <text class="lbl" x="${px(i).toFixed(1)}" y="${(H-14).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`).join('');
+  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">${grade}
+    <polyline class="ln" points="${pts}"/>${bolas}</svg></div>`;
+}
+// ranking horizontal (fornecedores / produtos)
+function ivChartRank(el,dados,fmt,vazio){
+  if(!dados.length){ el.innerHTML='<div class="muted">'+(vazio||'Sem dados.')+'</div>'; return; }
+  const max=Math.max(1,...dados.map(d=>Math.abs(d.value)));
+  el.innerHTML='<div class="ivrank">'+dados.map(d=>{
+    const cor=d.value>=0?'#1e7d43':'#b3261e';
+    return `<div class="row"><span class="nm" title="${esc(d.label)}">${esc(d.label)}</span>
+      <span class="track"><span class="fill" style="width:${(Math.abs(d.value)/max*100).toFixed(1)}%;background:${cor}"></span></span>
+      <span class="vv" style="color:${cor}">${fmt(d.value)}</span></div>`;}).join('')+'</div>';
+}
+function ivCompPeriodo(){
+  const ini=document.getElementById('icIni').value, fim=document.getElementById('icFim').value;
+  const f=document.getElementById('icForn').value;
+  return IV_ROWS.filter(l=>(!ini||l.data_inventario>=ini)&&(!fim||l.data_inventario<=fim))
+                .filter(l=>!f||f==='__todos'||l.fornecedor===f);
+}
+function ivCompForn(){
+  const sel=document.getElementById('icForn'), atual=sel.value;
+  const forns=[...new Set(IV_ROWS.map(l=>l.fornecedor))].sort();
+  sel.innerHTML='<option value="__todos">Todos os fornecedores</option>'+
+    forns.map(f=>`<option value="${esc(f)}">${esc(f)}</option>`).join('');
+  sel.value=forns.includes(atual)?atual:'__todos';
+}
+function ivRenderComp(){
+  ivCompForn();
+  const lancs=ivCompPeriodo().slice().sort((a,b)=>a.data_inventario<b.data_inventario?-1:1);
+  const umForn=document.getElementById('icForn').value!=='__todos';
+  const linha=lancs.map(l=>{ const t=ivTotais(l.produtos||[]);
+    return {l,t,rot:deFmtData(l.data_inventario).slice(0,5)+(umForn?'':' '+l.fornecedor.slice(0,7))}; });
+
+  // KPIs: último inventário e a variação contra o anterior
+  const ult=linha[linha.length-1], pen=linha[linha.length-2];
+  const seta=(a,b,inverso)=>{ if(b==null)return ''; const d=a-b; if(!d)return ' <span class="muted">=</span>';
+    const bom=inverso?d<0:d>0; return ` <span style="color:${bom?'#1e7d43':'#b3261e'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(1).replace('.',',')}</span>`; };
+  document.getElementById('icKpis').innerHTML=ult?`
+    <div class="box">Invent&aacute;rios<b>${linha.length}</b></div>
+    <div class="box hl">&Uacute;ltimo<b>${deFmtData(ult.l.data_inventario)}</b></div>
+    <div class="box">Acuracidade<b>${ivAcuracidade(ult.t).toFixed(1).replace('.',',')}%${pen?seta(ivAcuracidade(ult.t),ivAcuracidade(pen.t)):''}</b></div>
+    <div class="box ${ult.t.fin<0?'neg':'pos'}">Diverg&ecirc;ncia<b>${fmtBRL(ult.t.fin)}</b></div>
+    <div class="box">Itens divergentes<b>${ult.t.ndiv}${pen?seta(ult.t.ndiv,pen.t.ndiv,true):''}</b></div>`
+    :'<div class="box">Sem inventários no período<b>—</b></div>';
+  document.getElementById('icMsg').textContent=lancs.length?'':'Nenhum inventário lançado no período.';
+
+  ivChartBarras(document.getElementById('icChartFin'),
+    linha.map(x=>({label:x.rot,value:x.t.fin})), v=>fmtBRL(v).replace('R$ ',''));
+  ivChartLinha(document.getElementById('icChartAcu'),
+    linha.map(x=>({label:x.rot,value:ivAcuracidade(x.t)})));
+
+  // ranking de fornecedores: último inventário de cada um dentro do período
+  const porForn={};
+  ivCompPeriodo().forEach(l=>{ if(!porForn[l.fornecedor]||porForn[l.fornecedor].data_inventario<l.data_inventario) porForn[l.fornecedor]=l; });
+  ivChartRank(document.getElementById('icChartForn'),
+    Object.keys(porForn).map(f=>({label:f,value:ivTotais(porForn[f].produtos||[]).fin}))
+      .sort((a,b)=>Math.abs(b.value)-Math.abs(a.value)).slice(0,12),
+    v=>fmtBRL(v), 'Sem fornecedores no período.');
+
+  ivChartRank(document.getElementById('icChartProd'),
+    ult?(ult.l.produtos||[]).filter(p=>p.dif_financeira)
+      .sort((a,b)=>Math.abs(b.dif_financeira)-Math.abs(a.dif_financeira)).slice(0,10)
+      .map(p=>({label:p.descricao||p.id,value:p.dif_financeira})):[],
+    v=>fmtBRL(v), 'Nenhuma divergência no último inventário.');
+
+  // tabela inventário a inventário (mais recente primeiro)
+  document.getElementById('icTbl').innerHTML=
+    '<thead><tr><th>Data</th><th>Fornecedor</th><th class="num">Produtos</th><th class="num">Divergentes</th><th class="num">Acuracidade</th><th class="num">Saldo qtde</th><th class="num">Divergência</th><th class="num">Valor estoque</th><th class="num">% do estoque</th></tr></thead><tbody>'+
+    (linha.slice().reverse().map(x=>{ const pct=ivPctEstoque(x.l,x.t);
+      return `<tr><td>${deFmtData(x.l.data_inventario)}</td><td><b>${esc(x.l.fornecedor)}</b></td>`+
+        `<td class="num">${x.t.total}</td><td class="num">${x.t.ndiv}</td>`+
+        `<td class="num">${ivAcuracidade(x.t).toFixed(1).replace('.',',')}%</td>`+
+        `<td class="num">${ivFmtQ(x.t.qtd)}</td>`+
+        `<td class="num ${x.t.fin<0?'dneg':'dpos'}">${fmtBRL(x.t.fin)}</td>`+
+        `<td class="num">${x.l.valor_estoque?fmtBRL(x.l.valor_estoque):'—'}</td>`+
+        `<td class="num">${pct!=null?pct.toFixed(2).replace('.',',')+'%':'—'}</td></tr>`;}).join('')
+     ||'<tr><td colspan="9" class="empty" style="padding:16px">Nenhum inventário no período.</td></tr>')+'</tbody>';
+}
+function ivSetSub(sub){
+  document.querySelectorAll('#view-inventario > .subtabs .subtab').forEach(b=>b.classList.toggle('active',b.dataset.ivsub===sub));
+  document.getElementById('ivPaneLanc').style.display=sub==='lancamentos'?'':'none';
+  document.getElementById('ivPaneComp').style.display=sub==='comparativo'?'':'none';
+  if(sub==='comparativo') ivRenderComp();
 }
 function ivFornDatalist(){
   // a lista fixa da operação + qualquer fornecedor já lançado (nomes fora da lista continuam sugeridos)
@@ -3146,6 +3360,14 @@ document.getElementById('ivFim').onchange=()=>{IV_LANC='';ivRender();};
 document.getElementById('ivPrint').onclick=ivPrint;
 document.getElementById('ivPrintAll').onclick=ivPrintAll;
 document.getElementById('ivDel').onclick=ivExcluir;
+document.querySelectorAll('#view-inventario > .subtabs .subtab').forEach(b=>b.onclick=()=>ivSetSub(b.dataset.ivsub));
+document.getElementById('icForn').onchange=ivRenderComp;
+document.getElementById('icIni').onchange=ivRenderComp;
+document.getElementById('icFim').onchange=ivRenderComp;
+// limpa o aviso de campo obrigatório assim que o campo é preenchido
+['ivForn','ivData','ivValor'].forEach(id=>document.getElementById(id).addEventListener('input',()=>{
+  if(document.querySelector('#ivMsg .err')) ivMsg('');
+}));
 
 // ===================== INICIALIZAÇÃO =====================
 // Nada é carregado antes do login — cada unidade tem base, cadastros e config próprios.
