@@ -91,6 +91,43 @@
   .agcard{transition:transform .18s,box-shadow .18s}
   .agcard:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(0,93,168,.25), 0 14px 30px rgba(15,45,80,.14)}
 
+  /* ===== central de controle (Início) ===== */
+  .hhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:12px}
+  .hhead .hoje{font-size:13px;color:var(--muted)}
+  .hhead .hoje b{color:var(--txt)}
+  .halerts{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:16px}
+  .halerts:empty{display:none}
+  .halert{display:flex;align-items:center;gap:7px;font-size:12.5px;font-weight:600;padding:7px 12px;
+    border-radius:10px;border:1px solid var(--line);background:var(--panel);cursor:pointer;transition:transform .15s,box-shadow .15s}
+  .halert:hover{transform:translateY(-1px);box-shadow:0 6px 16px rgba(15,45,80,.14)}
+  .halert .dot{width:8px;height:8px;border-radius:50%;background:currentColor;flex:none}
+  .halert.red{border-color:var(--red);color:var(--red)}
+  .halert.orange{border-color:var(--orange);color:var(--orange)}
+  .halert.blue{border-color:var(--blue);color:var(--blue)}
+
+  .hgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(268px,1fr));gap:14px;margin-bottom:18px}
+  .mcard{background:var(--panel);backdrop-filter:blur(14px) saturate(1.4);-webkit-backdrop-filter:blur(14px) saturate(1.4);
+    border:1px solid rgba(255,255,255,.65);box-shadow:0 0 0 1px var(--line), 0 6px 18px rgba(15,45,80,.06);
+    border-radius:14px;padding:14px 16px;cursor:pointer;display:flex;flex-direction:column;min-height:158px;
+    transition:transform .18s,box-shadow .18s}
+  .mcard:hover{transform:translateY(-2px);box-shadow:0 0 0 1px rgba(0,93,168,.28), 0 14px 30px rgba(15,45,80,.14)}
+  .mcard.off{opacity:.66}
+  .mcard .mt{display:flex;align-items:center;gap:8px;margin-bottom:7px}
+  .mcard .mt b{font-size:13.5px;letter-spacing:.2px}
+  .mcard .mt .pill{margin-left:auto;flex:none}
+  .mcard .mv{font-size:26px;font-weight:700;line-height:1.15}
+  .mcard .mv small{font-size:12.5px;font-weight:400;color:var(--muted)}
+  .mcard .ms{font-size:12.5px;color:var(--muted);margin-top:3px;line-height:1.55}
+  .mcard .ms b{color:var(--txt)}
+  .mcard .mfoot{margin-top:auto;padding-top:11px;font-size:11.5px;color:var(--accent2);font-weight:700}
+  .mcard .chips{display:flex;gap:5px;flex-wrap:wrap;margin-top:9px}
+  .mchip{font-size:11px;font-weight:700;padding:2px 8px;border-radius:999px;background:var(--panel2);border:1px solid var(--line);color:var(--muted)}
+  .mchip.green{color:var(--green);border-color:var(--green)}
+  .mchip.blue{color:var(--blue);border-color:var(--blue)}
+  .mchip.orange{color:var(--orange);border-color:var(--orange)}
+  .mchip.red{color:var(--red);border-color:var(--red)}
+  .mfaixa{display:flex;height:8px;border-radius:999px;overflow:hidden;margin-top:10px;background:var(--panel2)}
+
   .flow{display:flex;gap:8px;flex-wrap:wrap;align-items:center;color:var(--muted);font-size:12.5px;margin:6px 0 2px}
   .flow b{color:var(--txt)} .flow .ar{color:var(--accent)}
 
@@ -257,12 +294,15 @@
   .ivprev .tt{font-size:16px;font-weight:700;color:var(--txt)}
   .ivprev .lin{color:var(--muted);font-size:13px;margin-top:5px}
   /* gráficos do comparativo */
+  /* grid do comparativo: duas colunas IGUAIS (a .grid2 é 1fr 440px, feita p/ conteúdo + painel) */
+  .ivgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+  @media(max-width:1150px){.ivgrid{grid-template-columns:1fr}}
   .ivchart svg{width:100%;height:auto;display:block;overflow:visible}
   .ivchart .gl{stroke:var(--border);stroke-width:1}
-  .ivchart .zl{stroke:var(--muted);stroke-width:1.2}
-  .ivchart .ax{fill:var(--muted);font-size:10px}
-  .ivchart .vl{fill:var(--txt);font-size:10px;font-weight:700}
-  .ivchart .lbl{fill:var(--muted);font-size:10px}
+  .ivchart .zl{stroke:var(--muted);stroke-width:1.6}
+  .ivchart .ax{fill:var(--muted);font-size:13px}
+  .ivchart .vl{fill:var(--txt);font-size:13px;font-weight:700}
+  .ivchart .lbl{fill:var(--muted);font-size:13px}
   .ivchart .ln{fill:none;stroke:var(--accent2);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
   .ivchart .dot{fill:var(--accent2)}
   .ivrank{display:flex;flex-direction:column;gap:7px}
@@ -362,7 +402,10 @@
 
 
   /* dark mode */
-  body.theme-dark .side,body.theme-dark .card,body.theme-dark .kpi,body.theme-dark .login-box,body.theme-dark .userchip,body.theme-dark .sel-carga,body.theme-dark .de-day{background:rgba(17,29,48,.78);border-color:var(--line);box-shadow:0 0 0 1px rgba(160,180,205,.08),var(--glow)}
+  body.theme-dark .side,body.theme-dark .card,body.theme-dark .kpi,body.theme-dark .mcard,body.theme-dark .halert,body.theme-dark .login-box,body.theme-dark .userchip,body.theme-dark .sel-carga,body.theme-dark .de-day{background:rgba(17,29,48,.78);border-color:var(--line);box-shadow:0 0 0 1px rgba(160,180,205,.08),var(--glow)}
+  body.theme-dark .halert.red{border-color:var(--red)}
+  body.theme-dark .halert.orange{border-color:var(--orange)}
+  body.theme-dark .halert.blue{border-color:var(--blue)}
   body.theme-dark .side .logo,body.theme-dark .login-box .logo{background:rgba(255,255,255,.92)}
   body.theme-dark input,body.theme-dark select,body.theme-dark button.ghost{background:rgba(13,24,40,.92);color:var(--txt);border-color:var(--line)}
   body.theme-dark input::placeholder{color:#7488a0}
@@ -508,17 +551,21 @@
 
     <!-- ===== INÍCIO ===== -->
     <section class="view active" id="view-inicio">
-      <div class="grid2" id="homeAgs" style="display:none;margin-bottom:16px">
-        <div class="card agcard" id="homeAgEnviar" style="cursor:pointer" title="Abrir Cargas a Enviar"></div>
-        <div class="card agcard" id="homeAgReceber" style="cursor:pointer" title="Abrir Cargas a Receber"></div>
-      </div>
+      <div class="hhead"><div class="hoje" id="homeHoje"></div></div>
+
+      <!-- alertas: só aparecem quando algo precisa de atenção -->
+      <div class="halerts" id="homeAlerts"></div>
+
+      <!-- indicadores das entregas do dia (dependem do relatório importado) -->
+      <div id="homeKpiWrap" style="display:none"><div class="kpis" id="homeKpis"></div></div>
+
+      <!-- central: um card vivo por módulo, cada um leva para a tela de origem -->
+      <div class="hgrid" id="homeCentral"></div>
+
       <div id="homeNoData">
         <div class="card"><div class="pad">
-          <div class="flow">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Salvos <span class="ar">→</span> Escala <span class="ar">→</span> Diárias</div>
-        </div></div>
-        <div class="card" style="margin-top:16px"><div class="pad">
-          <h2 style="margin-top:0">Bem-vindo 👋</h2>
-          <p class="muted">Carregue o <b>Relatório de Entregas (.xlsx)</b> do Fusion. Ele será lido uma vez para a <b>Base Tratada</b> e vai alimentar todos os módulos. Fica salvo no seu navegador até você limpar.</p>
+          <h2 style="margin-top:0">Carregue o relat&oacute;rio do dia 👋</h2>
+          <p class="muted">O <b>Relatório de Entregas (.xlsx)</b> do Fusion é lido uma vez para a <b>Base Tratada</b> e alimenta a Análise, a Produtividade e os indicadores acima. Fica salvo no seu navegador até você limpar.</p>
           <div class="drop" id="drop">
             <div class="drop-mark" data-icon="upload"><span>Importar</span></div>
             <p>Arraste o <b>relatório (.xlsx)</b> aqui ou clique para selecionar</p>
@@ -526,11 +573,10 @@
           </div>
         </div></div>
       </div>
+
       <div id="homeData" style="display:none">
-        <div class="flow" style="margin-bottom:12px">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Salvos <span class="ar">→</span> Escala <span class="ar">→</span> Diárias</div>
-        <div class="kpis" id="homeKpis"></div>
         <div class="card"><div class="pad">
-          <b>Atalhos</b>
+          <div class="flow">Relatório <span class="ar">→</span> <b>Base Tratada</b> <span class="ar">→</span> Análise <span class="ar">→</span> Produtividade <span class="ar">→</span> Salvos <span class="ar">→</span> Escala <span class="ar">→</span> Diárias</div>
           <div class="home-actions">
             <button onclick="go('analise')" data-icon="chart">Abrir An&aacute;lise</button>
             <button onclick="go('produtividade')" data-icon="target">Abrir Produtividade</button>
@@ -755,11 +801,15 @@
             <div id="icKpis" class="ivtot"></div>
           </div>
         </div>
-        <div class="grid2" style="margin-top:16px">
-          <div class="card"><h3>Diverg&ecirc;ncia financeira por invent&aacute;rio</h3><div class="pad" id="icChartFin"></div></div>
-          <div class="card"><h3>Acuracidade da contagem <span class="pill">% de itens sem diverg&ecirc;ncia</span></h3><div class="pad" id="icChartAcu"></div></div>
+        <div class="card" style="margin-top:16px">
+          <h3>Diverg&ecirc;ncia financeira por invent&aacute;rio <span class="pill">verde = sobra &middot; vermelho = falta</span></h3>
+          <div class="pad" id="icChartFin"></div>
         </div>
-        <div class="grid2" style="margin-top:16px">
+        <div class="card" style="margin-top:16px">
+          <h3>Acuracidade da contagem <span class="pill">% de itens sem diverg&ecirc;ncia</span></h3>
+          <div class="pad" id="icChartAcu"></div>
+        </div>
+        <div class="ivgrid" style="margin-top:16px">
           <div class="card"><h3>Diverg&ecirc;ncia por fornecedor <span class="pill">no per&iacute;odo</span></h3><div class="pad" id="icChartForn"></div></div>
           <div class="card"><h3>Maiores diverg&ecirc;ncias <span class="pill">&uacute;ltimo invent&aacute;rio</span></h3><div class="pad" id="icChartProd"></div></div>
         </div>
@@ -1154,8 +1204,9 @@ function afterLoad(){
   document.getElementById('cadBody').style.display=has?'block':'none';
   renderConfigForm(); renderCadPremio();
   if(has){ buildCargas(); selected.clear(); cfg={}; loadTipos();
-    renderHome(); fillAnaliseFilters(); renderAnalise(); renderProd();
+    fillAnaliseFilters(); renderAnalise(); renderProd();
     renderCadastros(); }
+  renderHome(); // a central resume os outros módulos mesmo sem relatório carregado
 }
 function go(view){
   if(view==='salvos'&&!exigeSenha('Acessar a aba Salvos'))return;
@@ -1170,24 +1221,192 @@ function go(view){
   window.scrollTo(0,0);
 }
 
-// ===================== INÍCIO =====================
+// ===================== INÍCIO (central de controle) =====================
+// A home resume, num card por módulo, o estado atual de cada tela do sistema.
+// Os dados vêm dos mesmos globais que as telas usam; o que ainda não foi aberto
+// é buscado por homeCarregar() numa leitura própria, sem mexer no estado delas.
+const HOME={escalas:[],inv:[],equipe:[],carregado:false};
+const homeHojeISO=()=>new Date().toISOString().slice(0,10);
+
+// leitura só-leitura dos módulos que a home resume
+async function homeCarregar(){
+  if(SESSION.role==='consulta')return;
+  if(SESSION.offline||!supaReady()){
+    // sem banco, o que existe são os rascunhos e lançamentos guardados neste navegador
+    try{HOME.inv=JSON.parse(localStorage.getItem(lsk('inventarios'))||'[]');}catch(e){HOME.inv=[];}
+    try{
+      const d=JSON.parse(localStorage.getItem(lsk('escala_drafts2'))||'{}');
+      HOME.escalas=Object.entries(d).map(([data_saida,v])=>({data_saida,linhas:(v&&v.linhas)||[]}));
+    }catch(e){HOME.escalas=[];}
+    HOME.carregado=true; renderHome(); return;
+  }
+  const busca=(tabela,campos,ordem)=>{
+    let q=sb.from(tabela).select(campos).eq('unidade',SESSION.unidade);
+    if(ordem)q=q.order(ordem,{ascending:false});
+    return q.limit(ordem?60:400);
+  };
+  // tabelas podem não existir ainda (SQL não rodado) — o erro é tolerado e o card fica vazio
+  const [esc,inv,eq]=await Promise.all([
+    busca('escalas','data_saida,linhas','data_saida'),
+    busca('inventarios','fornecedor,data_inventario,produtos','data_inventario'),
+    busca('equipe_status','nome,tipo,status',null),
+  ]);
+  HOME.escalas=esc.data||[]; HOME.inv=inv.data||[]; HOME.equipe=eq.data||[];
+  HOME.carregado=true; renderHome();
+}
+
+// escala em foco: a de hoje; senão a próxima marcada; senão a última que saiu
+function homeEscalaFoco(){
+  const hoje=homeHojeISO(), L=(HOME.escalas||[]).filter(e=>e&&e.data_saida);
+  const doDia=L.find(e=>e.data_saida===hoje);
+  if(doDia)return{e:doDia,quando:'hoje'};
+  const fut=L.filter(e=>e.data_saida>hoje).sort((a,b)=>a.data_saida<b.data_saida?-1:1);
+  if(fut.length)return{e:fut[0],quando:'próxima saída'};
+  const pas=L.filter(e=>e.data_saida<hoje).sort((a,b)=>a.data_saida<b.data_saida?1:-1);
+  return pas.length?{e:pas[0],quando:'última saída'}:null;
+}
+function homeAgResumo(tipo){
+  const hoje=homeHojeISO();
+  const pend=AG_ROWS.filter(r=>r.tipo===tipo&&!AG_DONE[tipo].includes(r.status))
+    .sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
+  return{pend,prox:pend[0],nHoje:pend.filter(r=>r.data===hoje).length,nAtras:pend.filter(r=>r.data<hoje).length};
+}
+function homeInvUltimo(){
+  const fonte=(IV_ROWS&&IV_ROWS.length)?IV_ROWS:HOME.inv;
+  return (fonte||[]).filter(r=>r&&r.data_inventario)
+    .sort((a,b)=>a.data_inventario<b.data_inventario?1:-1)[0]||null;
+}
+function homeEquipe(){
+  const L=(HOME.equipe&&HOME.equipe.length)?HOME.equipe
+    :Object.entries(ESTATUS||{}).map(([nome,v])=>({nome,tipo:v.tipo,status:v.status}));
+  const st={};
+  L.forEach(r=>{const s=r.status||'disponivel';st[s]=(st[s]||0)+1;});
+  return{total:L.length,st};
+}
+function homeCard(o){
+  return `<div class="mcard${o.off?' off':''}" onclick="${o.acao||`go('${o.view}')`}" title="Abrir ${esc(o.titulo)}">
+    <div class="mt"><span>${o.icone}</span><b>${o.titulo}</b>${o.pill?`<span class="pill">${o.pill}</span>`:''}</div>
+    <div class="mv">${o.valor}</div>
+    <div class="ms">${o.sub||''}</div>
+    ${o.extra||''}
+    <div class="mfoot">${o.foot||'Abrir →'}</div>
+  </div>`;
+}
+
 function renderHome(){
-  const W=workBase();
+  const hoje=new Date(), byId=id=>document.getElementById(id);
+  const hh=byId('homeHoje');
+  if(hh){ // "domingo, 09 de agosto de 2026" → só a 1ª letra em maiúscula
+    const d=hoje.toLocaleDateString('pt-BR',{weekday:'long',day:'2-digit',month:'long',year:'numeric'});
+    hh.innerHTML=`<b>${d.charAt(0).toUpperCase()+d.slice(1)}</b> · central de controle ${esc(SESSION.unidade||'')}`;
+  }
+
+  // ---------- entregas do dia (só com relatório importado) ----------
+  const temBase=BASE.length>0, W=workBase();
   const t={ped:W.length,ent:0,reent:0,dev:0,pend:0};
   W.forEach(p=>{t[p.cat==='entregue'?'ent':p.cat==='reentrega'?'reent':p.cat==='devolvido'?'dev':'pend']++;});
+  const pc=n=>W.length?(n/W.length*100).toFixed(1)+'%':'0%';
   const prodMedia=CARGAS.length?CARGAS.reduce((a,c)=>a+c.prodFinal,0)/CARGAS.length:0;
   const premiados=CARGAS.filter(c=>c.faixa.tier<3).length, abaixo=CARGAS.filter(c=>c.faixa.tier===3).length;
-  const pc=n=>W.length?(n/W.length*100).toFixed(1)+'%':'0%';
   const sabHidden=CONFIG.sabadoConta?'':(BASE.length-W.length);
-  document.getElementById('homeKpis').innerHTML=`
+
+  const kw=byId('homeKpiWrap'); if(kw)kw.style.display=temBase?'':'none';
+  if(temBase&&byId('homeKpis')) byId('homeKpis').innerHTML=`
     <div class="kpi"><div class="k">Total de pedidos</div><div class="v">${t.ped}</div><div class="s">${CARGAS.length} cargas${sabHidden?' · '+sabHidden+' de sáb. ocultos':''}</div></div>
     <div class="kpi green"><div class="k">Entregues</div><div class="v">${t.ent}</div><div class="s">${pc(t.ent)}</div></div>
     <div class="kpi orange"><div class="k">Reentregas</div><div class="v">${t.reent}</div><div class="s">${pc(t.reent)}</div></div>
     <div class="kpi red"><div class="k">Devoluções</div><div class="v">${t.dev}</div><div class="s">${pc(t.dev)}</div></div>
     <div class="kpi blue"><div class="k">Pendentes</div><div class="v">${t.pend}</div><div class="s">${pc(t.pend)}</div></div>
     <div class="kpi accent"><div class="k">Produtividade média</div><div class="v">${fmtPct(prodMedia)}</div><div class="s">média das cargas</div></div>
-    <div class="kpi green"><div class="k">Cargas premiadas</div><div class="v">${premiados}</div><div class="s">faixa ≥ 80%</div></div>
-    <div class="kpi red"><div class="k">Abaixo da meta</div><div class="v">${abaixo}</div><div class="s">&lt; 80%</div></div>`;
+    <div class="kpi green"><div class="k">Cargas premiadas</div><div class="v">${premiados}</div><div class="s">faixa ≥ ${CONFIG.meta80}%</div></div>
+    <div class="kpi red"><div class="k">Abaixo da meta</div><div class="v">${abaixo}</div><div class="s">&lt; ${CONFIG.meta80}%</div></div>`;
+
+  // ---------- cards por módulo ----------
+  const central=byId('homeCentral'); if(!central)return;
+  const cards=[];
+
+  cards.push(homeCard({view:'analise',icone:'📊',titulo:'Entregas',off:!temBase,
+    pill:temBase?'base carregada':'sem base',
+    valor:temBase?`${t.ped}<small> pedidos</small>`:'—',
+    sub:temBase?`<b>${pc(t.ent)}</b> entregues · ${CARGAS.length} carga(s)`
+      :'Importe o relatório do Fusion para ligar a Análise e a Produtividade.',
+    extra:temBase?`<div class="chips"><span class="mchip green">${t.ent} entr.</span>
+      <span class="mchip orange">${t.reent} reent.</span><span class="mchip red">${t.dev} dev.</span>
+      <span class="mchip blue">${t.pend} pend.</span></div>`:'',
+    foot:temBase?'Abrir Análise →':'Importar relatório →'}));
+
+  const cnt={green:0,blue:0,orange:0,red:0}; CARGAS.forEach(c=>cnt[c.faixa.k]++);
+  const tot=CARGAS.length||1;
+  const barra=CARGAS.length?`<div class="mfaixa">${['green','blue','orange','red']
+    .map(k=>cnt[k]?`<span style="width:${(cnt[k]/tot*100).toFixed(1)}%;background:${FAIXA_COLOR[k]}"></span>`:'').join('')}</div>`:'';
+  cards.push(homeCard({view:'produtividade',icone:'🎯',titulo:'Produtividade',off:!temBase,
+    valor:temBase?fmtPct(prodMedia):'—',
+    sub:temBase?`${premiados} carga(s) na faixa de prêmio · <b>${abaixo}</b> abaixo da meta`
+      :'Depende do relatório do dia.',
+    extra:barra,foot:'Abrir Produtividade →'}));
+
+  const f=homeEscalaFoco();
+  let escVal='—',escSub='Nenhuma escala salva ainda.',escExtra='';
+  if(f){
+    const linhas=(f.e.linhas||[]).filter(l=>Object.values(l).some(v=>String(v).trim()!==''));
+    const T=esTotaisDe(linhas);
+    escVal=`${linhas.length}<small> veículo(s)</small>`;
+    escSub=`Saída <b>${deFmtData(f.e.data_saida)}</b> · ${f.quando}`;
+    escExtra=`<div class="chips"><span class="mchip">${T.ent+T.ree} entrega(s)</span>
+      ${T.tot?`<span class="mchip">${fmtBRL(T.tot)} em diárias</span>`:''}</div>`;
+  }
+  cards.push(homeCard({view:'escala',icone:'📋',titulo:'Escala',off:!f,
+    valor:escVal,sub:escSub,extra:escExtra,foot:'Abrir Escala →'}));
+
+  [['enviar','🚚','Cargas a Enviar','montador'],['receber','📦','Cargas a Receber','depósito']].forEach(([tipo,ic,tit,sub])=>{
+    const r=homeAgResumo(tipo);
+    const alvo=r.prox?(tipo==='enviar'
+      ?esc(r.prox.cliente||'')+(r.prox.rota?' ('+esc(r.prox.rota)+')':'')
+      :esc(r.prox.fornecedor||r.prox.volumes||r.prox.obs||'recebimento')):'';
+    cards.push(homeCard({view:'agendamentos',acao:`goAg('${tipo}')`,icone:ic,titulo:tit,pill:sub,off:!r.pend.length,
+      valor:`${r.pend.length}<small> pendente(s)</small>`,
+      sub:r.prox?`Próximo <b>${deFmtData(r.prox.data)}</b>${r.prox.hora?' '+esc(r.prox.hora):''} · ${alvo}`
+        :'Nenhum agendamento pendente.',
+      extra:(r.nHoje||r.nAtras)?`<div class="chips">${r.nHoje?`<span class="mchip orange">${r.nHoje} hoje</span>`:''}
+        ${r.nAtras?`<span class="mchip red">${r.nAtras} atrasado(s)</span>`:''}</div>`:'',
+      foot:'Abrir Agendamentos →'}));
+  });
+
+  const ult=homeInvUltimo();
+  let ivVal='—',ivSub='Nenhum inventário lançado ainda.',ivExtra='';
+  if(ult){
+    const T=ivTotais(ult.produtos||[]), acu=ivAcuracidade(T,ult.valor_estoque);
+    ivVal=ivFmtAcu(acu);
+    ivSub=`<b>${esc(ult.fornecedor)}</b> · ${deFmtData(ult.data_inventario)}<br>Acuracidade da contagem`;
+    ivExtra=`<div class="chips"><span class="mchip ${T.fin<0?'red':'green'}">${fmtBRL(T.fin)}</span>
+      <span class="mchip ${T.ndiv?'orange':'green'}">${T.ndiv} de ${T.total} com diverg.</span></div>`;
+  }
+  cards.push(homeCard({view:'inventario',icone:'📦',titulo:'Inventário',off:!ult,
+    valor:ivVal,sub:ivSub,extra:ivExtra,foot:'Abrir Inventário →'}));
+
+  const eq=homeEquipe();
+  const rot={disponivel:['Disponíveis','green'],ferias:['Férias','blue'],viajando:['Viajando','orange'],
+    afastado:['Afastados','red'],folga:['Folga','blue']};
+  cards.push(homeCard({view:'escala',icone:'👥',titulo:'Equipe',off:!eq.total,
+    valor:eq.total?`${eq.st.disponivel||0}<small> de ${eq.total} disponíveis</small>`:'—',
+    sub:eq.total?'Quem não está disponível some das sugestões da escala.':'Equipe ainda não cadastrada.',
+    extra:eq.total?`<div class="chips">${Object.keys(rot).filter(k=>eq.st[k])
+      .map(k=>`<span class="mchip ${rot[k][1]}">${eq.st[k]} ${rot[k][0].toLowerCase()}</span>`).join('')}</div>`:'',
+    foot:'Abrir Disponibilidade →'}));
+
+  central.innerHTML=cards.join('');
+
+  // ---------- alertas ----------
+  const al=[];
+  const aEnv=homeAgResumo('enviar'), aRec=homeAgResumo('receber');
+  const atras=aEnv.nAtras+aRec.nAtras, hojeAg=aEnv.nHoje+aRec.nHoje;
+  if(atras)al.push({t:'red',txt:`${atras} agendamento(s) atrasado(s)`,view:'agendamentos'});
+  if(hojeAg)al.push({t:'orange',txt:`${hojeAg} agendamento(s) para hoje`,view:'agendamentos'});
+  if(abaixo)al.push({t:'red',txt:`${abaixo} carga(s) abaixo da meta de ${CONFIG.meta80}%`,view:'produtividade'});
+  if(t.pend)al.push({t:'blue',txt:`${t.pend} pedido(s) ainda pendente(s)`,view:'analise'});
+  if(!f&&HOME.carregado)al.push({t:'blue',txt:'Nenhuma escala salva para hoje',view:'escala'});
+  const alEl=byId('homeAlerts');
+  if(alEl)alEl.innerHTML=al.map(a=>`<div class="halert ${a.t}" onclick="go('${a.view}')"><span class="dot"></span>${a.txt}</div>`).join('');
 }
 
 // ===================== ANÁLISE =====================
@@ -1582,7 +1801,7 @@ function applyAccess(){
   });
   document.getElementById('btnLoad').style.display=isConsulta?'none':'';
   if(isConsulta){ document.getElementById('btnClear').style.display='none'; go('desempenho'); }
-  else { loadUnitData(); agEntrou=true; agBuscar(); } // carrega SÓ os dados da unidade logada (+ agendamentos p/ os cards da home)
+  else { loadUnitData(); agEntrou=true; agBuscar(); homeCarregar(); } // dados da unidade logada + o que a central da home resume
   // desempenho e salvos precisam de banco
   if(SESSION.offline){ document.querySelector('#nav button[data-view="desempenho"]').style.display='none';
     document.querySelector('#nav button[data-view="salvos"]').style.display='none';
@@ -2473,27 +2692,10 @@ function renderAgTable(tipo){
        '<tr><td colspan="7" class="empty" style="padding:16px">Nenhum recebimento agendado.</td></tr>')+'</tbody>';
   }
 }
+// os agendamentos aparecem na central da home — redesenha ela quando a lista muda
 function renderHomeAgs(){
-  const wrap=document.getElementById('homeAgs'); if(!wrap)return;
-  if(SESSION.role==='consulta'){wrap.style.display='none';return;}
-  wrap.style.display='';
-  const hoje=agHojeISO();
-  const card=(tipo,titulo,icone,sub)=>{
-    const pend=AG_ROWS.filter(r=>r.tipo===tipo&&!AG_DONE[tipo].includes(r.status)).sort((a,b)=>(a.data+(a.hora||''))<(b.data+(b.hora||''))?-1:1);
-    const nHoje=pend.filter(r=>r.data===hoje).length, nAtras=pend.filter(r=>r.data<hoje).length;
-    const prox=pend[0];
-    const proxTxt=prox?('Próximo: <b>'+deFmtData(prox.data)+(prox.hora?' '+esc(prox.hora):'')+'</b> · '+esc(tipo==='enviar'?(prox.cliente+(prox.rota?' ('+prox.rota+')':'')):(prox.fornecedor||prox.volumes||prox.obs||'recebimento'))):'Nenhum agendamento pendente';
-    return `<div class="pad">
-      <div style="display:flex;align-items:center;gap:10px;justify-content:space-between">
-        <b style="font-size:15px">${icone} ${titulo}</b><span class="pill">${sub}</span>
-      </div>
-      <div style="font-size:30px;font-weight:700;margin:8px 0 2px">${pend.length}<span class="muted" style="font-size:13px;font-weight:400"> pendente(s)</span></div>
-      <div class="muted" style="font-size:12.5px">${proxTxt}</div>
-      <div style="margin-top:6px">${nHoje?'<span class="badge b-orange" style="font-size:11px">'+nHoje+' hoje</span> ':''}${nAtras?'<span class="badge b-red" style="font-size:11px">'+nAtras+' atrasado(s)</span>':''}</div>
-    </div>`;
-  };
-  document.getElementById('homeAgEnviar').innerHTML=card('enviar','Cargas a Enviar','🚚','montador de cargas');
-  document.getElementById('homeAgReceber').innerHTML=card('receber','Cargas a Receber','📦','depósito');
+  if(SESSION.role==='consulta')return;
+  renderHome();
 }
 function agRenderAll(){
   renderAgTable('enviar'); renderAgTable('receber'); renderHomeAgs();
@@ -2644,6 +2846,8 @@ function ivErroSupa(e){ return e.message+(/(relation|does not exist)/i.test(e.me
   :/permission|policy|row-level/i.test(e.message)?' — apenas o usuário admin pode gravar.':''); }
 
 // --- leitura do arquivo (HTML do ERP ou xlsx de verdade) ---
+// Aceita o .xls do ERP (que é HTML), .xlsx/.xls de verdade, e os arquivos que o Excel
+// gera quando o usuário abre o relatório, mexe e salva de novo.
 function ivLerArquivo(file){
   return new Promise((resolve,reject)=>{
     const r=new FileReader();
@@ -2651,18 +2855,40 @@ function ivLerArquivo(file){
     r.onload=e=>{
       try{
         const buf=new Uint8Array(e.target.result);
-        let cabeca=''; for(let i=0;i<Math.min(buf.length,512);i++) cabeca+=String.fromCharCode(buf[i]);
-        if(/<html|<!doctype|<table/i.test(cabeca)){
-          // o ERP exporta HTML rotulado como .xls, em ISO-8859-1 — decodificar como UTF-8 quebra os acentos
+        const porSheetJS=()=>{
+          if(!window.XLSX) throw new Error('Biblioteca de leitura (xlsx) não carregou.');
+          const wb=XLSX.read(buf,{type:'array'});
+          const ws=wb.Sheets[wb.SheetNames[0]];
+          if(!ws) throw new Error('A planilha está vazia.');
+          return XLSX.utils.sheet_to_json(ws,{header:1,defval:null});
+        };
+        // assinatura binária: .xlsx é um ZIP ("PK"), .xls antigo é OLE — vão direto pro SheetJS
+        const zip=buf[0]===0x50&&buf[1]===0x4B;
+        const ole=buf[0]===0xD0&&buf[1]===0xCF&&buf[2]===0x11&&buf[3]===0xE0;
+        if(zip||ole) return resolve(porSheetJS());
+
+        let cabeca=''; for(let i=0;i<Math.min(buf.length,2048);i++) cabeca+=String.fromCharCode(buf[i]);
+        if(/<html|<!doctype|<table|<meta/i.test(cabeca)){
+          // o ERP exporta em ISO-8859-1 — decodificar como UTF-8 quebra os acentos
           let txt=new TextDecoder('iso-8859-1').decode(buf);
-          if(/charset\s*=\s*["']?utf-?8/i.test(txt.slice(0,2000))) txt=new TextDecoder('utf-8').decode(buf);
-          const tbl=new DOMParser().parseFromString(txt,'text/html').querySelector('table');
-          if(!tbl) return reject(new Error('Não encontrei nenhuma tabela dentro do arquivo.'));
-          return resolve([...tbl.rows].map(tr=>[...tr.cells].map(td=>td.textContent.replace(/\s+/g,' ').trim())));
+          if(/charset\s*=\s*["']?utf-?8/i.test(txt.slice(0,3000))) txt=new TextDecoder('utf-8').decode(buf);
+          const doc=new DOMParser().parseFromString(txt,'text/html');
+          // ao re-salvar, o Excel embrulha a tabela de dados em tabelas de layout.
+          // Vale a tabela com mais células PRÓPRIAS (descontando as das tabelas aninhadas),
+          // não a primeira do documento.
+          let melhor=null, maior=0;
+          doc.querySelectorAll('table').forEach(t=>{
+            const todas=t.querySelectorAll('td,th').length;
+            const aninhadas=[...t.querySelectorAll('table')].reduce((a,x)=>a+x.querySelectorAll('td,th').length,0);
+            const proprias=todas-aninhadas;
+            if(proprias>maior){ maior=proprias; melhor=t; }
+          });
+          if(melhor) return resolve([...melhor.rows].map(tr=>[...tr.cells].map(td=>td.textContent.replace(/\s+/g,' ').trim())));
+          // sem tabela nenhuma: tenta o SheetJS antes de desistir
+          try{ return resolve(porSheetJS()); }catch(_){}
+          return reject(new Error('Este arquivo não tem os dados dentro dele. Isso acontece quando a planilha é salva como "Página da Web", que grava as informações numa pasta separada. Abra no Excel e salve como "Pasta de Trabalho do Excel (.xlsx)".'));
         }
-        if(!window.XLSX) return reject(new Error('Biblioteca de leitura não carregou.'));
-        const wb=XLSX.read(buf,{type:'array'});
-        resolve(XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,defval:null}));
+        resolve(porSheetJS());
       }catch(err){ reject(err); }
     };
     r.readAsArrayBuffer(file);
@@ -2688,7 +2914,10 @@ function ivMontar(rows,dataInv,fornecedor){
   let hi=rows.findIndex(r=>r&&r.some(c=>['sld contagem','dif qtde','sld estoq'].includes(low(c))));
   if(hi<0) hi=0;
   const cm=ivColmap(rows[hi]);
-  if(cm.id<0||cm.sld_contagem<0) throw new Error('Não encontrei as colunas "Id" e "Sld Contagem" no arquivo.');
+  if(cm.id<0||cm.sld_contagem<0){
+    const achadas=(rows[hi]||[]).map(c=>norm(c)).filter(Boolean).slice(0,12).join(', ');
+    throw new Error('Não encontrei as colunas "Id" e "Sld Contagem". O cabeçalho lido foi: '+(achadas||'(vazio)')+'.');
+  }
   const g=(row,k)=>cm[k]>=0?row[cm[k]]:null;
   const produtos=[];
   rows.slice(hi+1).forEach(row=>{
@@ -2707,7 +2936,13 @@ function ivMontar(rows,dataInv,fornecedor){
   return [{fornecedor:ivNormForn(fornecedor),data_inventario:dataInv,produtos}];
 }
 // acuracidade = % de itens contados sem nenhuma divergência
-function ivAcuracidade(t){ return t.total?(t.total-t.ndiv)/t.total*100:0; }
+// Acuracidade = 1 - (Entrada + Saída) / R$ Est. Invent.  — é por VALOR, somando as
+// divergências dos dois sentidos. Confere com a planilha da gerência em todos os casos
+// testados (CANOINHAS 97,56% · NUTRIMENTAL 96,82% · MAIO 97,19% · 2026 99,33%).
+// Devolve null quando o valor do estoque não foi informado (lançamentos antigos).
+function ivAcu(est,entrada,saida){ est=+est||0; return est?(1-((+entrada||0)+(+saida||0))/est)*100:null; }
+function ivAcuracidade(t,valorEstoque){ return ivAcu(valorEstoque,t.pos,Math.abs(t.neg)); }
+const ivFmtAcu=v=>v==null?'—':v.toFixed(2).replace('.',',')+'%';
 // peso da divergência sobre o estoque do fornecedor — com sinal, igual ao "% DIF" da gerência
 function ivPctEstoque(lanc,t){ const v=+lanc.valor_estoque||0; return v?t.fin/v*100:null; }
 // Div Ant = Dif Qtde do produto no inventário anterior do MESMO fornecedor (0 se não existir)
@@ -2843,7 +3078,7 @@ function ivRender(){
   document.getElementById('ivTotais').innerHTML=lanc?`
     <div class="box">Produtos<b>${t.total}</b></div>
     <div class="box hl">Com diverg&ecirc;ncia<b>${t.ndiv}</b></div>
-    <div class="box">Acuracidade<b>${ivAcuracidade(t).toFixed(1).replace('.',',')}%</b></div>
+    <div class="box">Acuracidade<b>${ivFmtAcu(ivAcuracidade(t,lanc.valor_estoque))}</b></div>
     <div class="box">Saldo qtde<b>${ivFmtQ(t.qtd)}</b></div>
     <div class="box pos">Positivo<b>${fmtBRL(t.pos)}</b></div>
     <div class="box neg">Negativo<b>${fmtBRL(t.neg)}</b></div>
@@ -2886,7 +3121,7 @@ function ivCabecalhoHtml(titulo,sub,t,valorEstoque){
     <div class="sum">
       <div class="box">Produtos<b>${t.total}</b></div>
       <div class="box hl">Com divergência<b>${t.ndiv}</b></div>
-      <div class="box">Acuracidade<b>${ivAcuracidade(t).toFixed(1).replace('.',',')}%</b></div>
+      <div class="box">Acuracidade<b>${ivFmtAcu(ivAcuracidade(t,valorEstoque))}</b></div>
       <div class="box pos">Positivo<b>${fmtBRL(t.pos)}</b></div>
       <div class="box neg">Negativo<b>${fmtBRL(t.neg)}</b></div>
       <div class="box ${t.fin<0?'neg':'pos'}">Divergência total<b>${fmtBRL(t.fin)}</b></div>
@@ -2933,41 +3168,60 @@ function ivPrintAll(){
 }
 // ---------- COMPARATIVO ----------
 // barras verticais divergentes: comparar valores que sobem e descem do zero
-function ivChartBarras(el,dados,fmt){
+// escala com passo "redondo" (1, 2, 5, 10, 20, 50...) para a grade não sair com números quebrados
+function ivEscala(min,max,divisoes){
+  if(min===max){ min=Math.min(0,min-1); max=Math.max(0,max+1); }
+  const passo=(()=>{ const bruto=(max-min)/divisoes;
+    const exp=Math.pow(10,Math.floor(Math.log10(Math.abs(bruto)||1)));
+    const n=bruto/exp; return (n<=1?1:n<=2?2:n<=5?5:10)*exp; })();
+  return {lo:Math.floor(min/passo)*passo, hi:Math.ceil(max/passo)*passo, passo};
+}
+function ivChartBarras(el,dados,fmt,fmtEixo){
   if(!dados.length){ el.innerHTML='<div class="muted">Sem inventários no período.</div>'; return; }
-  const W=620,H=240,pl=14,pr=14,pt=26,pb=42, iw=W-pl-pr, ih=H-pt-pb;
+  const W=900,H=310,pl=88,pr=18,pt=30,pb=52, iw=W-pl-pr, ih=H-pt-pb;
   const vals=dados.map(d=>d.value);
-  const max=Math.max(0,...vals), min=Math.min(0,...vals), span=(max-min)||1;
-  const y=v=>pt+ih-((v-min)/span*ih), y0=y(0);
-  const step=iw/dados.length, bw=Math.min(56,step*0.6);
+  const e=ivEscala(Math.min(0,...vals),Math.max(0,...vals),4);
+  const y=v=>pt+ih-((v-e.lo)/((e.hi-e.lo)||1)*ih), y0=y(0);
+  const step=iw/dados.length, bw=Math.min(64,step*0.58);
+  const pular=Math.ceil(dados.length/14); // com muitos inventários, mostra 1 rótulo a cada N
+  let grade='';
+  for(let v=e.lo;v<=e.hi+1e-9;v+=e.passo){
+    const yy=y(v);
+    grade+=`<line class="${Math.abs(v)<1e-9?'zl':'gl'}" x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}"/>
+      <text class="ax" x="${pl-9}" y="${(yy+4.5).toFixed(1)}" text-anchor="end">${(fmtEixo||fmt)(v)}</text>`;
+  }
   const barras=dados.map((d,i)=>{
-    const cx=pl+step*i+step/2, v=d.value, yy=v>=0?y(v):y0, h=Math.max(1.5,Math.abs(y(v)-y0));
+    const cx=pl+step*i+step/2, v=d.value, yy=v>=0?y(v):y0, h=Math.max(2,Math.abs(y(v)-y0));
     const cor=v>=0?'#1e7d43':'#b3261e';
-    return `<rect x="${(cx-bw/2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${cor}"/>
-      <text class="vl" x="${cx.toFixed(1)}" y="${(v>=0?yy-6:yy+h+13).toFixed(1)}" text-anchor="middle" fill="${cor}">${fmt(v)}</text>
-      <text class="lbl" x="${cx.toFixed(1)}" y="${(H-14).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`;
+    const rot=(i%pular===0)?`<text class="lbl" x="${cx.toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`:'';
+    const val=dados.length<=12?`<text class="vl" x="${cx.toFixed(1)}" y="${(v>=0?yy-8:yy+h+17).toFixed(1)}" text-anchor="middle" fill="${cor}">${fmt(v)}</text>`:'';
+    return `<rect x="${(cx-bw/2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${cor}"><title>${esc(d.label)}: ${fmt(v)}</title></rect>${val}${rot}`;
   }).join('');
-  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">
-    <line class="zl" x1="${pl}" y1="${y0.toFixed(1)}" x2="${W-pr}" y2="${y0.toFixed(1)}"/>${barras}</svg></div>`;
+  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">${grade}${barras}</svg></div>`;
 }
 // linha: tendência de um percentual ao longo dos inventários
 function ivChartLinha(el,dados){
   if(!dados.length){ el.innerHTML='<div class="muted">Sem inventários no período.</div>'; return; }
-  const W=620,H=240,pl=42,pr=14,pt=20,pb=42, iw=W-pl-pr, ih=H-pt-pb;
+  const W=900,H=310,pl=74,pr=18,pt=30,pb=52, iw=W-pl-pr, ih=H-pt-pb;
   const vals=dados.map(d=>d.value);
+  // escala colada nos dados: com tudo entre 96% e 99%, um eixo 0–100 achataria a linha
   let lo=Math.min(...vals), hi=Math.max(...vals);
-  lo=Math.max(0,Math.floor(lo/5)*5-2); hi=Math.min(100,Math.ceil(hi/5)*5+2);
-  if(hi-lo<6){ hi=Math.min(100,lo+6); }
-  const y=v=>pt+ih-((v-lo)/(hi-lo)*ih);
+  const folga=Math.max(0.5,(hi-lo)*0.25);
+  lo=Math.max(0,lo-folga); hi=Math.min(100,hi+folga);
+  if(hi-lo<1){ lo=Math.max(0,lo-0.5); hi=Math.min(100,hi+0.5); }
+  const y=v=>pt+ih-((v-lo)/((hi-lo)||1)*ih);
   const px=i=>dados.length===1?pl+iw/2:pl+iw/(dados.length-1)*i;
+  const pular=Math.ceil(dados.length/14);
   const grade=[0,.25,.5,.75,1].map(f=>{ const v=lo+(hi-lo)*f, yy=y(v);
     return `<line class="gl" x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}"/>
-      <text class="ax" x="${pl-7}" y="${(yy+3.5).toFixed(1)}" text-anchor="end">${v.toFixed(0)}%</text>`; }).join('');
+      <text class="ax" x="${pl-9}" y="${(yy+4.5).toFixed(1)}" text-anchor="end">${v.toFixed(1).replace('.',',')}%</text>`; }).join('');
+  const area=`<polygon fill="var(--accent2)" opacity=".10" points="${pl},${(pt+ih).toFixed(1)} ${dados.map((d,i)=>px(i).toFixed(1)+','+y(d.value).toFixed(1)).join(' ')} ${(W-pr)},${(pt+ih).toFixed(1)}"/>`;
   const pts=dados.map((d,i)=>`${px(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(' ');
-  const bolas=dados.map((d,i)=>`<circle class="dot" cx="${px(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="4"/>
-    <text class="vl" x="${px(i).toFixed(1)}" y="${(y(d.value)-11).toFixed(1)}" text-anchor="middle">${d.value.toFixed(1).replace('.',',')}%</text>
-    <text class="lbl" x="${px(i).toFixed(1)}" y="${(H-14).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`).join('');
-  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">${grade}
+  const bolas=dados.map((d,i)=>{
+    const val=dados.length<=12?`<text class="vl" x="${px(i).toFixed(1)}" y="${(y(d.value)-14).toFixed(1)}" text-anchor="middle">${d.value.toFixed(2).replace('.',',')}%</text>`:'';
+    const rot=(i%pular===0)?`<text class="lbl" x="${px(i).toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`:'';
+    return `<circle class="dot" cx="${px(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="5"><title>${esc(d.label)}: ${d.value.toFixed(2)}%</title></circle>${val}${rot}`;}).join('');
+  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">${grade}${dados.length>1?area:''}
     <polyline class="ln" points="${pts}"/>${bolas}</svg></div>`;
 }
 // ranking horizontal (fornecedores / produtos)
@@ -3000,26 +3254,31 @@ function ivRenderComp(){
   const linha=lancs.map(l=>{ const t=ivTotais(l.produtos||[]);
     return {l,t,rot:deFmtData(l.data_inventario).slice(0,5)+(umForn?'':' '+l.fornecedor.slice(0,7))}; });
 
-  // KPIs: último inventário e a variação contra o anterior
-  const ult=linha[linha.length-1], pen=linha[linha.length-2];
-  const seta=(a,b,inverso)=>{ if(b==null)return ''; const d=a-b; if(!d)return ' <span class="muted">=</span>';
-    const bom=inverso?d<0:d>0; return ` <span style="color:${bom?'#1e7d43':'#b3261e'}">${d>0?'▲':'▼'} ${Math.abs(d).toFixed(1).replace('.',',')}</span>`; };
-  document.getElementById('icKpis').innerHTML=ult?`
-    <div class="box hl">&Uacute;ltimo invent&aacute;rio<b>${esc(ult.l.fornecedor)} &middot; ${deFmtData(ult.l.data_inventario)}</b></div>
-    <div class="box">R$ est. invent.<b>${ult.l.valor_estoque?fmtBRL(ult.l.valor_estoque):'—'}</b></div>
-    <div class="box">Acuracidade<b>${ivAcuracidade(ult.t).toFixed(2).replace('.',',')}%${pen?seta(ivAcuracidade(ult.t),ivAcuracidade(pen.t)):''}</b></div>
-    <div class="box pos">Entrada<b>${fmtBRL(ult.t.pos)}</b></div>
-    <div class="box neg">Sa&iacute;da<b>${fmtBRL(Math.abs(ult.t.neg))}</b></div>
-    <div class="box ${ult.t.fin<0?'neg':'pos'}">Diferen&ccedil;a<b>${fmtBRL(ult.t.fin)}</b></div>
-    <div class="box ${(ivPctEstoque(ult.l,ult.t)||0)<0?'neg':'pos'}">% Dif<b>${ivPctEstoque(ult.l,ult.t)!=null?ivPctEstoque(ult.l,ult.t).toFixed(2).replace('.',',')+'%':'—'}</b></div>
-    <div class="box">Itens divergentes<b>${ult.t.ndiv}${pen?seta(ult.t.ndiv,pen.t.ndiv,true):''}</b></div>`
+  // KPIs: totalizadores do PERÍODO filtrado (o último inventário já se vê na tabela abaixo)
+  const tg=ivTotalGerencia(ivLinhasGerencia(lancs));
+  const nProd=linha.reduce((a,x)=>a+x.t.total,0), nDiv=linha.reduce((a,x)=>a+x.t.ndiv,0);
+  const ini=document.getElementById('icIni').value, fim=document.getElementById('icFim').value;
+  const periodo=(ini||fim)?((ini?deFmtData(ini):'início')+' a '+(fim?deFmtData(fim):'hoje')):'Todo o período';
+  document.getElementById('icKpis').innerHTML=linha.length?`
+    <div class="box hl">Per&iacute;odo<b>${periodo}</b></div>
+    <div class="box">Invent&aacute;rios<b>${linha.length}</b></div>
+    <div class="box">R$ est. invent.<b>${fmtBRL(tg.est)}</b></div>
+    <div class="box">Acuracidade<b>${ivFmtAcu(tg.acu)}</b></div>
+    <div class="box pos">Entrada<b>${fmtBRL(tg.entrada)}</b></div>
+    <div class="box neg">Sa&iacute;da<b>${fmtBRL(tg.saida)}</b></div>
+    <div class="box ${tg.dif<0?'neg':'pos'}">Diferen&ccedil;a<b>${fmtBRL(tg.dif)}</b></div>
+    <div class="box ${tg.pct<0?'neg':'pos'}">% Dif<b>${tg.pct.toFixed(2).replace('.',',')}%</b></div>
+    <div class="box">Itens<b>${ivFmtQ(nProd)}<span class="muted" style="font-size:12px;font-weight:400"> · ${nDiv} divergentes</span></b></div>`
     :'<div class="box">Sem inventários no período<b>—</b></div>';
+  const ult=linha[linha.length-1];
   document.getElementById('icMsg').textContent=lancs.length?'':'Nenhum inventário lançado no período.';
 
+  const compacto=v=>{ const a=Math.abs(v);
+    return (v<0?'-':'')+(a>=1000?(a/1000).toFixed(a>=10000?0:1).replace('.',',')+'k':a.toFixed(0)); };
   ivChartBarras(document.getElementById('icChartFin'),
-    linha.map(x=>({label:x.rot,value:x.t.fin})), v=>fmtBRL(v).replace('R$ ',''));
+    linha.map(x=>({label:x.rot,value:x.t.fin})), v=>fmtBRL(v).replace('R$ ',''), compacto);
   ivChartLinha(document.getElementById('icChartAcu'),
-    linha.map(x=>({label:x.rot,value:ivAcuracidade(x.t)})));
+    linha.map(x=>({label:x.rot,value:ivAcuracidade(x.t,x.l.valor_estoque)})).filter(d=>d.value!=null));
 
   // ranking de fornecedores: último inventário de cada um dentro do período
   const porForn={};
@@ -3038,7 +3297,7 @@ function ivRenderComp(){
   // tabela no mesmo formato do Excel da gerência: ordem cronológica, totalizador por mês e do ano
   const rs=ivLinhasGerencia(lancs);
   const pctCls=v=>v<0?'num dneg':v>0?'num dpos':'num';
-  const brPct=n=>n.toFixed(2).replace('.',',')+'%';
+  const brPct=n=>n==null?'—':n.toFixed(2).replace('.',',')+'%';
   const cels=(r,extra)=>`<td class="num">${fmtBRL(r.est)}</td><td class="num">${brPct(r.acu)}</td>`+
     `<td class="num dpos">${r.entrada?fmtBRL(r.entrada):'—'}</td>`+
     `<td class="num dneg">${r.saida?fmtBRL(r.saida):'—'}</td>`+
@@ -3077,15 +3336,15 @@ const IV_MESES=['JANEIRO','FEVEREIRO','MARÇO','ABRIL','MAIO','JUNHO','JULHO','A
 function ivLinhasGerencia(lancs){
   return lancs.map(l=>{
     const t=ivTotais(l.produtos||[]), est=+l.valor_estoque||0;
-    return {data:l.data_inventario, forn:l.fornecedor, est, acu:ivAcuracidade(t),
+    return {data:l.data_inventario, forn:l.fornecedor, est, acu:ivAcu(est,t.pos,Math.abs(t.neg)),
       entrada:t.pos, saida:Math.abs(t.neg), dif:t.fin, pct:est?t.fin/est*100:0};
   });
 }
 function ivTotalGerencia(rs){
   const est=rs.reduce((a,r)=>a+r.est,0), entrada=rs.reduce((a,r)=>a+r.entrada,0), saida=rs.reduce((a,r)=>a+r.saida,0);
   const dif=entrada-saida;
-  return {est, acu:rs.length?rs.reduce((a,r)=>a+r.acu,0)/rs.length:0,
-    entrada, saida, dif, pct:est?dif/est*100:0};
+  // a acuracidade do totalizador sai da MESMA fórmula sobre os totais, não da média das linhas
+  return {est, acu:ivAcu(est,entrada,saida), entrada, saida, dif, pct:est?dif/est*100:0};
 }
 async function ivLogoDataUri(){
   try{
@@ -3109,10 +3368,10 @@ async function ivExportGerencia(){
   // cuida da exibição; o texto dentro da célula fica em pt-BR para quem abrir fora do Excel
   const MOEDA='#,##0.00;[Red]-#,##0.00', PCT='0.00%;[Red]-0.00%';
   const brMoeda=n=>(+n).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
-  const brPct=n=>(+n).toFixed(2).replace('.',',')+'%';
+  const brPct=n=>n==null?'—':(+n).toFixed(2).replace('.',',')+'%';
   const num=(v,fmt,txt,cls)=>`<td class="${cls||'n'}" style='mso-number-format:"${fmt}"' x:num="${v}">${txt}</td>`;
   const cels=(r,cls)=>num(r.est.toFixed(2),'#,##0.00',brMoeda(r.est),cls)+
-    num((r.acu/100).toFixed(6),'0.00%',brPct(r.acu),cls)+
+    num(((r.acu||0)/100).toFixed(6),'0.00%',brPct(r.acu),cls)+
     num(r.entrada.toFixed(2),'#,##0.00',brMoeda(r.entrada),cls)+
     num(r.saida.toFixed(2),'#,##0.00',brMoeda(r.saida),cls)+
     num(r.dif.toFixed(2),MOEDA,brMoeda(r.dif),cls)+
@@ -3430,8 +3689,6 @@ document.getElementById('esPaneRascunho').addEventListener('paste',e=>{
 
 // agendamentos: sub-telas, formulários e tabelas
 document.querySelectorAll('#view-agendamentos .subtab').forEach(b=>b.onclick=()=>agSetSub(b.dataset.agsub));
-document.getElementById('homeAgEnviar').onclick=()=>goAg('enviar');
-document.getElementById('homeAgReceber').onclick=()=>goAg('receber');
 document.getElementById('aeAdd').onclick=()=>agSalvar('enviar');
 document.getElementById('arAdd').onclick=()=>agSalvar('receber');
 document.getElementById('aeCancel').onclick=()=>{agFormClear('enviar');agMsg('enviar','');};
