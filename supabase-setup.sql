@@ -238,13 +238,17 @@ create table if not exists inventarios (
   fornecedor text not null,           -- escolhido na tela (COLGATE, MARILAN, ADL...)
   data_inventario date not null,      -- dia em que o inventário foi feito
   valor_estoque numeric default 0,    -- valor total do estoque do fornecedor, digitado no lançamento
+  aprovado_por text,                  -- gerente que aprovou (null = aguardando aprovação)
+  aprovado_em timestamptz,            -- data/hora da aprovação
   produtos jsonb not null default '[]',
   -- cada item: {id, descricao, embalagem, sld_estoq, sld_contagem, dif_qtde, dif_financeira}
   created_at timestamptz default now(),
   unique (unidade, fornecedor, data_inventario)
 );
--- se a tabela já foi criada antes da coluna existir, rode só esta linha:
+-- se a tabela já foi criada antes destas colunas existirem, rode só estas linhas:
 alter table inventarios add column if not exists valor_estoque numeric default 0;
+alter table inventarios add column if not exists aprovado_por text;      -- gerente que aprovou
+alter table inventarios add column if not exists aprovado_em timestamptz; -- data/hora da aprovação
 create index if not exists inventarios_busca on inventarios (unidade, fornecedor, data_inventario desc);
 alter table inventarios enable row level security;
 drop policy if exists "leitura unidade inventarios" on inventarios;

@@ -343,6 +343,10 @@
   #printEscala .ivprint td.dneg{color:#b3261e;font-weight:700}
   #printEscala .ivprint tr.tot td{background:#e8eef7!important;font-weight:800;border-top:2px solid #005da8;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   #printEscala .ivprint .pfoot{margin-top:14px;padding-top:8px;border-top:1.5px solid #cfdae8;display:flex;justify-content:space-between;font-size:9.5px;color:#5b6b80}
+  #printEscala .ivprint .ivass{margin:26px auto 0;width:300px;text-align:center}
+  #printEscala .ivprint .ivass .ln{border-top:1px solid #0d2038;margin-bottom:5px}
+  #printEscala .ivprint .ivass b{display:block;font-size:11px;color:#0d2038}
+  #printEscala .ivprint .ivass span{display:block;font-size:9px;color:#5b6b80;margin-top:2px}
   /* impressão moderna dos agendamentos */
   #printEscala .agprint{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038}
   #printEscala .agprint .ph{display:flex;align-items:center;gap:18px;border-bottom:3px solid #005da8;padding-bottom:10px;margin-bottom:12px}
@@ -744,6 +748,7 @@
       <div class="subtabs">
         <button class="subtab active" data-ivsub="lancamentos">&#128203; Lan&ccedil;amentos</button>
         <button class="subtab" data-ivsub="comparativo">&#128200; Comparativo</button>
+        <button class="subtab" data-ivsub="aprovacao">&#9997;&#65039; Aprova&ccedil;&otilde;es</button>
       </div>
 
       <div id="ivPaneLanc">
@@ -816,6 +821,29 @@
         <div class="card" style="margin-top:16px">
           <h3>Invent&aacute;rio a invent&aacute;rio</h3>
           <div class="tablewrap"><table id="icTbl"></table></div>
+        </div>
+      </div>
+
+      <div id="ivPaneAprov" style="display:none">
+        <div class="card">
+          <h3>Aprova&ccedil;&atilde;o de invent&aacute;rios <span class="pill" id="iaGerente"></span></h3>
+          <div class="pad">
+            <div class="toolbar" style="flex-wrap:wrap">
+              <select id="iaFiltro" style="min-width:180px">
+                <option value="pendentes">Aguardando aprova&ccedil;&atilde;o</option>
+                <option value="aprovados">J&aacute; aprovados</option>
+                <option value="todos">Todos</option>
+              </select>
+              <input type="search" id="iaBusca" placeholder="Buscar fornecedor..." style="min-width:200px;flex:1">
+              <span class="muted" id="iaMsg" style="margin-left:auto"></span>
+            </div>
+            <div id="iaAviso"></div>
+            <div class="tablewrap"><table id="iaTbl"></table></div>
+            <div class="pad muted" style="font-size:12px;padding-top:8px">
+              A aprova&ccedil;&atilde;o registra <b>quem</b> aprovou, com <b>data e hora</b>, e passa a sair no rodap&eacute; do PDF do invent&aacute;rio.
+              N&atilde;o &eacute; assinatura digital com certificado ICP-Brasil &mdash; &eacute; um registro de aprova&ccedil;&atilde;o protegido por senha.
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1210,6 +1238,7 @@ function afterLoad(){
 }
 function go(view){
   if(view==='salvos'&&!exigeSenha('Acessar a aba Salvos'))return;
+  if(view==='inventario'&&typeof ivExigeAcesso==='function'&&!ivExigeAcesso())return;
   document.querySelectorAll('#nav button[data-view]').forEach(b=>b.classList.toggle('active',b.dataset.view===view));
   document.querySelectorAll('.view').forEach(s=>s.classList.toggle('active',s.id==='view-'+view));
   document.getElementById('viewTitle').textContent=document.querySelector(`#nav button[data-view="${view}"] .nav-label`)?.textContent.trim()||document.querySelector(`#nav button[data-view="${view}"]`).textContent.replace(/Etapa.*/,'').trim();
@@ -2831,7 +2860,22 @@ function agEnter(){
 // Lê o relatório de conferência do ERP (o .xls dele é HTML em ISO-8859-1) e monta a
 // divergência por fornecedor (coluna DESCR_271). O único campo que o ERP não traz é o
 // Div Ant = Dif Qtde do produto no inventário ANTERIOR do mesmo fornecedor.
-let IV_ROWS=[], IV_FORN='', IV_LANC='', IV_PEND=null, ivEntrou=false;
+let IV_ROWS=[], IV_FORN='', IV_LANC='', IV_PEND=null, ivEntrou=false, ivLiberado=false;
+// senha de acesso à aba (gestão do depósito) — a mesma que a equipe já usa em Cargas a Receber
+const IV_SENHA_ACESSO={'Dilnor':'1609'};
+// senha do gerente para aprovar/assinar. TROQUE o valor abaixo antes de usar:
+// enquanto estiver no placeholder, o sistema recusa aprovar (falha fechado, de propósito).
+const IV_SENHA_APROVACAO={'Dilnor':'TROQUE-ME'};
+const IV_GERENTE={'Dilnor':'Regigledson'};
+function ivExigeAcesso(){
+  const s=IV_SENHA_ACESSO[SESSION.unidade];
+  if(!s||ivLiberado) return true;                 // liberado uma vez por sessão
+  const dig=prompt('🔒 Inventário — acesso restrito à gestão do depósito\nDigite a senha:');
+  if(dig===null) return false;
+  if(String(dig).trim()===s){ ivLiberado=true; return true; }
+  alert('Senha incorreta.');
+  return false;
+}
 // fornecedores da operação — o nome escolhido aqui é a chave de agrupamento dos lançamentos
 const IV_FORNECEDORES=['ACE','ADIMAX','ADL','BOLD','CIA CANOINHAS','COLGATE','CONSERVA ODERICH','ENERGIZER',
   'GRENDENE','J MACEDO','MARILAN','MURIEL','NUTRIMENTAL','ONTEX','SANTA MARIA','VITAO'];
@@ -3137,6 +3181,10 @@ function ivPrint(){
   esDoPrint(`<div class="ivprint" data-print-pages="true">
     ${ivCabecalhoHtml('Divergência '+esc(lanc.fornecedor),'Inventário<b>'+deFmtData(lanc.data_inventario)+'</b>',ivTotais(prods),+lanc.valor_estoque||0)}
     ${ivTabelaHtml(prods)}
+    ${lanc.aprovado_em
+      ? `<div class="ivass"><div class="ln"></div><b>${esc(lanc.aprovado_por||'')}</b>
+           <span>Aprovado em ${new Date(lanc.aprovado_em).toLocaleString('pt-BR')}</span></div>`
+      : `<div class="ivass"><div class="ln"></div><b>${esc(ivGerente())}</b><span>Aprovação</span></div>`}
     <div class="pfoot"><span>Conferência de inventário — ${esc(lanc.fornecedor)}</span><span>${esc(SESSION.unidade||'')} · página gerada pelo sistema</span></div>
   </div>`);
 }
@@ -3427,11 +3475,83 @@ async function ivExportGerencia(){
   setTimeout(()=>{URL.revokeObjectURL(a.href);a.remove();},1500);
   icMsg.textContent='✅ '+nome+' — '+linhas.length+' inventário(s), '+meses.length+' mês(es).';
 }
+// ---------- APROVAÇÃO DO GERENTE ----------
+function ivGerente(){ return IV_GERENTE[SESSION.unidade]||'gerente'; }
+function ivAprovacaoConfigurada(){ const s=IV_SENHA_APROVACAO[SESSION.unidade]; return !!s&&s!=='TROQUE-ME'; }
+function iaLista(){
+  const f=document.getElementById('iaFiltro').value, q=low(document.getElementById('iaBusca').value);
+  return IV_ROWS.filter(l=>f==='todos'||(f==='aprovados'?!!l.aprovado_em:!l.aprovado_em))
+    .filter(l=>!q||low(l.fornecedor).includes(q))
+    .sort((a,b)=>a.data_inventario<b.data_inventario?1:-1);
+}
+async function ivAprovar(id){
+  const l=IV_ROWS.find(x=>String(x.id)===String(id)); if(!l) return;
+  const msg=document.getElementById('iaMsg');
+  if(!ivAprovacaoConfigurada()){
+    msg.textContent='A senha de aprovação ainda não foi definida no sistema.'; return; }
+  const dig=prompt('✍️ Aprovar o inventário de '+l.fornecedor+' — '+deFmtData(l.data_inventario)+
+    '\n\nDigite a senha de aprovação de '+ivGerente()+':');
+  if(dig===null) return;
+  if(String(dig).trim()!==IV_SENHA_APROVACAO[SESSION.unidade]){ alert('Senha incorreta.'); return; }
+  const dados={aprovado_por:ivGerente(), aprovado_em:new Date().toISOString()};
+  msg.textContent='Registrando aprovação…';
+  if(!ivLocal()){
+    const {error}=await sb.from('inventarios').update(dados).eq('id',l.id);
+    if(error){ msg.textContent='❌ '+ivErroSupa(error); return; }
+  }
+  Object.assign(l,dados);
+  if(ivLocal()) ivLocalSave();
+  msg.textContent='✅ Aprovado por '+dados.aprovado_por+' em '+new Date(dados.aprovado_em).toLocaleString('pt-BR')+'.';
+  ivRenderAprov(); ivRender();
+}
+async function ivRevogar(id){
+  const l=IV_ROWS.find(x=>String(x.id)===String(id)); if(!l) return;
+  if(!confirm('Retirar a aprovação do inventário de '+l.fornecedor+' de '+deFmtData(l.data_inventario)+'?')) return;
+  const dig=prompt('🔒 Digite a senha de aprovação de '+ivGerente()+' para retirar:');
+  if(dig===null) return;
+  if(String(dig).trim()!==IV_SENHA_APROVACAO[SESSION.unidade]){ alert('Senha incorreta.'); return; }
+  const dados={aprovado_por:null, aprovado_em:null};
+  if(!ivLocal()){
+    const {error}=await sb.from('inventarios').update(dados).eq('id',l.id);
+    if(error){ document.getElementById('iaMsg').textContent='❌ '+ivErroSupa(error); return; }
+  }
+  Object.assign(l,dados);
+  if(ivLocal()) ivLocalSave();
+  document.getElementById('iaMsg').textContent='Aprovação retirada.';
+  ivRenderAprov(); ivRender();
+}
+function ivRenderAprov(){
+  document.getElementById('iaGerente').textContent=ivGerente();
+  document.getElementById('iaAviso').innerHTML=ivAprovacaoConfigurada()?'':
+    `<div class="ivmsg"><span class="err">A senha de aprovação ainda está com o valor de fábrica.
+     Enquanto isso, nenhum inventário pode ser aprovado — me passe a senha do ${esc(ivGerente())} que eu configuro.</span></div>`;
+  const lista=iaLista();
+  const pend=IV_ROWS.filter(l=>!l.aprovado_em).length;
+  document.getElementById('iaTbl').innerHTML=
+    '<thead><tr><th>Data</th><th>Fornecedor</th><th class="num">Produtos</th><th class="num">Diferen&ccedil;a</th>'+
+    '<th>Situa&ccedil;&atilde;o</th><th></th></tr></thead><tbody>'+
+    (lista.map(l=>{ const t=ivTotais(l.produtos||[]);
+      const sit=l.aprovado_em
+        ? `<span class="badge b-green">Aprovado</span> <span class="muted" style="font-size:12px">${esc(l.aprovado_por||'')} · ${new Date(l.aprovado_em).toLocaleString('pt-BR')}</span>`
+        : '<span class="badge b-orange">Aguardando</span>';
+      const acao=l.aprovado_em
+        ? `<button class="ghost iarev" data-id="${esc(l.id)}" style="font-size:12px">Retirar</button>`
+        : `<button class="iaapr" data-id="${esc(l.id)}" data-icon="check" style="font-size:12px"${ivAprovacaoConfigurada()?'':' disabled'}>Aprovar</button>`;
+      return `<tr><td>${deFmtData(l.data_inventario)}</td><td><b>${esc(l.fornecedor)}</b></td>`+
+        `<td class="num">${t.total}</td><td class="num ${t.fin<0?'dneg':'dpos'}">${fmtBRL(t.fin)}</td>`+
+        `<td>${sit}</td><td style="white-space:nowrap">${acao}</td></tr>`;}).join('')
+     ||'<tr><td colspan="6" class="empty" style="padding:16px">'+(IV_ROWS.length?'Nada neste filtro.':'Nenhum inventário lançado ainda.')+'</td></tr>')+'</tbody>';
+  decorateIcons();
+  const m=document.getElementById('iaMsg');
+  if(!m.textContent) m.textContent=pend?pend+' aguardando aprovação':'Tudo aprovado.';
+}
 function ivSetSub(sub){
   document.querySelectorAll('#view-inventario > .subtabs .subtab').forEach(b=>b.classList.toggle('active',b.dataset.ivsub===sub));
   document.getElementById('ivPaneLanc').style.display=sub==='lancamentos'?'':'none';
   document.getElementById('ivPaneComp').style.display=sub==='comparativo'?'':'none';
+  document.getElementById('ivPaneAprov').style.display=sub==='aprovacao'?'':'none';
   if(sub==='comparativo') ivRenderComp();
+  if(sub==='aprovacao'){ document.getElementById('iaMsg').textContent=''; ivRenderAprov(); }
 }
 function ivFornDatalist(){
   // a lista fixa da operação + qualquer fornecedor já lançado (nomes fora da lista continuam sugeridos)
@@ -3750,6 +3870,12 @@ document.getElementById('ivPrintAll').onclick=ivPrintAll;
 document.getElementById('ivDel').onclick=ivExcluir;
 document.querySelectorAll('#view-inventario > .subtabs .subtab').forEach(b=>b.onclick=()=>ivSetSub(b.dataset.ivsub));
 document.getElementById('icExport').onclick=ivExportGerencia;
+document.getElementById('iaFiltro').onchange=ivRenderAprov;
+document.getElementById('iaBusca').oninput=ivRenderAprov;
+document.getElementById('iaTbl').addEventListener('click',e=>{
+  const a=e.target.closest('.iaapr'), r=e.target.closest('.iarev');
+  if(a) ivAprovar(a.dataset.id); else if(r) ivRevogar(r.dataset.id);
+});
 document.getElementById('icForn').onchange=ivRenderComp;
 document.getElementById('icIni').onchange=ivRenderComp;
 document.getElementById('icFim').onchange=ivRenderComp;
