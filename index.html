@@ -297,18 +297,40 @@
   /* grid do comparativo: duas colunas IGUAIS (a .grid2 é 1fr 440px, feita p/ conteúdo + painel) */
   .ivgrid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
   @media(max-width:1150px){.ivgrid{grid-template-columns:1fr}}
+  .ivchart{position:relative}
   .ivchart svg{width:100%;height:auto;display:block;overflow:visible}
-  .ivchart .gl{stroke:var(--border);stroke-width:1}
+  .ivchart .gl{stroke:var(--line);stroke-width:1}
   .ivchart .zl{stroke:var(--muted);stroke-width:1.6}
   .ivchart .ax{fill:var(--muted);font-size:13px}
-  .ivchart .vl{fill:var(--txt);font-size:13px;font-weight:700}
   .ivchart .lbl{fill:var(--muted);font-size:13px}
   .ivchart .ln{fill:none;stroke:var(--accent2);stroke-width:2.5;stroke-linejoin:round;stroke-linecap:round}
   .ivchart .dot{fill:var(--accent2)}
+  /* leitura no passar do mouse: o valor não fica escrito no gráfico (se sobrepunha),
+     aparece na bolha e o ponto/barra correspondente se destaca */
+  .ivchart .hit{fill:transparent;cursor:pointer}
+  .ivchart .bar,.ivchart .dot{transition:opacity .12s}
+  .ivchart.ativo .bar,.ivchart.ativo .dot{opacity:.35}
+  .ivchart .bar.on,.ivchart .dot.on{opacity:1}
+  .ivchart .dot.on{r:7}
+  .ivchart .guia{stroke:var(--accent2);stroke-width:1;stroke-dasharray:3 4;opacity:0}
+  .ivchart .guia.on{opacity:.55}
+  .ivtip{position:absolute;left:0;top:0;z-index:5;pointer-events:none;opacity:0;transition:opacity .12s;
+    transform:translate(-50%,-115%);background:var(--panel2);border:1px solid var(--line);border-radius:10px;
+    padding:6px 10px;font-size:12px;line-height:1.45;white-space:nowrap;box-shadow:0 12px 28px rgba(15,45,80,.20)}
+  .ivtip.on{opacity:1}
+  .ivtip .t{color:var(--muted);font-size:11px}
+  .ivtip b{display:block;font-size:13.5px}
+  .ivtip b.pos{color:var(--green)}.ivtip b.neg{color:var(--red)}
+  /* faixa complementar embaixo do gráfico: o que a curva não conta */
+  .ivlegenda{display:flex;gap:20px;flex-wrap:wrap;margin-top:11px;padding-top:10px;border-top:1px solid var(--line)}
+  .ivlegenda span{display:flex;flex-direction:column;gap:1px;min-width:0}
+  .ivlegenda small{font-size:10.5px;color:var(--muted);text-transform:uppercase;letter-spacing:.4px}
+  .ivlegenda b{font-size:14px;white-space:nowrap}
+  .ivlegenda b.pos{color:var(--green)}.ivlegenda b.neg{color:var(--red)}
   .ivrank{display:flex;flex-direction:column;gap:7px}
   .ivrank .row{display:grid;grid-template-columns:1fr 2.1fr auto;gap:9px;align-items:center;font-size:12.5px}
   .ivrank .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;color:var(--txt)}
-  .ivrank .track{background:var(--border);border-radius:99px;height:15px;overflow:hidden;position:relative}
+  .ivrank .track{background:var(--line);border-radius:99px;height:15px;overflow:hidden;position:relative}
   .ivrank .fill{height:100%;border-radius:99px}
   .ivrank .vv{white-space:nowrap;font-weight:700;font-size:12px}
   /* linhas de totalizador do comparativo — mesmo visual do Excel da gerência */
@@ -370,6 +392,33 @@
   #printEscala .agprint .st.sEnviado,#printEscala .agprint .st.sRecebido{background:#e3f6ea!important;color:#1e7d43;border:1px solid #a9dcbc}
   #printEscala .agprint .st.sCancelado{background:#fde7e5!important;color:#b3261e;border:1px solid #eeb0ab}
   #printEscala .agprint .pfoot{margin-top:14px;padding-top:8px;border-top:1.5px solid #cfdae8;display:flex;justify-content:space-between;font-size:9.5px;color:#5b6b80}
+
+  /* ---- agendamentos impressos como CALENDÁRIO (um mês por folha) ---- */
+  #printEscala .agcal .mespage{break-after:page;page-break-after:always}
+  #printEscala .agcal .mespage:last-child{break-after:auto;page-break-after:auto}
+  #printEscala .agcal table.cal{width:100%;border-collapse:collapse;table-layout:fixed}
+  #printEscala .agcal table.cal th{background:#005da8!important;color:#fff!important;border:1px solid #005da8;
+    text-align:center;font-size:9.5px;letter-spacing:.7px;padding:5px 3px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .agcal table.cal td{border:1px solid #cfdae8;vertical-align:top;padding:0;text-align:left}
+  #printEscala .agcal td.fora{background:#f6f9fc!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .agcal td.hoje{outline:2.5px solid #ffc400;outline-offset:-2.5px}
+  #printEscala .agcal .dnum{display:flex;justify-content:space-between;align-items:center;gap:4px;
+    padding:2px 5px;border-bottom:1px solid #eaf0f7;font-size:10px;font-weight:800;color:#33465e}
+  #printEscala .agcal .dnum .qt{background:#005da8!important;color:#fff!important;border-radius:99px;
+    padding:0 6px;font-size:8px;font-weight:800;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  #printEscala .agcal .itens{display:flex;flex-direction:column;gap:2px;padding:3px 4px;font-size:8.5px}
+  #printEscala .agcal .it{font-size:inherit;line-height:1.25;border-left:2.5px solid #155ba0;padding-left:4px;break-inside:avoid}
+  #printEscala .agcal .it b{display:block;font-weight:700;color:#0d2038}
+  #printEscala .agcal .it span{display:block;color:#5b6b80}
+  #printEscala .agcal .it.sMontado{border-left-color:#9a6200}
+  #printEscala .agcal .it.sEnviado,#printEscala .agcal .it.sRecebido{border-left-color:#1e7d43}
+  #printEscala .agcal .it.sCancelado{border-left-color:#b3261e;opacity:.55}
+  #printEscala .agcal .it.sCancelado b{text-decoration:line-through}
+  #printEscala .agcal .mestit{display:flex;align-items:baseline;gap:10px;margin:0 0 7px}
+  #printEscala .agcal .mestit h3{margin:0;font-size:14px;color:#005da8;text-transform:uppercase;letter-spacing:.6px}
+  #printEscala .agcal .mestit small{color:#5b6b80;font-size:10px}
+  #printEscala .agcal .leg{display:flex;gap:14px;flex-wrap:wrap;margin-top:9px;font-size:8.5px;color:#5b6b80}
+  #printEscala .agcal .leg i{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:4px;vertical-align:-1px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
   @media print{
     body{background:#fff!important}
     body>.app,#loginOverlay,#bgFx{display:none!important}
@@ -501,6 +550,7 @@
     <img class="logo" id="loginLogo" src="assets/dilnor-logo.png" alt="Logo" onerror="this.style.display='none'">
     <h2>Gestão <span>Logística</span></h2>
     <select id="loginUnidade"><option>Dilnor</option><option>Nordece</option></select>
+    <input type="text" id="loginUsuario" placeholder="Usu&aacute;rio" autocomplete="username" autocapitalize="off" spellcheck="false">
     <input type="password" id="loginSenha" placeholder="Senha" autocomplete="current-password">
     <button class="yellow" id="loginBtn">Entrar</button>
     <div class="login-err" id="loginErr"></div>
@@ -687,6 +737,7 @@
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <h3 style="margin:0">Cargas agendadas para envio <span id="aeCount" class="pill"></span></h3>
             <button class="ghost" id="aeViewToggle" data-view="calendario" style="font-size:12px">📋 Ver tabela</button>
+            <button class="ghost" id="aeCalPrint" data-icon="print" style="font-size:12px" title="Imprime o quadro em formato de calend&aacute;rio, um m&ecirc;s por folha">Imprimir calend&aacute;rio</button>
           </div>
           <div id="aeViewTabela" style="display:none">
             <div class="pad toolbar">
@@ -723,6 +774,7 @@
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <h3 style="margin:0">Recebimentos agendados <span id="arCount" class="pill"></span></h3>
             <button class="ghost" id="arViewToggle" data-view="calendario" style="font-size:12px">📋 Ver tabela</button>
+            <button class="ghost" id="arCalPrint" data-icon="print" style="font-size:12px" title="Imprime o quadro em formato de calend&aacute;rio, um m&ecirc;s por folha">Imprimir calend&aacute;rio</button>
           </div>
           <div id="arViewTabela" style="display:none">
             <div class="pad toolbar">
@@ -1277,7 +1329,7 @@ async function homeCarregar(){
   // tabelas podem não existir ainda (SQL não rodado) — o erro é tolerado e o card fica vazio
   const [esc,inv,eq]=await Promise.all([
     busca('escalas','data_saida,linhas','data_saida'),
-    busca('inventarios','fornecedor,data_inventario,produtos','data_inventario'),
+    busca('inventarios','fornecedor,data_inventario,valor_estoque,produtos','data_inventario'),
     busca('equipe_status','nome,tipo,status',null),
   ]);
   HOME.escalas=esc.data||[]; HOME.inv=inv.data||[]; HOME.equipe=eq.data||[];
@@ -2770,6 +2822,119 @@ function agPrint(tipo){
   esDoPrint(agPrintHtml(tipo,lista));
 }
 
+// ---- impressão do quadro como CALENDÁRIO ----
+// O ponto sensível são os dias com mais de um descarrego. A célula lista TODOS
+// os itens (nada de "+2") e a fonte do mês acompanha o dia mais cheio. Quando
+// nem assim o mês cabe numa A4 deitada de forma legível, ele é dividido em mais
+// de uma folha (por semanas) — encolher mais deixaria a folha ilegível.
+// `folhas` = {'2026-08':2} força um mês a sair em N folhas.
+function agCalPrintHtml(tipo,lista,folhas){
+  folhas=folhas||{};
+  const hoje=agHojeISO();
+  const porDia={};
+  lista.forEach(r=>{(porDia[r.data]=porDia[r.data]||[]).push(r);});
+  // dentro do dia: pendentes primeiro (igual à tabela), depois por hora e por nome
+  const nomeDe=r=>tipo==='enviar'?(r.cliente||''):(r.fornecedor||'');
+  Object.values(porDia).forEach(a=>a.sort((x,y)=>
+    (AG_DONE[tipo].includes(x.status)?1:0)-(AG_DONE[tipo].includes(y.status)?1:0)
+    ||String(x.hora||'').localeCompare(String(y.hora||''))
+    ||low(nomeDe(x)).localeCompare(low(nomeDe(y)))));
+
+  const itemHtml=r=>{
+    const cls='it s'+String(r.status||'Agendado').replace(/\s+/g,'');
+    if(tipo==='enviar')
+      return `<div class="${cls}"><b>${esc(r.cliente||'—')}</b>${r.rota?`<span>${esc(r.rota)}</span>`:''}</div>`;
+    return `<div class="${cls}"><b>${r.hora?esc(r.hora)+' · ':''}${esc(r.fornecedor||'—')}</b>${r.volumes?`<span>${esc(r.volumes)}</span>`:''}</div>`;
+  };
+
+  const meses=[...new Set(lista.map(r=>String(r.data).slice(0,7)))].sort();
+  const paginas=meses.map(mes=>{
+    const [Y,M]=mes.split('-').map(Number);
+    const primeiro=new Date(Y,M-1,1).getDay(), nd=new Date(Y,M,0).getDate();
+    const diaISO=d=>`${Y}-${String(M).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+
+    const doMes=lista.filter(r=>String(r.data).slice(0,7)===mes);
+    const pend=doMes.filter(r=>!AG_DONE[tipo].includes(r.status)).length;
+    const diasOcup=[...new Set(doMes.map(r=>r.data))].length;
+    // dia mais cheio do mês — define a densidade da folha
+    let pico=0; for(let d=1;d<=nd;d++) pico=Math.max(pico,(porDia[diaISO(d)]||[]).length);
+    // piso de 7px: abaixo disso não se lê no papel — se não couber, o mês ganha outra folha
+    const fs=pico<=2?9:pico<=4?8:pico<=6?7.5:7;
+    const alt=pico<=2?84:pico<=4?92:98;
+
+    const cels=[];
+    for(let i=0;i<primeiro;i++) cels.push('<td class="fora"></td>');
+    for(let d=1;d<=nd;d++){
+      const iso=diaISO(d), ags=porDia[iso]||[];
+      const cls=iso===hoje?' class="hoje"':'';
+      cels.push(`<td${cls} style="height:${alt}px">
+        <div class="dnum"><span>${d}</span>${ags.length>1?`<span class="qt">${ags.length}</span>`:''}</div>
+        ${ags.length?`<div class="itens" style="font-size:${fs}px">${ags.map(itemHtml).join('')}</div>`:''}
+      </td>`);
+    }
+    while(cels.length%7) cels.push('<td class="fora"></td>');
+
+    // agrupa em semanas e reparte nas folhas pedidas para este mês
+    const semanas=[]; for(let i=0;i<cels.length;i+=7) semanas.push('<tr>'+cels.slice(i,i+7).join('')+'</tr>');
+    const nf=Math.max(1,folhas[mes]||1), porFolha=Math.ceil(semanas.length/nf);
+    const grupos=[]; for(let i=0;i<semanas.length;i+=porFolha) grupos.push(semanas.slice(i,i+porFolha));
+    const nomeMes=new Date(Y,M-1,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
+
+    // o cabeçalho vai DENTRO de cada folha: assim toda página impressa se identifica sozinha
+    return grupos.map((linhas,gi)=>`<section class="mespage" data-mes="${mes}" data-fs="${fs}">
+      <div class="ph">
+        <img src="${LOGOS[SESSION.unidade]||LOGOS['Dilnor']}" alt="">
+        <div class="tt"><small>Sistema de Gestão Logística · ${esc(SESSION.unidade||'')}</small>
+          <h2>${tipo==='enviar'?'🚚 Calendário — Cargas a Enviar':'📦 Calendário — Recebimentos'}</h2></div>
+        <div class="pd">Gerado em<b>${new Date().toLocaleString('pt-BR')}</b>${esc(SESSION.unidade||'')}</div>
+      </div>
+      <div class="mestit"><h3>${nomeMes.charAt(0).toUpperCase()+nomeMes.slice(1)}</h3>
+        <small>${doMes.length} agendamento(s) · ${pend} pendente(s) · ${diasOcup} dia(s) com movimento${pico>1?` · até ${pico} no mesmo dia`:''}${grupos.length>1?` · folha ${gi+1} de ${grupos.length}`:''}</small></div>
+      <table class="cal"><thead><tr>
+        <th>Domingo</th><th>Segunda</th><th>Terça</th><th>Quarta</th><th>Quinta</th><th>Sexta</th><th>Sábado</th>
+      </tr></thead><tbody>${linhas}</tbody></table>
+      <div class="leg">
+        <span><i style="background:#155ba0"></i>Agendado</span>
+        ${tipo==='enviar'?'<span><i style="background:#9a6200"></i>Montado</span>':''}
+        <span><i style="background:#1e7d43"></i>${tipo==='enviar'?'Enviado':'Recebido'}</span>
+        <span><i style="background:#b3261e"></i>Cancelado</span>
+        <span><i style="background:#ffc400"></i>Hoje</span>
+      </div>
+    </section>`).join('');
+  }).join('');
+
+  return `<div class="agprint agcal" data-print-pages="true">${paginas}</div>`;
+}
+// altura útil aproximada de uma A4 deitada, medindo na largura de 1062px
+const AG_CAL_ALTURA_FOLHA=700;
+const AG_CAL_FONTE_MIN=6; // abaixo disso não dá para ler no papel
+function agPrintCalendario(tipo){
+  const lista=agLista(tipo);
+  if(!lista.length){agMsg(tipo,'Nada para imprimir no período selecionado.');return;}
+  agMsg(tipo,'');
+  const el=document.getElementById('printEscala');
+
+  // mede fora da tela, na mesma largura que a folha terá
+  const montar=folhas=>{
+    el.innerHTML=agCalPrintHtml(tipo,lista,folhas);
+    el.style.cssText='display:block;position:absolute;left:-9999px;top:0;width:1062px';
+    return [...el.querySelectorAll('.mespage')].map(p=>({
+      p, mes:p.dataset.mes, fs:parseFloat(p.dataset.fs)||8, altura:p.scrollHeight}));
+  };
+  const escalaDe=h=>h>AG_CAL_ALTURA_FOLHA?AG_CAL_ALTURA_FOLHA/h:1;
+
+  let folhas_=[...montar({})];
+  // mês que só caberia com a fonte ilegível sai em duas folhas, em vez de encolher
+  const extra={};
+  folhas_.forEach(x=>{ if(x.fs*escalaDe(x.altura)<AG_CAL_FONTE_MIN) extra[x.mes]=2; });
+  if(Object.keys(extra).length) folhas_=montar(extra);
+
+  folhas_.forEach(x=>{ x.p.style.zoom=Math.max(.5,escalaDe(x.altura)); });
+  el.style.cssText='';
+  el.style.zoom=1;
+  setTimeout(()=>window.print(),80);
+}
+
 // ====== CALENDÁRIO DE AGENDAMENTOS ======
 function agGetCalendarMonth(tipo){
   const input=document.getElementById('agCalMes_'+tipo); // um seletor por sub-aba (os dois calendários coexistem no DOM)
@@ -2863,9 +3028,10 @@ function agEnter(){
 let IV_ROWS=[], IV_FORN='', IV_LANC='', IV_PEND=null, ivEntrou=false, ivLiberado=false;
 // senha de acesso à aba (gestão do depósito) — a mesma que a equipe já usa em Cargas a Receber
 const IV_SENHA_ACESSO={'Dilnor':'1609'};
-// senha do gerente para aprovar/assinar. TROQUE o valor abaixo antes de usar:
-// enquanto estiver no placeholder, o sistema recusa aprovar (falha fechado, de propósito).
-const IV_SENHA_APROVACAO={'Dilnor':'TROQUE-ME'};
+// senha do gerente para aprovar/assinar (fica no front, como as demais senhas do sistema:
+// protege contra uso casual, não é proteção criptográfica).
+// Com o valor 'TROQUE-ME' o sistema recusa aprovar, de propósito.
+const IV_SENHA_APROVACAO={'Dilnor':'79513'};
 const IV_GERENTE={'Dilnor':'Regigledson'};
 function ivExigeAcesso(){
   const s=IV_SENHA_ACESSO[SESSION.unidade];
@@ -3224,7 +3390,37 @@ function ivEscala(min,max,divisoes){
     const n=bruto/exp; return (n<=1?1:n<=2?2:n<=5?5:10)*exp; })();
   return {lo:Math.floor(min/passo)*passo, hi:Math.ceil(max/passo)*passo, passo};
 }
-function ivChartBarras(el,dados,fmt,fmtEixo){
+// bolha de leitura: o valor não fica escrito sobre o gráfico (com vários inventários
+// os rótulos se sobrepunham) — aparece ao passar o mouse, e o alvo se destaca
+function ivChartHover(el){
+  const box=el.querySelector('.ivchart'); if(!box) return;
+  const svg=box.querySelector('svg'), tip=box.querySelector('.ivtip');
+  if(!svg||!tip) return;
+  const W=+svg.dataset.w||900, guia=svg.querySelector('.guia');
+  const limpar=()=>{ box.classList.remove('ativo'); tip.classList.remove('on');
+    svg.querySelectorAll('.on').forEach(n=>n.classList.remove('on')); };
+  svg.querySelectorAll('.hit').forEach(h=>{
+    h.addEventListener('mouseenter',()=>{
+      limpar(); box.classList.add('ativo');
+      const alvo=svg.querySelector(`.bar[data-i="${h.dataset.i}"],.dot[data-i="${h.dataset.i}"]`);
+      if(alvo) alvo.classList.add('on');
+      if(guia){ guia.setAttribute('x1',h.dataset.x); guia.setAttribute('x2',h.dataset.x); guia.classList.add('on'); }
+      tip.innerHTML=`<span class="t">${h.dataset.lab}</span><b class="${h.dataset.cls||''}">${h.dataset.val}</b>`;
+      // converte a coordenada do desenho para pixel na tela (o SVG escala com a largura)
+      const sr=svg.getBoundingClientRect(), br=box.getBoundingClientRect(), k=sr.width/W;
+      tip.style.left=((sr.left-br.left)+(+h.dataset.x)*k)+'px';
+      tip.style.top =((sr.top -br.top )+(+h.dataset.y)*k)+'px';
+      tip.classList.add('on');
+    });
+  });
+  box.addEventListener('mouseleave',limpar);
+}
+// faixa embaixo do gráfico com o que a curva não conta (total, extremos, tendência)
+function ivChartLegenda(itens){
+  return `<div class="ivlegenda">${itens.filter(Boolean).map(i=>
+    `<span><small>${i.k}</small><b class="${i.cls||''}">${i.v}</b></span>`).join('')}</div>`;
+}
+function ivChartBarras(el,dados,fmt,fmtEixo,legenda){
   if(!dados.length){ el.innerHTML='<div class="muted">Sem inventários no período.</div>'; return; }
   const W=900,H=310,pl=88,pr=18,pt=30,pb=52, iw=W-pl-pr, ih=H-pt-pb;
   const vals=dados.map(d=>d.value);
@@ -3240,15 +3436,21 @@ function ivChartBarras(el,dados,fmt,fmtEixo){
   }
   const barras=dados.map((d,i)=>{
     const cx=pl+step*i+step/2, v=d.value, yy=v>=0?y(v):y0, h=Math.max(2,Math.abs(y(v)-y0));
-    const cor=v>=0?'#1e7d43':'#b3261e';
     const rot=(i%pular===0)?`<text class="lbl" x="${cx.toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`:'';
-    const val=dados.length<=12?`<text class="vl" x="${cx.toFixed(1)}" y="${(v>=0?yy-8:yy+h+17).toFixed(1)}" text-anchor="middle" fill="${cor}">${fmt(v)}</text>`:'';
-    return `<rect x="${(cx-bw/2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${cor}"><title>${esc(d.label)}: ${fmt(v)}</title></rect>${val}${rot}`;
+    return `<rect class="bar" data-i="${i}" x="${(cx-bw/2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${v>=0?'#1e7d43':'#b3261e'}"/>${rot}`;
   }).join('');
-  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">${grade}${barras}</svg></div>`;
+  const alvos=dados.map((d,i)=>{
+    const cx=pl+step*i+step/2, v=d.value;
+    return `<rect class="hit" data-i="${i}" x="${(pl+step*i).toFixed(1)}" y="${pt}" width="${step.toFixed(1)}" height="${ih}"
+      data-x="${cx.toFixed(1)}" data-y="${(v>=0?y(v):y0).toFixed(1)}"
+      data-lab="${esc(d.label)}" data-val="${esc(fmt(v))}" data-cls="${v>=0?'pos':'neg'}"/>`;
+  }).join('');
+  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" data-w="${W}" role="img">${grade}${barras}${alvos}</svg>
+    <div class="ivtip"></div></div>${legenda||''}`;
+  ivChartHover(el);
 }
 // linha: tendência de um percentual ao longo dos inventários
-function ivChartLinha(el,dados){
+function ivChartLinha(el,dados,legenda){
   if(!dados.length){ el.innerHTML='<div class="muted">Sem inventários no período.</div>'; return; }
   const W=900,H=310,pl=74,pr=18,pt=30,pb=52, iw=W-pl-pr, ih=H-pt-pb;
   const vals=dados.map(d=>d.value);
@@ -3266,11 +3468,20 @@ function ivChartLinha(el,dados){
   const area=`<polygon fill="var(--accent2)" opacity=".10" points="${pl},${(pt+ih).toFixed(1)} ${dados.map((d,i)=>px(i).toFixed(1)+','+y(d.value).toFixed(1)).join(' ')} ${(W-pr)},${(pt+ih).toFixed(1)}"/>`;
   const pts=dados.map((d,i)=>`${px(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(' ');
   const bolas=dados.map((d,i)=>{
-    const val=dados.length<=12?`<text class="vl" x="${px(i).toFixed(1)}" y="${(y(d.value)-14).toFixed(1)}" text-anchor="middle">${d.value.toFixed(2).replace('.',',')}%</text>`:'';
     const rot=(i%pular===0)?`<text class="lbl" x="${px(i).toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`:'';
-    return `<circle class="dot" cx="${px(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="5"><title>${esc(d.label)}: ${d.value.toFixed(2)}%</title></circle>${val}${rot}`;}).join('');
-  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" role="img">${grade}${dados.length>1?area:''}
-    <polyline class="ln" points="${pts}"/>${bolas}</svg></div>`;
+    return `<circle class="dot" data-i="${i}" cx="${px(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="5"/>${rot}`;}).join('');
+  // faixas invisíveis de leitura: uma por ponto, cobrindo metade do vão de cada lado
+  const meia=dados.length>1?iw/(dados.length-1)/2:iw/2;
+  const alvos=dados.map((d,i)=>{
+    const x=px(i), x0=Math.max(pl,x-meia), x1=Math.min(W-pr,x+meia);
+    return `<rect class="hit" data-i="${i}" x="${x0.toFixed(1)}" y="${pt}" width="${(x1-x0).toFixed(1)}" height="${ih}"
+      data-x="${x.toFixed(1)}" data-y="${y(d.value).toFixed(1)}"
+      data-lab="${esc(d.label)}" data-val="${d.value.toFixed(2).replace('.',',')}%"/>`;
+  }).join('');
+  el.innerHTML=`<div class="ivchart"><svg viewBox="0 0 ${W} ${H}" data-w="${W}" role="img">${grade}${dados.length>1?area:''}
+    <line class="guia" y1="${pt}" y2="${pt+ih}"/>
+    <polyline class="ln" points="${pts}"/>${bolas}${alvos}</svg><div class="ivtip"></div></div>${legenda||''}`;
+  ivChartHover(el);
 }
 // ranking horizontal (fornecedores / produtos)
 function ivChartRank(el,dados,fmt,vazio){
@@ -3323,10 +3534,38 @@ function ivRenderComp(){
 
   const compacto=v=>{ const a=Math.abs(v);
     return (v<0?'-':'')+(a>=1000?(a/1000).toFixed(a>=10000?0:1).replace('.',',')+'k':a.toFixed(0)); };
+  // ---- divergência financeira: o gráfico mostra a forma, a faixa embaixo mostra os números
+  const dFin=linha.map(x=>({label:x.rot,value:x.t.fin}));
+  const somaFin=dFin.reduce((a,d)=>a+d.value,0);
+  const maior=dFin.reduce((m,d)=>!m||d.value>m.value?d:m,null);   // maior entrada
+  const menor=dFin.reduce((m,d)=>!m||d.value<m.value?d:m,null);   // maior saída
+  const sinal=v=>v<0?'neg':v>0?'pos':'';
   ivChartBarras(document.getElementById('icChartFin'),
-    linha.map(x=>({label:x.rot,value:x.t.fin})), v=>fmtBRL(v).replace('R$ ',''), compacto);
-  ivChartLinha(document.getElementById('icChartAcu'),
-    linha.map(x=>({label:x.rot,value:ivAcuracidade(x.t,x.l.valor_estoque)})).filter(d=>d.value!=null));
+    dFin, v=>fmtBRL(v).replace('R$ ',''), compacto,
+    dFin.length?ivChartLegenda([
+      {k:'Soma do período',v:fmtBRL(somaFin),cls:sinal(somaFin)},
+      {k:'Média por inventário',v:fmtBRL(somaFin/dFin.length),cls:sinal(somaFin)},
+      maior&&maior.value>0?{k:'Maior entrada · '+maior.label,v:fmtBRL(maior.value),cls:'pos'}:null,
+      menor&&menor.value<0?{k:'Maior saída · '+menor.label,v:fmtBRL(menor.value),cls:'neg'}:null,
+    ]):'');
+
+  // ---- acuracidade: média, extremos e para onde a curva está indo
+  const dAcu=linha.map(x=>({label:x.rot,value:ivAcuracidade(x.t,x.l.valor_estoque)})).filter(d=>d.value!=null);
+  let legAcu='';
+  if(dAcu.length){
+    const media=dAcu.reduce((a,d)=>a+d.value,0)/dAcu.length;
+    const melhor=dAcu.reduce((m,d)=>d.value>m.value?d:m,dAcu[0]);
+    const pior=dAcu.reduce((m,d)=>d.value<m.value?d:m,dAcu[0]);
+    const varia=dAcu.length>1?dAcu[dAcu.length-1].value-dAcu[0].value:null;
+    legAcu=ivChartLegenda([
+      {k:'Média do período',v:ivFmtAcu(media)},
+      {k:'Melhor · '+melhor.label,v:ivFmtAcu(melhor.value),cls:'pos'},
+      {k:'Pior · '+pior.label,v:ivFmtAcu(pior.value),cls:'neg'},
+      varia==null?null:{k:'Do 1º ao último',
+        v:(varia>=0?'▲ +':'▼ ')+varia.toFixed(2).replace('.',',')+' p.p.',cls:varia>=0?'pos':'neg'},
+    ]);
+  }
+  ivChartLinha(document.getElementById('icChartAcu'), dAcu, legAcu);
 
   // ranking de fornecedores: último inventário de cada um dentro do período
   const porForn={};
@@ -3823,6 +4062,8 @@ document.getElementById('arIni').onchange=()=>renderAgTable('receber');
 document.getElementById('arFim').onchange=()=>renderAgTable('receber');
 document.getElementById('aePrint').onclick=()=>agPrint('enviar');
 document.getElementById('arPrint').onclick=()=>agPrint('receber');
+document.getElementById('aeCalPrint').onclick=()=>agPrintCalendario('enviar');
+document.getElementById('arCalPrint').onclick=()=>agPrintCalendario('receber');
 ['aeTbl','arTbl'].forEach(id=>document.getElementById(id).addEventListener('click',e=>{
   const st=e.target.closest('.agst'), ed=e.target.closest('.agedit'), del=e.target.closest('.agdel');
   if(st) agStatus(st.dataset.id,st.dataset.tipo);
