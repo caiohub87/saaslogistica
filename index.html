@@ -737,7 +737,8 @@
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <h3 style="margin:0">Cargas agendadas para envio <span id="aeCount" class="pill"></span></h3>
             <button class="ghost" id="aeViewToggle" data-view="calendario" style="font-size:12px">📋 Ver tabela</button>
-            <button class="ghost" id="aeCalPrint" data-icon="print" style="font-size:12px" title="Imprime o quadro em formato de calend&aacute;rio, um m&ecirc;s por folha">Imprimir calend&aacute;rio</button>
+            <select id="aeCalMes" style="font-size:12px;padding:6px 9px" title="M&ecirc;s que vai para a impress&atilde;o"></select>
+            <button class="ghost" id="aeCalPrint" data-icon="print" style="font-size:12px" title="Imprime o m&ecirc;s escolhido em formato de calend&aacute;rio">Imprimir calend&aacute;rio</button>
           </div>
           <div id="aeViewTabela" style="display:none">
             <div class="pad toolbar">
@@ -774,7 +775,8 @@
           <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
             <h3 style="margin:0">Recebimentos agendados <span id="arCount" class="pill"></span></h3>
             <button class="ghost" id="arViewToggle" data-view="calendario" style="font-size:12px">📋 Ver tabela</button>
-            <button class="ghost" id="arCalPrint" data-icon="print" style="font-size:12px" title="Imprime o quadro em formato de calend&aacute;rio, um m&ecirc;s por folha">Imprimir calend&aacute;rio</button>
+            <select id="arCalMes" style="font-size:12px;padding:6px 9px" title="M&ecirc;s que vai para a impress&atilde;o"></select>
+            <button class="ghost" id="arCalPrint" data-icon="print" style="font-size:12px" title="Imprime o m&ecirc;s escolhido em formato de calend&aacute;rio">Imprimir calend&aacute;rio</button>
           </div>
           <div id="arViewTabela" style="display:none">
             <div class="pad toolbar">
@@ -2780,6 +2782,7 @@ function renderHomeAgs(){
 }
 function agRenderAll(){
   renderAgTable('enviar'); renderAgTable('receber'); renderHomeAgs();
+  agCalMesesFill('enviar'); agCalMesesFill('receber'); // meses disponíveis p/ imprimir
   if(document.getElementById('aeViewCalendar').style.display!=='none') agRenderCalendar('enviar');
   if(document.getElementById('arViewCalendar').style.display!=='none') agRenderCalendar('receber');
 }
@@ -2908,8 +2911,34 @@ function agCalPrintHtml(tipo,lista,folhas){
 // altura útil aproximada de uma A4 deitada, medindo na largura de 1062px
 const AG_CAL_ALTURA_FOLHA=700;
 const AG_CAL_FONTE_MIN=6; // abaixo disso não dá para ler no papel
+const AG_CAL_MES_ID={enviar:'aeCalMes',receber:'arCalMes'};
+// o seletor lista só os meses que têm agendamento — não adianta oferecer mês vazio
+function agCalMesesFill(tipo){
+  const sel=document.getElementById(AG_CAL_MES_ID[tipo]); if(!sel) return;
+  const escolhido=sel.value;
+  const meses=[...new Set(agLista(tipo).map(r=>String(r.data).slice(0,7)))].sort();
+  const nomeMes=m=>{ const [Y,M]=m.split('-').map(Number);
+    const s=new Date(Y,M-1,1).toLocaleString('pt-BR',{month:'long',year:'numeric'});
+    return s.charAt(0).toUpperCase()+s.slice(1); };
+  sel.innerHTML=meses.map(m=>`<option value="${m}">${nomeMes(m)}</option>`).join('')
+    +(meses.length>1?'<option value="__todos">Todos os meses</option>':'');
+  sel.disabled=!meses.length;
+  if(!meses.length){ sel.innerHTML='<option value="">sem agendamentos</option>'; return; }
+  // mantém o que já estava escolhido, desde que a opção ainda exista;
+  // senão abre no mês de hoje; senão no primeiro da lista
+  const hojeMes=agHojeISO().slice(0,7);
+  const validos=meses.length>1?[...meses,'__todos']:meses;
+  sel.value=validos.includes(escolhido)?escolhido
+    :(meses.includes(hojeMes)?hojeMes:meses[0]);
+}
 function agPrintCalendario(tipo){
-  const lista=agLista(tipo);
+  let lista=agLista(tipo);
+  const sel=document.getElementById(AG_CAL_MES_ID[tipo]);
+  const mes=sel?sel.value:'__todos';
+  if(mes&&mes!=='__todos'){
+    lista=lista.filter(r=>String(r.data).slice(0,7)===mes);
+    if(!lista.length){agMsg(tipo,'Nenhum agendamento no mês escolhido.');return;}
+  }
   if(!lista.length){agMsg(tipo,'Nada para imprimir no período selecionado.');return;}
   agMsg(tipo,'');
   const el=document.getElementById('printEscala');
@@ -4052,14 +4081,16 @@ document.getElementById('aeAdd').onclick=()=>agSalvar('enviar');
 document.getElementById('arAdd').onclick=()=>agSalvar('receber');
 document.getElementById('aeCancel').onclick=()=>{agFormClear('enviar');agMsg('enviar','');};
 document.getElementById('arCancel').onclick=()=>{agFormClear('receber');agMsg('receber','');};
-document.getElementById('aeBusca').oninput=()=>renderAgTable('enviar');
-document.getElementById('arBusca').oninput=()=>renderAgTable('receber');
-document.getElementById('aeConcl').onchange=()=>renderAgTable('enviar');
-document.getElementById('arConcl').onchange=()=>renderAgTable('receber');
-document.getElementById('aeIni').onchange=()=>renderAgTable('enviar');
-document.getElementById('aeFim').onchange=()=>renderAgTable('enviar');
-document.getElementById('arIni').onchange=()=>renderAgTable('receber');
-document.getElementById('arFim').onchange=()=>renderAgTable('receber');
+// filtrar muda a lista — a tabela e os meses da impressão andam juntos
+const agRefiltra=tipo=>{ renderAgTable(tipo); agCalMesesFill(tipo); };
+document.getElementById('aeBusca').oninput=()=>agRefiltra('enviar');
+document.getElementById('arBusca').oninput=()=>agRefiltra('receber');
+document.getElementById('aeConcl').onchange=()=>agRefiltra('enviar');
+document.getElementById('arConcl').onchange=()=>agRefiltra('receber');
+document.getElementById('aeIni').onchange=()=>agRefiltra('enviar');
+document.getElementById('aeFim').onchange=()=>agRefiltra('enviar');
+document.getElementById('arIni').onchange=()=>agRefiltra('receber');
+document.getElementById('arFim').onchange=()=>agRefiltra('receber');
 document.getElementById('aePrint').onclick=()=>agPrint('enviar');
 document.getElementById('arPrint').onclick=()=>agPrint('receber');
 document.getElementById('aeCalPrint').onclick=()=>agPrintCalendario('enviar');
