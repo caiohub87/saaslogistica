@@ -3444,6 +3444,12 @@ function ivChartHover(el){
   });
   box.addEventListener('mouseleave',limpar);
 }
+// quantos rótulos pular no eixo X para eles não se encavalarem: leva em conta a
+// largura real do texto (fonte de 13px ≈ 7px por caractere), nao a contagem de itens
+function ivPularRotulos(dados,espacoPorItem){
+  const chars=Math.max(...dados.map(d=>String(d.eixo||d.label||'').length),1);
+  return Math.max(1,Math.ceil((chars*7+12)/Math.max(espacoPorItem,1)));
+}
 // faixa embaixo do gráfico com o que a curva não conta (total, extremos, tendência)
 function ivChartLegenda(itens){
   return `<div class="ivlegenda">${itens.filter(Boolean).map(i=>
@@ -3456,7 +3462,7 @@ function ivChartBarras(el,dados,fmt,fmtEixo,legenda){
   const e=ivEscala(Math.min(0,...vals),Math.max(0,...vals),4);
   const y=v=>pt+ih-((v-e.lo)/((e.hi-e.lo)||1)*ih), y0=y(0);
   const step=iw/dados.length, bw=Math.min(64,step*0.58);
-  const pular=Math.ceil(dados.length/14); // com muitos inventários, mostra 1 rótulo a cada N
+  const pular=ivPularRotulos(dados,step);
   let grade='';
   for(let v=e.lo;v<=e.hi+1e-9;v+=e.passo){
     const yy=y(v);
@@ -3465,7 +3471,7 @@ function ivChartBarras(el,dados,fmt,fmtEixo,legenda){
   }
   const barras=dados.map((d,i)=>{
     const cx=pl+step*i+step/2, v=d.value, yy=v>=0?y(v):y0, h=Math.max(2,Math.abs(y(v)-y0));
-    const rot=(i%pular===0)?`<text class="lbl" x="${cx.toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`:'';
+    const rot=(i%pular===0)?`<text class="lbl" x="${cx.toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.eixo||d.label)}</text>`:'';
     return `<rect class="bar" data-i="${i}" x="${(cx-bw/2).toFixed(1)}" y="${yy.toFixed(1)}" width="${bw.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${v>=0?'#1e7d43':'#b3261e'}"/>${rot}`;
   }).join('');
   const alvos=dados.map((d,i)=>{
@@ -3490,14 +3496,14 @@ function ivChartLinha(el,dados,legenda){
   if(hi-lo<1){ lo=Math.max(0,lo-0.5); hi=Math.min(100,hi+0.5); }
   const y=v=>pt+ih-((v-lo)/((hi-lo)||1)*ih);
   const px=i=>dados.length===1?pl+iw/2:pl+iw/(dados.length-1)*i;
-  const pular=Math.ceil(dados.length/14);
+  const pular=ivPularRotulos(dados,dados.length>1?iw/(dados.length-1):iw);
   const grade=[0,.25,.5,.75,1].map(f=>{ const v=lo+(hi-lo)*f, yy=y(v);
     return `<line class="gl" x1="${pl}" y1="${yy.toFixed(1)}" x2="${W-pr}" y2="${yy.toFixed(1)}"/>
       <text class="ax" x="${pl-9}" y="${(yy+4.5).toFixed(1)}" text-anchor="end">${v.toFixed(1).replace('.',',')}%</text>`; }).join('');
   const area=`<polygon fill="var(--accent2)" opacity=".10" points="${pl},${(pt+ih).toFixed(1)} ${dados.map((d,i)=>px(i).toFixed(1)+','+y(d.value).toFixed(1)).join(' ')} ${(W-pr)},${(pt+ih).toFixed(1)}"/>`;
   const pts=dados.map((d,i)=>`${px(i).toFixed(1)},${y(d.value).toFixed(1)}`).join(' ');
   const bolas=dados.map((d,i)=>{
-    const rot=(i%pular===0)?`<text class="lbl" x="${px(i).toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.label)}</text>`:'';
+    const rot=(i%pular===0)?`<text class="lbl" x="${px(i).toFixed(1)}" y="${(H-16).toFixed(1)}" text-anchor="middle">${esc(d.eixo||d.label)}</text>`:'';
     return `<circle class="dot" data-i="${i}" cx="${px(i).toFixed(1)}" cy="${y(d.value).toFixed(1)}" r="5"/>${rot}`;}).join('');
   // faixas invisíveis de leitura: uma por ponto, cobrindo metade do vão de cada lado
   const meia=dados.length>1?iw/(dados.length-1)/2:iw/2;
@@ -3539,8 +3545,11 @@ function ivRenderComp(){
   ivCompForn();
   const lancs=ivCompPeriodo().slice().sort((a,b)=>a.data_inventario<b.data_inventario?-1:1);
   const umForn=document.getElementById('icForn').value!=='__todos';
+  // rot = rótulo cheio, usado na bolha do hover · eixo = versão curta, para o eixo X
+  // (o fornecedor sairia sobreposto ali; quem quiser sabe passando o mouse)
   const linha=lancs.map(l=>{ const t=ivTotais(l.produtos||[]);
-    return {l,t,rot:deFmtData(l.data_inventario).slice(0,5)+(umForn?'':' '+l.fornecedor.slice(0,7))}; });
+    return {l,t,eixo:deFmtData(l.data_inventario).slice(0,5),
+      rot:deFmtData(l.data_inventario).slice(0,5)+(umForn?'':' '+l.fornecedor)}; });
 
   // KPIs: totalizadores do PERÍODO filtrado (o último inventário já se vê na tabela abaixo)
   const tg=ivTotalGerencia(ivLinhasGerencia(lancs));
@@ -3564,7 +3573,7 @@ function ivRenderComp(){
   const compacto=v=>{ const a=Math.abs(v);
     return (v<0?'-':'')+(a>=1000?(a/1000).toFixed(a>=10000?0:1).replace('.',',')+'k':a.toFixed(0)); };
   // ---- divergência financeira: o gráfico mostra a forma, a faixa embaixo mostra os números
-  const dFin=linha.map(x=>({label:x.rot,value:x.t.fin}));
+  const dFin=linha.map(x=>({label:x.rot,eixo:x.eixo,value:x.t.fin}));
   const somaFin=dFin.reduce((a,d)=>a+d.value,0);
   const maior=dFin.reduce((m,d)=>!m||d.value>m.value?d:m,null);   // maior entrada
   const menor=dFin.reduce((m,d)=>!m||d.value<m.value?d:m,null);   // maior saída
@@ -3579,7 +3588,7 @@ function ivRenderComp(){
     ]):'');
 
   // ---- acuracidade: média, extremos e para onde a curva está indo
-  const dAcu=linha.map(x=>({label:x.rot,value:ivAcuracidade(x.t,x.l.valor_estoque)})).filter(d=>d.value!=null);
+  const dAcu=linha.map(x=>({label:x.rot,eixo:x.eixo,value:ivAcuracidade(x.t,x.l.valor_estoque)})).filter(d=>d.value!=null);
   let legAcu='';
   if(dAcu.length){
     const media=dAcu.reduce((a,d)=>a+d.value,0)/dAcu.length;
