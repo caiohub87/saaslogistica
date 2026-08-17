@@ -1,0 +1,111 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   Tema — cores da marca Dilnor (azul marinho + dourado do logo)
+   ============================================================ */
+@theme {
+  --color-marinho-50:  #eef3fa;
+  --color-marinho-100: #d6e3f3;
+  --color-marinho-200: #adc6e6;
+  --color-marinho-300: #7ba3d5;
+  --color-marinho-400: #4b7cbe;
+  --color-marinho-500: #2b5c9e;
+  --color-marinho-600: #1d4680;
+  --color-marinho-700: #163665;
+  --color-marinho-800: #14315b;
+  --color-marinho-900: #0f2444;
+  --color-marinho-950: #0a1830;
+
+  --color-ouro-50:  #fffaeb;
+  --color-ouro-100: #fef0c7;
+  --color-ouro-200: #fde08a;
+  --color-ouro-300: #fcca4d;
+  --color-ouro-400: #fbb424;
+  --color-ouro-500: #f59e0b;
+  --color-ouro-600: #d97706;
+  --color-ouro-700: #b45309;
+
+  /* estados — usados em faixas de produtividade e status */
+  --color-ok-500:    #0e9e5e;
+  --color-ok-600:    #0a7d4a;
+  --color-alerta-500:#dd9500;
+  --color-erro-500:  #d6252e;
+  --color-erro-600:  #b01d25;
+  --color-info-500:  #2779bd;
+
+  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+
+  --radius-xl2: 1rem;
+  --shadow-suave: 0 1px 2px rgb(15 45 80 / 0.06), 0 8px 24px rgb(15 45 80 / 0.08);
+  --shadow-suave-lg: 0 2px 4px rgb(15 45 80 / 0.08), 0 16px 40px rgb(15 45 80 / 0.14);
+}
+
+/* ============================================================
+   Modo claro / escuro — a classe .escuro vai no <html>
+   ============================================================ */
+:root {
+  --fundo: #eef2f8;
+  --painel: #ffffff;
+  --painel-2: #f4f7fb;
+  --borda: rgb(15 45 80 / 0.13);
+  --texto: #132c4c;
+  --texto-fraco: #5d7089;
+}
+.escuro {
+  --fundo: #0a1526;
+  --painel: #111e33;
+  --painel-2: #17263d;
+  --borda: rgb(160 180 205 / 0.20);
+  --texto: #edf5ff;
+  --texto-fraco: #9fb1c8;
+}
+
+/* ---------------------------------------------------------------- movimento
+ * Animações discretas, só de `opacity` e `transform` — as duas propriedades que
+ * o navegador compõe sem recalcular layout. Nada de `transition-all`, que o faz
+ * vigiar todas as propriedades e provoca reflow.
+ *
+ * Todas são aplicadas com o prefixo `motion-safe:`, e o bloco de
+ * prefers-reduced-motion mais abaixo zera o que escapar.
+ */
+@theme {
+  --animate-entrada: entrada .32s cubic-bezier(.22,.61,.36,1) both;
+  --animate-surgir: surgir .18s ease-out both;
+  --animate-abrir: abrir .16s cubic-bezier(.22,.61,.36,1) both;
+  --animate-subir: subir .3s cubic-bezier(.22,.61,.36,1) both;
+}
+@keyframes entrada { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes surgir  { from { opacity: 0; } to { opacity: 1; } }
+@keyframes abrir   { from { opacity: 0; transform: translateY(-6px) scale(.98); } to { opacity: 1; transform: none; } }
+@keyframes subir   { from { opacity: 0; transform: translateY(16px) scale(.99); } to { opacity: 1; transform: none; } }
+
+@layer base {
+  html { -webkit-text-size-adjust: 100%; }
+  body {
+    background: var(--fundo);
+    color: var(--texto);
+    font-family: var(--font-sans);
+    font-size: 15px;
+  }
+  /* foco sempre visível — exigência de acessibilidade */
+  :focus-visible {
+    outline: 2px solid var(--color-marinho-500);
+    outline-offset: 2px;
+    border-radius: 6px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; }
+  }
+}
+
+@layer utilities {
+  .painel      { background: var(--painel); border: 1px solid var(--borda); }
+  .painel-2    { background: var(--painel-2); }
+  .borda       { border-color: var(--borda); }
+  .txt-fraco   { color: var(--texto-fraco); }
+  .sombra      { box-shadow: var(--shadow-suave); }
+  .sombra-lg   { box-shadow: var(--shadow-suave-lg); }
+  /* faixa rolável sem barra visível (menu no celular) */
+  .sem-barra { scrollbar-width: none; -ms-overflow-style: none; }
+  .sem-barra::-webkit-scrollbar { display: none; }
+}
