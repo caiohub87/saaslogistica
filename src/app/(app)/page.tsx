@@ -121,9 +121,13 @@ export default function InicioPage() {
           </Cartao>
         )}
 
+        {/* rota SEGUE a permissão real: quem só tem recebimentos (ex.: depósito) não
+            pode ser mandado para /agendamentos — cairia num bloqueio de acesso */}
         {(pode('agendamentos') || pode('recebimentos')) && (
           <Cartao
-            titulo="Agenda" rota="/agendamentos" Icone={CalendarClock}
+            titulo={pode('agendamentos') ? 'Cargas a Enviar' : 'Cargas a Receber'}
+            rota={pode('agendamentos') ? '/agendamentos' : '/recebimentos'}
+            Icone={CalendarClock}
             valor={String(pendentes)}
             nota="pendentes nos próximos 14 dias"
           >
