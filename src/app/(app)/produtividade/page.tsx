@@ -1,9 +1,9 @@
 'use client';
 
 import {
-  Clock, FileUp, Loader2, Save, Search, Target, Trash2, TriangleAlert, UserPlus, Users, X,
+  Check, Clock, FileUp, Loader2, Save, Search, Target, Trash2, TriangleAlert, UserPlus, Users, X,
 } from 'lucide-react';
-import { useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   CARGOS_AJU, CARGOS_MOT, configPadraoDaCarga, fmtKg, fmtPct, isAgregado,
@@ -17,6 +17,21 @@ import { cn } from '@/utils/cn';
 
 const fmtBRL = (n: number) =>
   'R$ ' + (+n || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+
+// data em horário local, sem passar por toISOString — que converte pra UTC e
+// pode voltar um dia (o Brasil está atrás de UTC, meia-noite local ainda é o
+// dia anterior lá)
+const fmtISOLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const hojeISOLocal = () => fmtISOLocal(new Date());
+/** segunda-feira da semana que contém essa data ISO */
+const segundaISO = (iso: string) => {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  dt.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
+  return fmtISOLocal(dt);
+};
+const NOME_DIA = ['Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta'];
 
 const COR_FAIXA: Record<string, string> = {
   green: 'bg-ok-500/15 text-ok-600',
@@ -42,6 +57,51 @@ export default function ProdutividadePage() {
   const [salvando, setSalvando] = useState(false);
   const [salvo, setSalvo] = useState<string | null>(null);
   const arquivo = useRef<HTMLInputElement>(null);
+
+  /**
+   * Semana de trabalho: o usuário escolhe a segunda-feira, e antes de salvar
+   * precisa dizer qual dos 5 dias está registrando — impede misturar cargas
+   * de dias diferentes numa mesma gravação. O período mostra quais dias já
+   * têm premiação salva, pra dar pra acompanhar o progresso da semana.
+   */
+  const [semanaBase, setSemanaBase] = useState(() => segundaISO(hojeISOLocal()));
+  const [diaSelecionado, setDiaSelecionado] = useState<string | null>(null);
+  const [diasSalvos, setDiasSalvos] = useState<Set<string>>(new Set());
+
+  const diasDaSemana = useMemo(() => {
+    const [y, m, d] = semanaBase.split('-').map(Number);
+    const seg = new Date(y, m - 1, d);
+    return Array.from({ length: 5 }, (_, i) => {
+      const dt = new Date(seg); dt.setDate(seg.getDate() + i);
+      return {
+        iso: fmtISOLocal(dt),
+        br: `${String(dt.getDate()).padStart(2, '0')}-${String(dt.getMonth() + 1).padStart(2, '0')}-${dt.getFullYear()}`,
+        nome: NOME_DIA[i],
+      };
+    });
+  }, [semanaBase]);
+  const diaAtivo = diasDaSemana.find((d) => d.iso === diaSelecionado) ?? null;
+
+  const buscarDiasSalvos = useCallback(async () => {
+    if (!usuario) return;
+    const brs = diasDaSemana.map((d) => d.br);
+    if (demo) {
+      const { premiacoesDemo } = await import('@/lib/demo');
+      const salvos = new Set(premiacoesDemo().map((p) => p.data_saida));
+      setDiasSalvos(new Set(diasDaSemana.filter((d) => salvos.has(d.br)).map((d) => d.iso)));
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) return;
+    const { data } = await sb.from('premiacoes').select('data_saida')
+      .eq('unidade', usuario.unidade).in('data_saida', brs);
+    const achados = new Set((data ?? []).map((r: { data_saida: string }) => r.data_saida));
+    setDiasSalvos(new Set(diasDaSemana.filter((d) => achados.has(d.br)).map((d) => d.iso)));
+  }, [demo, usuario, diasDaSemana]);
+
+  useEffect(() => { void buscarDiasSalvos(); }, [buscarDiasSalvos]);
+  // trocou de dia: a seleção antiga não faz mais sentido (era de outro filtro)
+  useEffect(() => { setSelecionadas(new Set()); }, [diaSelecionado]);
 
   /** Config de uma carga, criando a padrão na primeira vez que é tocada. */
   const conf = (c: Carga): ConfigCarga => confs[c.id] ?? configPadraoDaCarga(c);
@@ -80,11 +140,12 @@ export default function ProdutividadePage() {
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return cargas
+      .filter((c) => !diaAtivo || c.dataSaida === diaAtivo.br)
       .filter((c) => !faixaFiltro || c.faixa.k === faixaFiltro)
       .filter((c) => !q || [c.id, c.motorista, c.rota, ...c.ajudantes]
         .some((x) => (x ?? '').toLowerCase().includes(q)))
       .sort((a, b) => b.prodFinal - a.prodFinal);
-  }, [cargas, busca, faixaFiltro]);
+  }, [cargas, busca, faixaFiltro, diaAtivo]);
 
   const resumo = useMemo(() => {
     const n = cargas.length;
@@ -128,6 +189,7 @@ export default function ProdutividadePage() {
   async function salvarPremiacao() {
     if (!selecionadas.size) return;
     setErro(null); setSalvo(null);
+    if (!diaAtivo) { setErro('Selecione o dia da semana que você está registrando antes de salvar.'); return; }
     if (demo) { setErro('Modo de demonstração não grava no banco. Entre com seu login para salvar.'); return; }
     const sb = getSupabase();
     if (!sb) return;
@@ -176,8 +238,9 @@ export default function ProdutividadePage() {
             ? ' — falta a coluna equipe: rode o SQL 12_premiacao_auditoria.sql.' : ''));
       return;
     }
-    setSalvo(`${linhas.length} carga(s) salva(s). Veja em Premiações salvas.`);
+    setSalvo(`${linhas.length} carga(s) de ${diaAtivo.nome} salva(s). Veja em Premiações salvas.`);
     setSelecionadas(new Set());
+    await buscarDiasSalvos();
   }
 
   if (!pode('produtividade', 'ver')) {
@@ -244,6 +307,45 @@ export default function ProdutividadePage() {
         </div>
       ) : (
         <>
+          {/* ---------- semana e dia ---------- */}
+          <section className="painel sombra mb-4 rounded-2xl p-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <label className="text-[12.5px] font-semibold" htmlFor="semana">Semana de</label>
+              <input
+                id="semana" type="date" value={semanaBase}
+                onChange={(e) => { if (e.target.value) { setSemanaBase(segundaISO(e.target.value)); setDiaSelecionado(null); } }}
+                className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
+              />
+              <div className="flex flex-wrap gap-1.5">
+                {diasDaSemana.map((d) => {
+                  const salvo = diasSalvos.has(d.iso);
+                  const ativo = diaSelecionado === d.iso;
+                  return (
+                    <button
+                      key={d.iso} type="button"
+                      onClick={() => setDiaSelecionado(ativo ? null : d.iso)}
+                      aria-pressed={ativo}
+                      className={cn(
+                        'flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
+                        ativo ? 'border-marinho-500 bg-marinho-800 text-white'
+                          : salvo ? 'border-ok-500 bg-ok-500/10 text-ok-600' : 'borda txt-fraco hover:bg-marinho-50',
+                      )}
+                    >
+                      {salvo && <Check aria-hidden className="size-3.5" />}
+                      {d.nome} <span className="opacity-70">{d.br.slice(0, 5)}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="ml-auto text-[12px] txt-fraco">{diasSalvos.size} de 5 dia(s) já salvos</span>
+            </div>
+            <p className="mt-2 text-[12px] txt-fraco">
+              {diaAtivo
+                ? <>Mostrando só as cargas de <b>{diaAtivo.nome} ({diaAtivo.br})</b>.</>
+                : 'Selecione o dia da semana para filtrar e poder salvar.'}
+            </p>
+          </section>
+
           {/* ---------- resumo ---------- */}
           <div className="mb-4 grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
             <Caixa rotulo="Cargas" valor={String(resumo.n)} />
@@ -451,11 +553,12 @@ export default function ProdutividadePage() {
               <span className="ml-auto text-[16px] font-bold">{fmtBRL(totalSelecionado)}</span>
               {pode('produtividade', 'salvar') && (
                 <button
-                  type="button" onClick={() => void salvarPremiacao()} disabled={salvando}
+                  type="button" onClick={() => void salvarPremiacao()} disabled={salvando || !diaAtivo}
+                  title={!diaAtivo ? 'Selecione o dia da semana antes de salvar' : undefined}
                   className="flex items-center gap-2 rounded-xl bg-ouro-500 px-4 py-2 text-[13px] font-bold text-marinho-900 disabled:opacity-60"
                 >
                   {salvando ? <Loader2 aria-hidden className="size-4 animate-spin" /> : <Save aria-hidden className="size-4" />}
-                  {salvando ? 'Salvando…' : 'Salvar premiação'}
+                  {salvando ? 'Salvando…' : diaAtivo ? `Salvar premiação de ${diaAtivo.nome}` : 'Salvar premiação'}
                 </button>
               )}
             </div>
