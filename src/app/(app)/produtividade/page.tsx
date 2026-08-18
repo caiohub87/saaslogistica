@@ -100,8 +100,6 @@ export default function ProdutividadePage() {
   }, [demo, usuario, diasDaSemana]);
 
   useEffect(() => { void buscarDiasSalvos(); }, [buscarDiasSalvos]);
-  // trocou de dia: a seleção antiga não faz mais sentido (era de outro filtro)
-  useEffect(() => { setSelecionadas(new Set()); }, [diaSelecionado]);
 
   /** Config de uma carga, criando a padrão na primeira vez que é tocada. */
   const conf = (c: Carga): ConfigCarga => confs[c.id] ?? configPadraoDaCarga(c);
@@ -137,15 +135,17 @@ export default function ProdutividadePage() {
     return { ...x, pessoas };
   });
 
+  // o dia escolhido é o que vai SER GRAVADO, não um filtro do que aparece — a
+  // data do relatório raramente bate exata com o dia que a pessoa quer
+  // registrar, e filtrar por igualdade de data deixava a lista vazia
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return cargas
-      .filter((c) => !diaAtivo || c.dataSaida === diaAtivo.br)
       .filter((c) => !faixaFiltro || c.faixa.k === faixaFiltro)
       .filter((c) => !q || [c.id, c.motorista, c.rota, ...c.ajudantes]
         .some((x) => (x ?? '').toLowerCase().includes(q)))
       .sort((a, b) => b.prodFinal - a.prodFinal);
-  }, [cargas, busca, faixaFiltro, diaAtivo]);
+  }, [cargas, busca, faixaFiltro]);
 
   const resumo = useMemo(() => {
     const n = cargas.length;
@@ -195,6 +195,10 @@ export default function ProdutividadePage() {
     if (!sb) return;
     setSalvando(true);
 
+    // grava a data ESCOLHIDA, não a que veio no relatório — as duas raramente
+    // batem exatas, e é a escolhida que define em qual dia da semana a
+    // premiação entra
+    const dataEscolhida = diaAtivo.br;
     const linhas = [...selecionadas].map((id) => {
       const c = cargas.find((x) => x.id === id)!;
       const cf = conf(c);
@@ -208,7 +212,7 @@ export default function ProdutividadePage() {
       const ajus = equipe.filter((p) => p.tipo === 'aju');
       return {
         unidade: usuario!.unidade,
-        data_saida: c.dataSaida,
+        data_saida: dataEscolhida,
         carga: c.id,
         motorista: mot?.nome ?? null,
         aj1: ajus[0]?.nome ?? null,
@@ -341,8 +345,8 @@ export default function ProdutividadePage() {
             </div>
             <p className="mt-2 text-[12px] txt-fraco">
               {diaAtivo
-                ? <>Mostrando só as cargas de <b>{diaAtivo.nome} ({diaAtivo.br})</b>.</>
-                : 'Selecione o dia da semana para filtrar e poder salvar.'}
+                ? <>As cargas que você marcar serão salvas em <b>{diaAtivo.nome}, {diaAtivo.br}</b>.</>
+                : 'Escolha o dia em que a premiação será registrada.'}
             </p>
           </section>
 
