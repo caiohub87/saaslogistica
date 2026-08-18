@@ -12,6 +12,8 @@ import { useSessao } from '@/providers/SessionProvider';
 import type { Usuario } from '@/types/database';
 import { cn } from '@/utils/cn';
 
+interface Pendente { id: string; email: string; criado_em: string }
+
 /**
  * Usuários e acessos — só o administrador entra aqui.
  *
@@ -25,11 +27,14 @@ export default function UsuariosPage() {
   const podeEditar = pode('usuarios', 'editar');
 
   const [lista, setLista] = useState<Usuario[]>([]);
+  const [pendentes, setPendentes] = useState<Pendente[]>([]);
   const [permsPorUsuario, setPerms] = useState<Record<string, MapaPermissoes>>({});
   const [selecionado, setSelecionado] = useState<string | null>(null);
   const [rascunho, setRascunho] = useState<MapaPermissoes>({});
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
+  const [liberando, setLiberando] = useState<string | null>(null);
+  const [nomes, setNomes] = useState<Record<string, string>>({});
   const [msg, setMsg] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -38,12 +43,16 @@ export default function UsuariosPage() {
     if (!sb) { setErro('Banco não configurado.'); setCarregando(false); return; }
     setCarregando(true);
 
-    const [{ data: us, error: e1 }, { data: ps, error: e2 }] = await Promise.all([
+    const [{ data: us, error: e1 }, { data: ps, error: e2 }, { data: pend, error: e3 }] = await Promise.all([
       sb.from('usuarios').select('*').order('nome'),
       sb.from('usuario_permissoes').select('usuario_id,tela,acoes'),
+      sb.rpc('usuarios_pendentes'),
     ]);
 
     if (e1 || e2) { setErro((e1 ?? e2)!.message); setCarregando(false); return; }
+    // e3 (usuarios_pendentes) é opcional: se a função ainda não foi criada no
+    // banco (SQL 13 não rodado), a tela funciona igual, só sem a lista de pendentes
+    if (e3 && !/function.*does not exist/i.test(e3.message)) setErro(e3.message);
 
     const mapa: Record<string, MapaPermissoes> = {};
     (ps ?? []).forEach((p: { usuario_id: string; tela: string; acoes: Acao[] }) => {
@@ -51,6 +60,7 @@ export default function UsuariosPage() {
     });
 
     setLista((us ?? []) as Usuario[]);
+    setPendentes((pend ?? []) as Pendente[]);
     setPerms(mapa);
     setCarregando(false);
   }, []);
@@ -114,6 +124,22 @@ export default function UsuariosPage() {
     setMsg('Acessos salvos. A pessoa vê a mudança no próximo carregamento.');
   }
 
+  /** Cria a linha em `usuarios` para um login que já existe no Supabase Auth. */
+  async function liberar(p: Pendente) {
+    const nome = (nomes[p.id] ?? '').trim();
+    if (!nome) { setErro('Digite o nome antes de liberar.'); return; }
+    const sb = getSupabase();
+    if (!sb || !eu) return;
+    setLiberando(p.id); setErro(null); setMsg(null);
+    const { error } = await sb.from('usuarios').insert({
+      id: p.id, unidade: eu.unidade, nome, admin: false, ativo: true,
+    });
+    setLiberando(null);
+    if (error) { setErro(error.message); return; }
+    setMsg(`${nome} liberado(a). Agora marque os acessos dela abaixo.`);
+    await carregar();
+  }
+
   async function alternarAtivo(u: Usuario) {
     const sb = getSupabase();
     if (!sb) return;
@@ -142,6 +168,44 @@ export default function UsuariosPage() {
 
       {erro && (
         <p role="alert" className="mb-4 rounded-xl bg-erro-500/10 px-4 py-3 text-sm text-erro-600">{erro}</p>
+      )}
+
+      {msg && (
+        <p className="mb-4 rounded-xl bg-ok-500/10 px-4 py-3 text-sm font-semibold text-ok-600">{msg}</p>
+      )}
+
+      {pendentes.length > 0 && (
+        <section className="painel sombra mb-4 rounded-2xl p-4">
+          <h2 className="mb-1 flex items-center gap-1.5 text-[13.5px] font-bold">
+            <UserPlus aria-hidden className="size-4 text-ouro-500" />
+            Aguardando liberação
+            <span className="rounded-md bg-ouro-100 px-2 py-0.5 text-[11px] font-bold text-ouro-700">{pendentes.length}</span>
+          </h2>
+          <p className="mb-3 text-[12.5px] txt-fraco">
+            Já têm login no Supabase, mas ainda não aparecem no sistema. Dê um nome e libere — depois
+            marque os acessos dela na lista abaixo.
+          </p>
+          <ul className="flex flex-col gap-2">
+            {pendentes.map((p) => (
+              <li key={p.id} className="flex flex-wrap items-center gap-2 rounded-xl painel-2 p-2.5">
+                <span className="min-w-0 flex-1 truncate text-[13px] font-semibold">{p.email}</span>
+                <input
+                  value={nomes[p.id] ?? ''}
+                  onChange={(e) => setNomes((n) => ({ ...n, [p.id]: e.target.value }))}
+                  placeholder="Nome da pessoa"
+                  className="painel min-w-40 rounded-lg border borda px-2.5 py-1.5 text-[12.5px] outline-none focus:border-marinho-500"
+                />
+                <button
+                  type="button" onClick={() => void liberar(p)} disabled={liberando === p.id || !podeEditar}
+                  className="flex items-center gap-1.5 rounded-lg bg-marinho-800 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-50"
+                >
+                  {liberando === p.id ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <Check aria-hidden className="size-3.5" />}
+                  Liberar
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
       )}
 
       <div className="grid gap-5 lg:grid-cols-[320px_minmax(0,1fr)]">
@@ -197,8 +261,8 @@ export default function UsuariosPage() {
           <div className="mt-3 flex items-start gap-2 rounded-xl painel-2 p-3 text-[11.5px] txt-fraco">
             <UserPlus aria-hidden className="mt-0.5 size-4 shrink-0" />
             <span>
-              Para adicionar alguém: crie o login em <b>Supabase → Authentication → Users</b> e rode o
-              <b> insert</b> descrito em <b>supabase/10_usuarios_permissoes.sql</b>. A pessoa aparece aqui.
+              Para adicionar alguém: crie o login em <b>Supabase → Authentication → Users</b>. A pessoa
+              aparece em &quot;Aguardando liberação&quot; no topo desta tela.
             </span>
           </div>
         </aside>
@@ -299,7 +363,6 @@ export default function UsuariosPage() {
                   Ações em vermelho (aprovar, excluir) não têm volta — confira antes de salvar.
                 </p>
                 <div className="flex items-center gap-3">
-                  {msg && <span className="text-[12.5px] text-ok-600">{msg}</span>}
                   <button
                     type="button" onClick={() => void salvar()} disabled={!podeEditar || !mudou || salvando}
                     className="flex items-center gap-2 rounded-xl bg-marinho-800 px-4 py-2.5 text-[13px] font-semibold text-white disabled:opacity-50"
