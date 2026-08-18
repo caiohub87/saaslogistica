@@ -27,8 +27,11 @@ export interface ConfigProdutividade {
   pagamentoAtivo: boolean;
 }
 
+// sabadoConta:true — a tela de Configurações (onde dava pra ligar/desligar isso)
+// ainda não foi migrada, então até ela existir o filtro fica sempre desligado:
+// nenhuma carga pode sumir sem ter como o usuário religar a exibição.
 export const CONFIG_PADRAO: ConfigProdutividade = {
-  sabadoConta: false, meta90: 90, meta80: 80, horario: '17:30', pagamentoAtivo: true,
+  sabadoConta: true, meta90: 90, meta80: 80, horario: '17:30', pagamentoAtivo: true,
 };
 
 export const CARGOS_MOT = ['Motorista de Praça', 'Motorista de Viagem', 'Motorista Agregado'] as const;
