@@ -812,7 +812,7 @@
             <div class="toolbar" style="flex-wrap:wrap;margin-bottom:12px">
               <label class="muted">Fornecedor <input type="text" id="ivForn" list="ivFornLista" placeholder="Selecione..." style="min-width:190px" autocomplete="off"></label>
               <datalist id="ivFornLista"></datalist>
-              <label class="muted">Data do invent&aacute;rio <input type="date" id="ivData"></label>
+              <label class="muted">Data do invent&aacute;rio <input type="date" id="ivData" placeholder="dd/mm/aaaa"></label>
               <label class="muted">Valor do estoque (R$) <input type="text" id="ivValor" placeholder="286.130,96" style="min-width:130px" autocomplete="off"></label>
               <button id="ivPick" data-icon="upload">Escolher arquivo</button>
               <input type="file" id="ivFile" accept=".xls,.xlsx,.htm,.html" style="display:none">
@@ -3200,13 +3200,33 @@ function ivTotais(prods){
 }
 
 // --- upload ---
+// O campo da data é <input type="date">, que devolve AAAA-MM-DD. Em navegador que não
+// tem o calendário nativo ele vira caixa de texto e o usuário digita 17/08/2026 — o banco
+// recusa isso ("date/time field value out of range"). Aceita os dois jeitos e recusa datas
+// que não existem (31/02), sempre gravando AAAA-MM-DD.
+function ivDataISO(v){
+  const s=String(v||'').trim();
+  let y,mo,d, m=/^(\d{4})-(\d{1,2})-(\d{1,2})$/.exec(s);
+  if(m){ [,y,mo,d]=m; }
+  else{
+    m=/^(\d{1,2})[\/.-](\d{1,2})[\/.-](\d{2,4})$/.exec(s);
+    if(!m) return null;
+    [,d,mo,y]=m; if(+y<100) y=+y+2000;
+  }
+  y=+y; mo=+mo; d=+d;
+  const dt=new Date(y,mo-1,d);
+  if(dt.getFullYear()!==y||dt.getMonth()!==mo-1||dt.getDate()!==d) return null;
+  return `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
 // valida os 3 campos obrigatórios; devolve null e aponta o campo que falta
 function ivLerCampos(){
   const forn=ivNormForn(document.getElementById('ivForn').value);
-  const data=document.getElementById('ivData').value;
+  const digitada=document.getElementById('ivData').value;
+  const data=ivDataISO(digitada);
   const valor=parseNum(document.getElementById('ivValor').value);
   if(!forn){ ivMsg('Selecione o <b>fornecedor</b> antes de subir o arquivo.','err'); document.getElementById('ivForn').focus(); return null; }
-  if(!data){ ivMsg('Escolha a <b>data do inventário</b> antes de subir o arquivo.','err'); document.getElementById('ivData').focus(); return null; }
+  if(!digitada){ ivMsg('Escolha a <b>data do inventário</b> antes de subir o arquivo.','err'); document.getElementById('ivData').focus(); return null; }
+  if(!data){ ivMsg('Não entendi a <b>data do inventário</b> ("'+esc(digitada)+'"). Escreva no formato dia/mês/ano — ex.: 17/08/2026.','err'); document.getElementById('ivData').focus(); return null; }
   if(!valor){ ivMsg('Digite o <b>valor do estoque</b> de '+esc(forn)+' antes de subir o arquivo.','err'); document.getElementById('ivValor').focus(); return null; }
   return {forn,data,valor};
 }
