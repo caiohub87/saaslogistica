@@ -74,6 +74,29 @@ export function parseDataBR(s: string): Date | null {
   return isNaN(dt.getTime()) ? null : dt;
 }
 
+/**
+ * 'aaaa-mm-dd' a partir do formato do ERP ('17-08-2026') — e de quem já vem ISO.
+ *
+ * As colunas de data do banco são `date`: mandar '17-08-2026' faz o Postgres ler
+ * 17 como mês e recusar a gravação inteira. Toda data que atravessa a fronteira
+ * do banco (gravação e consulta) passa por aqui; 'dd-mm-aaaa' fica só na tela.
+ * Testa ISO primeiro porque parseDataBR('2026-08-17') casaria com o pedaço
+ * "26-08-17" e devolveria 26/08/2017.
+ */
+export function paraISO(d: string): string | null {
+  const s = String(d ?? '').trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
+  const dt = parseDataBR(s);
+  if (!dt) return null;
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`;
+}
+
+/** 'aaaa-mm-dd' -> '17/08/2026', para mostrar na tela. */
+export const fmtDataBR = (iso: string) => {
+  const [a, m, d] = String(iso ?? '').split('-');
+  return d ? `${d}/${m}/${a}` : (iso ?? '');
+};
+
 export const ehSabado = (p: Pedido) => {
   const dt = parseDataBR(p.dataSaida);
   return dt ? dt.getDay() === 6 : false;

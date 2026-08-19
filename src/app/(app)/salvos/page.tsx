@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fmtPct, parseDataBR } from '@/lib/produtividade';
+import { fmtDataBR, fmtPct, paraISO } from '@/lib/produtividade';
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
 import { cn } from '@/utils/cn';
@@ -30,20 +30,18 @@ interface Alteracao {
   alterado_por: string; alterado_em: string;
 }
 
-/** dd-mm-aaaa -> chave ISO, para ordenar e agrupar por semana */
-const iso = (d: string) => {
-  const dt = parseDataBR(d);
-  return dt ? dt.toISOString().slice(0, 10) : '';
-};
+/** Chave para ordenar e agrupar: data_saida vem do banco em 'aaaa-mm-dd'. */
+const iso = (d: string) => paraISO(d) ?? '';
 /** Segunda-feira da semana daquela data — a chave do agrupamento semanal. */
 function segundaDa(d: string): string {
-  const dt = parseDataBR(d);
-  if (!dt) return '';
-  const s = new Date(dt);
-  s.setDate(dt.getDate() - ((dt.getDay() + 6) % 7));
-  return s.toISOString().slice(0, 10);
+  const base = paraISO(d);
+  if (!base) return '';
+  const [y, m, dia] = base.split('-').map(Number);
+  const s = new Date(y, m - 1, dia); // meia-noite local: toISOString aqui pularia um dia
+  s.setDate(s.getDate() - ((s.getDay() + 6) % 7));
+  return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
 }
-const fmtISO = (s: string) => (s ? s.split('-').reverse().join('/') : '—');
+const fmtISO = (s: string) => (s ? fmtDataBR(s) : '—');
 
 export default function SalvosPage() {
   const { pode, demo, usuario } = useSessao();
@@ -260,7 +258,7 @@ export default function SalvosPage() {
             <div className="mt-3 flex flex-wrap gap-2">
               {dias.map((d) => (
                 <div key={d.data} className="rounded-lg painel-2 px-2.5 py-1.5 text-[12px]">
-                  <span className="font-semibold">{d.data.slice(0, 5)}</span>
+                  <span className="font-semibold">{fmtDataBR(d.data).slice(0, 5)}</span>
                   <span className="ml-1.5 txt-fraco">{fmtPct(d.media)}</span>
                   <span className="ml-1.5 txt-fraco">· {d.cargas} carga(s)</span>
                 </div>
@@ -278,7 +276,7 @@ export default function SalvosPage() {
                   <li key={p.id} className={cn('rounded-xl border p-3', emEdicao ? 'border-marinho-500' : 'borda')}>
                     <div className="flex flex-wrap items-center gap-3">
                       <span className="text-[14px] font-bold">Carga {p.carga}</span>
-                      <span className="text-[12px] txt-fraco">{p.data_saida}</span>
+                      <span className="text-[12px] txt-fraco">{fmtDataBR(p.data_saida)}</span>
                       {p.faixa && (
                         <span className="rounded-md painel-2 px-2 py-0.5 text-[11.5px] font-bold">{p.faixa}</span>
                       )}

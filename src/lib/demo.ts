@@ -1,5 +1,6 @@
 'use client';
 
+import { paraISO } from '@/lib/produtividade';
 import type {
   Agendamento, Inventario, ProdutoInventario, StatusAgendamento, TipoAgendamento, Usuario,
 } from '@/types/database';
@@ -209,7 +210,8 @@ export function premiacoesDemo() {
     const ajus = equipe.filter((p) => p.tipo === 'aju');
     return {
       id: 7000 + i, unidade: 'Dilnor',
-      data_saida: c.data, carga: c.carga,
+      // ISO, igual ao que vem do banco (coluna `date`) — o relatório é que usa dd-mm-aaaa
+      data_saida: paraISO(c.data) ?? c.data, carga: c.carga,
       motorista: mot?.nome ?? null, aj1: ajus[0]?.nome ?? null, aj2: ajus[1]?.nome ?? null,
       prod_final: c.prod, faixa: c.faixa, pagar: c.pagar,
       valor_mot: mot?.valor ?? 0, valor_aj1: ajus[0]?.valor ?? 0, valor_aj2: ajus[1]?.valor ?? 0,

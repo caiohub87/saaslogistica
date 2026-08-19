@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   CARGOS_AJU, CARGOS_MOT, configPadraoDaCarga, fmtKg, fmtPct, isAgregado,
-  premioDaCarga, premioDaPessoa, type Carga, type ConfigCarga,
+  paraISO, premioDaCarga, premioDaPessoa, type Carga, type ConfigCarga,
 } from '@/lib/produtividade';
 import { lerRelatorio } from '@/lib/relatorio';
 import { getSupabase } from '@/lib/supabase';
@@ -82,21 +82,23 @@ export default function ProdutividadePage() {
   }, [semanaBase]);
   const diaAtivo = diasDaSemana.find((d) => d.iso === diaSelecionado) ?? null;
 
+  // data_saida é coluna `date`: consulta e gravação vão em ISO. O 'dd-mm-aaaa'
+  // do campo `br` é só rótulo de tela.
   const buscarDiasSalvos = useCallback(async () => {
     if (!usuario) return;
-    const brs = diasDaSemana.map((d) => d.br);
+    const isos = diasDaSemana.map((d) => d.iso);
     if (demo) {
       const { premiacoesDemo } = await import('@/lib/demo');
-      const salvos = new Set(premiacoesDemo().map((p) => p.data_saida));
-      setDiasSalvos(new Set(diasDaSemana.filter((d) => salvos.has(d.br)).map((d) => d.iso)));
+      const salvos = new Set(premiacoesDemo().map((p) => paraISO(p.data_saida)));
+      setDiasSalvos(new Set(diasDaSemana.filter((d) => salvos.has(d.iso)).map((d) => d.iso)));
       return;
     }
     const sb = getSupabase();
     if (!sb) return;
     const { data } = await sb.from('premiacoes').select('data_saida')
-      .eq('unidade', usuario.unidade).in('data_saida', brs);
-    const achados = new Set((data ?? []).map((r: { data_saida: string }) => r.data_saida));
-    setDiasSalvos(new Set(diasDaSemana.filter((d) => achados.has(d.br)).map((d) => d.iso)));
+      .eq('unidade', usuario.unidade).in('data_saida', isos);
+    const achados = new Set((data ?? []).map((r: { data_saida: string }) => paraISO(r.data_saida)));
+    setDiasSalvos(new Set(diasDaSemana.filter((d) => achados.has(d.iso)).map((d) => d.iso)));
   }, [demo, usuario, diasDaSemana]);
 
   useEffect(() => { void buscarDiasSalvos(); }, [buscarDiasSalvos]);
@@ -197,8 +199,8 @@ export default function ProdutividadePage() {
 
     // grava a data ESCOLHIDA, não a que veio no relatório — as duas raramente
     // batem exatas, e é a escolhida que define em qual dia da semana a
-    // premiação entra
-    const dataEscolhida = diaAtivo.br;
+    // premiação entra. Em ISO: a coluna é `date` e recusa '17-08-2026'.
+    const dataEscolhida = diaAtivo.iso;
     const linhas = [...selecionadas].map((id) => {
       const c = cargas.find((x) => x.id === id)!;
       const cf = conf(c);
