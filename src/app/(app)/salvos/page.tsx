@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Archive, ChevronDown, ChevronRight, History, Loader2, Pencil, Save, TrendingUp, X,
+  Archive, ChevronDown, ChevronRight, History, Loader2, Pencil, Save, Trash2, TrendingUp, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -46,7 +46,10 @@ const fmtISO = (s: string) => (s ? fmtDataBR(s) : '—');
 export default function SalvosPage() {
   const { pode, demo, usuario } = useSessao();
   const podeEditar = pode('salvos', 'ver') && pode('produtividade', 'salvar');
+  const podeExcluir = pode('salvos', 'excluir');
 
+  const [marcadas, setMarcadas] = useState<Set<number>>(new Set());
+  const [excluindo, setExcluindo] = useState(false);
   const [linhas, setLinhas] = useState<Premiacao[]>([]);
   const [historico, setHistorico] = useState<Record<number, Alteracao[]>>({});
   const [carregando, setCarregando] = useState(true);
@@ -128,6 +131,65 @@ export default function SalvosPage() {
     const { data } = await sb.from('premiacao_alteracoes').select('*')
       .eq('premiacao_id', p.id).order('alterado_em', { ascending: false });
     setHistorico((h) => ({ ...h, [p.id]: (data ?? []) as Alteracao[] }));
+  }
+
+  const alternar = (id: number) => setMarcadas((m) => {
+    const n = new Set(m);
+    if (!n.delete(id)) n.add(id);
+    return n;
+  });
+
+  /** Marca (ou desmarca) o dia inteiro — o erro comum é a leva do dia ter ido para a data errada. */
+  function marcarDia(dataISO: string) {
+    const ids = daSemana.filter((l) => l.data_saida === dataISO).map((l) => l.id);
+    setMarcadas((m) => {
+      const n = new Set(m);
+      const jaTodas = ids.every((id) => n.has(id));
+      ids.forEach((id) => { if (jaTodas) n.delete(id); else n.add(id); });
+      return n;
+    });
+  }
+
+  /**
+   * Tira do banco as cargas marcadas — conserto de quem gravou a premiação no
+   * dia errado: exclui aqui e grava de novo na Produtividade, no dia certo.
+   *
+   * O delete pede as linhas apagadas de volta (.select). Sem isso, uma exclusão
+   * barrada pela RLS voltaria sem erro nenhum e com nada apagado, e a tela diria
+   * que deu certo.
+   */
+  async function excluirMarcadas() {
+    const alvos = daSemana.filter((l) => marcadas.has(l.id));
+    if (!alvos.length) return;
+    const total = alvos.reduce((a, l) => a + equipeDe(l).reduce((x, p) => x + (p.valor ?? 0), 0), 0);
+    const lista = alvos.slice(0, 8).map((l) => `• Carga ${l.carga} — ${fmtDataBR(l.data_saida)}`).join('\n');
+    const resto = alvos.length > 8 ? `\n… e mais ${alvos.length - 8}` : '';
+    if (!confirm(
+      `Excluir ${alvos.length} carga(s) premiada(s)?\n\n${lista}${resto}\n\n` +
+      `Total premiado: ${fmtBRL(total)}\n\n` +
+      'Não dá para desfazer. Para trocar o dia, exclua aqui e salve de novo na Produtividade.',
+    )) return;
+
+    setErro(null); setMsg(null);
+    if (demo) { setErro('Modo de demonstração não grava no banco. Entre com seu login para excluir.'); return; }
+    const sb = getSupabase();
+    if (!sb) return;
+    setExcluindo(true);
+    const { data, error } = await sb.from('premiacoes')
+      .delete().in('id', alvos.map((l) => l.id)).select('id');
+    setExcluindo(false);
+
+    if (error) { setErro('Não excluiu: ' + error.message); return; }
+    const apagadas = (data ?? []).length;
+    if (!apagadas) {
+      setErro('Nada foi excluído — seu acesso não tem permissão de excluir premiação salva.');
+      return;
+    }
+    setMarcadas(new Set());
+    setMsg(apagadas === alvos.length
+      ? `${apagadas} carga(s) excluída(s).`
+      : `${apagadas} de ${alvos.length} carga(s) excluída(s) — o resto seu acesso não podia excluir.`);
+    await carregar();
   }
 
   function abrirEdicao(p: Premiacao) {
@@ -233,7 +295,8 @@ export default function SalvosPage() {
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <label className="text-[12.5px] font-semibold">Semana de</label>
               <select
-                value={semanaAtiva} onChange={(e) => { setSemana(e.target.value); setAberta(null); }}
+                value={semanaAtiva}
+                onChange={(e) => { setSemana(e.target.value); setAberta(null); setMarcadas(new Set()); }}
                 className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
               >
                 {semanas.map((s) => <option key={s} value={s}>{fmtISO(s)}</option>)}
@@ -267,15 +330,67 @@ export default function SalvosPage() {
           </section>
 
           <section className="painel sombra rounded-2xl p-4">
+            {/* conserto do dia errado: marca as cargas (ou o dia inteiro) e exclui */}
+            {podeExcluir && (
+              <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl painel-2 px-3 py-2">
+                {marcadas.size ? (
+                  <span className="text-[12px] font-semibold">{marcadas.size} carga(s) marcada(s)</span>
+                ) : (
+                  <>
+                    <span className="text-[12px] txt-fraco">
+                      Entrou no dia errado? Marque as cargas — ou o dia inteiro:
+                    </span>
+                    {dias.map((d) => (
+                      <button
+                        key={d.data} type="button" onClick={() => marcarDia(d.data)}
+                        className="rounded-lg border borda px-2 py-0.5 text-[11.5px] font-semibold hover:bg-erro-500/10"
+                      >
+                        {fmtDataBR(d.data).slice(0, 5)}
+                      </button>
+                    ))}
+                  </>
+                )}
+                {!!marcadas.size && (
+                  <>
+                    <button
+                      type="button" onClick={() => void excluirMarcadas()} disabled={excluindo}
+                      className="ml-auto flex items-center gap-1.5 rounded-lg border border-erro-500 px-2.5 py-1 text-[11.5px] font-bold text-erro-600 hover:bg-erro-500/10 disabled:opacity-60"
+                    >
+                      {excluindo
+                        ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                        : <Trash2 aria-hidden className="size-3.5" />}
+                      Excluir marcadas
+                    </button>
+                    <button
+                      type="button" onClick={() => setMarcadas(new Set())}
+                      className="rounded-lg border borda px-2.5 py-1 text-[11.5px] font-semibold txt-fraco"
+                    >
+                      Limpar
+                    </button>
+                  </>
+                )}
+              </div>
+            )}
             <ul className="flex flex-col gap-2">
               {daSemana.map((p) => {
                 const equipe = equipeDe(p);
                 const total = equipe.reduce((a, m) => a + (m.valor ?? 0), 0);
                 const emEdicao = editando === p.id;
                 return (
-                  <li key={p.id} className={cn('rounded-xl border p-3', emEdicao ? 'border-marinho-500' : 'borda')}>
+                  <li key={p.id} className={cn('rounded-xl border p-3',
+                    emEdicao ? 'border-marinho-500' : marcadas.has(p.id) ? 'border-erro-500' : 'borda')}>
                     <div className="flex flex-wrap items-center gap-3">
-                      <span className="text-[14px] font-bold">Carga {p.carga}</span>
+                      {podeExcluir ? (
+                        <label className="flex items-center gap-2">
+                          <input
+                            type="checkbox" checked={marcadas.has(p.id)} onChange={() => alternar(p.id)}
+                            aria-label={`Marcar carga ${p.carga} de ${fmtDataBR(p.data_saida)} para excluir`}
+                          />
+                          <span className="text-[14px] font-bold">Carga {p.carga}</span>
+                        </label>
+                      ) : (
+                        <span className="text-[14px] font-bold">Carga {p.carga}</span>
+                      )}
                       <span className="text-[12px] txt-fraco">{fmtDataBR(p.data_saida)}</span>
                       {p.faixa && (
                         <span className="rounded-md painel-2 px-2 py-0.5 text-[11.5px] font-bold">{p.faixa}</span>
