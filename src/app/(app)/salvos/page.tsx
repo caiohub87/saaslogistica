@@ -5,8 +5,11 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
-import { fmtDataBR, fmtPct, paraISO } from '@/lib/produtividade';
+import {
+  CARGOS_AJU, CARGOS_MOT, faixaDe, fmtDataBR, fmtPct, paraISO, premioDaPessoa,
+} from '@/lib/produtividade';
 import { getSupabase } from '@/lib/supabase';
+import { useRelatorio } from '@/providers/RelatorioProvider';
 import { useSessao } from '@/providers/SessionProvider';
 import { cn } from '@/utils/cn';
 
@@ -16,6 +19,12 @@ const fmtBRL = (n: number) =>
 interface MembroEquipe {
   chave: string; nome: string; tipo: 'mot' | 'aju'; cargo: string; valor: number;
 }
+/**
+ * Linha em edição. `pago` é só da tela: no banco, quem não recebe fica com
+ * valor 0. Sem essa marca não daria para distinguir "zerado na mão" de "a faixa
+ * paga 0 mesmo" — e o botão trocaria de nome sozinho ao voltar a pagar.
+ */
+interface MembroRascunho extends MembroEquipe { pago: boolean }
 interface Premiacao {
   id: number; unidade: string; data_saida: string; carga: string;
   motorista: string | null; aj1: string | null; aj2: string | null;
@@ -45,6 +54,7 @@ const fmtISO = (s: string) => (s ? fmtDataBR(s) : '—');
 
 export default function SalvosPage() {
   const { pode, demo, usuario } = useSessao();
+  const { config, premio } = useRelatorio();
   const podeEditar = pode('salvos', 'ver') && pode('produtividade', 'salvar');
   const podeExcluir = pode('salvos', 'excluir');
 
@@ -58,7 +68,7 @@ export default function SalvosPage() {
   const [semana, setSemana] = useState('');
   const [aberta, setAberta] = useState<number | null>(null);
   const [editando, setEditando] = useState<number | null>(null);
-  const [rascunho, setRascunho] = useState<MembroEquipe[]>([]);
+  const [rascunho, setRascunho] = useState<MembroRascunho[]>([]);
   const [motivo, setMotivo] = useState('');
   const [salvando, setSalvando] = useState(false);
 
@@ -194,27 +204,53 @@ export default function SalvosPage() {
 
   function abrirEdicao(p: Premiacao) {
     setEditando(p.id);
-    setRascunho(equipeDe(p).map((m) => ({ ...m })));
+    setRascunho(equipeDe(p).map((m) => ({ ...m, pago: (m.valor ?? 0) > 0 })));
     setMotivo('');
     setMsg(null); setErro(null);
   }
 
   /**
-   * Grava o reajuste de nomes E registra cada alteração.
+   * Faixa da carga a partir da produtividade gravada — é ela que diz quanto o
+   * cargo paga. Recalcular daqui (em vez de confiar no rótulo salvo) mantém o
+   * valor coerente com a meta configurada hoje.
+   */
+  const tierDe = (p: Premiacao) => faixaDe(p.prod_final ?? 0, config).tier;
+
+  /** Praça, Viagem e Agregado pagam valores diferentes — trocar o cargo refaz o valor. */
+  const trocarCargo = (p: Premiacao, i: number, cargo: string) =>
+    setRascunho((r) => r.map((x, j) => (j === i
+      ? { ...x, cargo, valor: x.pago ? premioDaPessoa(premio, cargo, tierDe(p), true) : 0 }
+      : x)));
+
+  /** Zera uma pessoa só: a carga chegou no horário, mas essa não. */
+  const alternarPagamento = (p: Premiacao, i: number) =>
+    setRascunho((r) => r.map((x, j) => (j === i
+      ? { ...x, pago: !x.pago, valor: x.pago ? 0 : premioDaPessoa(premio, x.cargo, tierDe(p), true) }
+      : x)));
+
+  /**
+   * Grava o reajuste (nome, cargo e valor) E registra cada alteração.
    *
-   * O histórico é gravado ANTES do update: se a gravação do nome falhar, sobra
-   * um registro a mais, o que é preferível a alterar sem deixar rastro.
+   * O histórico é gravado ANTES do update: se a gravação falhar, sobra um
+   * registro a mais, o que é preferível a alterar sem deixar rastro.
    */
   async function salvarEdicao(p: Premiacao) {
     const antes = equipeDe(p);
-    const mudancas = rascunho
-      .map((novo) => {
-        const velho = antes.find((a) => a.chave === novo.chave);
-        return velho && velho.nome !== novo.nome
-          ? { campo: velho.tipo === 'mot' ? 'motorista' : 'ajudante', de: velho.nome, para: novo.nome }
-          : null;
-      })
-      .filter(Boolean) as { campo: string; de: string; para: string }[];
+    const mudancas = rascunho.flatMap((novo) => {
+      const velho = antes.find((a) => a.chave === novo.chave);
+      if (!velho) return [];
+      const lista: { campo: string; de: string; para: string }[] = [];
+      if (velho.nome !== novo.nome) {
+        lista.push({ campo: velho.tipo === 'mot' ? 'motorista' : 'ajudante', de: velho.nome, para: novo.nome });
+      }
+      if (velho.cargo !== novo.cargo) {
+        lista.push({ campo: `cargo de ${novo.nome}`, de: velho.cargo, para: novo.cargo });
+      }
+      if ((velho.valor ?? 0) !== (novo.valor ?? 0)) {
+        lista.push({ campo: `valor de ${novo.nome}`, de: fmtBRL(velho.valor), para: fmtBRL(novo.valor) });
+      }
+      return lista;
+    });
 
     if (!mudancas.length) { setEditando(null); return; }
     if (demo) { setErro('Modo de demonstração não grava no banco.'); return; }
@@ -233,23 +269,29 @@ export default function SalvosPage() {
     );
     if (eHist) {
       setSalvando(false);
-      setErro('Não registrei a alteração, então não alterei o nome: ' + eHist.message +
+      setErro('Não registrei a alteração, então não alterei nada: ' + eHist.message +
         (/relation|does not exist/i.test(eHist.message) ? ' — rode o SQL 12_premiacao_auditoria.sql.' : ''));
       return;
     }
 
     const mot = rascunho.find((m) => m.tipo === 'mot');
     const ajus = rascunho.filter((m) => m.tipo === 'aju');
+    // `pago` não vai para o banco: é marca de tela. As colunas antigas seguem
+    // preenchidas junto com `equipe`, para não divergirem uma da outra.
     const { error } = await sb.from('premiacoes').update({
-      equipe: rascunho,
+      equipe: rascunho.map(({ pago: _pago, ...m }) => m),
       motorista: mot?.nome ?? null,
       aj1: ajus[0]?.nome ?? null,
       aj2: ajus[1]?.nome ?? null,
+      tipo: mot?.cargo ?? null,
+      valor_mot: mot?.valor ?? 0,
+      valor_aj1: ajus[0]?.valor ?? 0,
+      valor_aj2: ajus[1]?.valor ?? 0,
     }).eq('id', p.id);
     setSalvando(false);
 
     if (error) { setErro('Não salvou: ' + error.message); return; }
-    setMsg(`${mudancas.length} nome(s) reajustado(s) e registrado(s).`);
+    setMsg(`${mudancas.length} alteração(ões) registrada(s).`);
     setEditando(null);
     setHistorico((h) => { const n = { ...h }; delete n[p.id]; return n; });
     await carregar();
@@ -272,7 +314,8 @@ export default function SalvosPage() {
           Premiações salvas
         </h1>
         <p className="mt-1 text-sm txt-fraco">
-          O que veio da Produtividade. Nomes podem ser reajustados — toda alteração fica registrada.
+          O que veio da Produtividade. Nome, cargo (praça · viagem · agregado) e valor de cada
+          pessoa podem ser reajustados — toda alteração fica registrada.
         </p>
       </header>
 
@@ -417,7 +460,7 @@ export default function SalvosPage() {
                           type="button" onClick={() => abrirEdicao(p)}
                           className="flex items-center gap-1 rounded-lg border borda px-2 py-1 text-[11.5px] font-semibold"
                         >
-                          <Pencil aria-hidden className="size-3.5" /> Reajustar nomes
+                          <Pencil aria-hidden className="size-3.5" /> Reajustar equipe
                         </button>
                       )}
                     </div>
@@ -427,7 +470,8 @@ export default function SalvosPage() {
                         {equipe.map((m) => (
                           <span key={m.chave}>
                             <b className="text-[12.5px]" style={{ color: 'var(--texto)' }}>{m.nome}</b>
-                            {' '}({m.tipo === 'mot' ? 'motorista' : 'ajudante'} · {fmtBRL(m.valor)})
+                            {' '}({m.cargo && m.cargo !== '—' ? m.cargo : m.tipo === 'mot' ? 'motorista' : 'ajudante'}
+                            {' · '}{fmtBRL(m.valor)})
                           </span>
                         ))}
                         {!equipe.length && <span>Sem equipe registrada.</span>}
@@ -435,19 +479,49 @@ export default function SalvosPage() {
                     ) : (
                       <div className="mt-3 border-t borda pt-3">
                         <div className="grid gap-2 sm:grid-cols-2">
-                          {rascunho.map((m, i) => (
-                            <label key={m.chave} className="block">
-                              <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">
-                                {m.tipo === 'mot' ? 'Motorista' : 'Ajudante'} · {fmtBRL(m.valor)}
-                              </span>
-                              <input
-                                value={m.nome}
-                                onChange={(e) => setRascunho((r) =>
-                                  r.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))}
-                                className="painel-2 w-full rounded-lg border borda px-2 py-1.5 text-[13px] font-semibold outline-none focus:border-marinho-500"
-                              />
-                            </label>
-                          ))}
+                          {rascunho.map((m, i) => {
+                            const cargos: readonly string[] = m.tipo === 'mot' ? CARGOS_MOT : CARGOS_AJU;
+                            return (
+                              <div key={m.chave} className={cn('rounded-xl border p-2', m.pago ? 'borda' : 'border-ouro-500')}>
+                                <div className="mb-1 flex items-center gap-2">
+                                  <span className="text-[11.5px] font-semibold txt-fraco">
+                                    {m.tipo === 'mot' ? 'Motorista' : 'Ajudante'}
+                                  </span>
+                                  <span className={cn('ml-auto text-[12.5px] font-bold', m.pago ? 'text-ok-600' : 'txt-fraco')}>
+                                    {fmtBRL(m.valor)}
+                                  </span>
+                                </div>
+                                <input
+                                  value={m.nome} aria-label="Nome"
+                                  onChange={(e) => setRascunho((r) =>
+                                    r.map((x, j) => (j === i ? { ...x, nome: e.target.value } : x)))}
+                                  className="painel-2 w-full rounded-lg border borda px-2 py-1.5 text-[13px] font-semibold outline-none focus:border-marinho-500"
+                                />
+                                <div className="mt-1.5 flex flex-wrap items-center gap-1.5">
+                                  <select
+                                    value={m.cargo} aria-label="Cargo"
+                                    onChange={(e) => trocarCargo(p, i, e.target.value)}
+                                    className="painel-2 grow rounded-lg border borda px-2 py-1 text-[12px] font-semibold"
+                                  >
+                                    {!cargos.includes(m.cargo) && (
+                                      <option value={m.cargo}>{m.cargo || 'sem cargo'}</option>
+                                    )}
+                                    {cargos.map((c) => <option key={c} value={c}>{c}</option>)}
+                                  </select>
+                                  <button
+                                    type="button" onClick={() => alternarPagamento(p, i)}
+                                    title={m.pago
+                                      ? 'Zera só esta pessoa — chegou depois das 17:30'
+                                      : 'Volta a pagar o valor do cargo'}
+                                    className={cn('rounded-lg border px-2 py-1 text-[11.5px] font-semibold',
+                                      m.pago ? 'borda text-ouro-700 hover:bg-ouro-100' : 'border-ok-500 text-ok-600 hover:bg-ok-500/10')}
+                                  >
+                                    {m.pago ? 'Zerar (após 17:30)' : 'Voltar a pagar'}
+                                  </button>
+                                </div>
+                              </div>
+                            );
+                          })}
                         </div>
                         <label className="mt-2 block">
                           <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">
