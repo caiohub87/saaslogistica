@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Camera, Check, Loader2, Plus, Search, ShieldCheck, Trash2, UserCog, UserPlus, X,
+  Camera, Check, Loader2, Plus, Search, ShieldCheck, Trash2, UserPlus, Users, X,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -12,10 +12,10 @@ import {
 } from '@/lib/ocorrencias';
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
-import type { Motorista, Ocorrencia, TipoOcorrencia } from '@/types/database';
+import type { FuncaoEquipe, Ocorrencia, PessoaEquipe, TipoOcorrencia } from '@/types/database';
 import { cn } from '@/utils/cn';
 
-type Aba = TipoOcorrencia | 'motoristas';
+type Aba = TipoOcorrencia | 'equipe';
 
 interface Form {
   data: string; lote: string; produto: string; embalagem: string; quantidade: string;
@@ -39,11 +39,11 @@ export default function FaltasSobrasPage() {
   const podeExcluir = pode('ocorrencias', 'excluir');
 
   const [aba, setAba] = useState<Aba>('falta');
-  const tipoAtivo: TipoOcorrencia | null = aba === 'motoristas' ? null : aba;
+  const tipoAtivo: TipoOcorrencia | null = aba === 'equipe' ? null : aba;
   const cfg = CONFIG[tipoAtivo ?? 'falta'];
 
   const [itens, setItens] = useState<Ocorrencia[]>([]);
-  const [motoristas, setMotoristas] = useState<Motorista[]>([]);
+  const [equipe, setEquipe] = useState<PessoaEquipe[]>([]);
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -59,7 +59,9 @@ export default function FaltasSobrasPage() {
   const [situacao, setSituacao] = useState<'todos' | 'pendentes' | 'ok'>('todos');
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState('');
-  const [novoMotorista, setNovoMotorista] = useState('');
+  const [novaPessoa, setNovaPessoa] = useState<{ nome: string; funcao: FuncaoEquipe }>({
+    nome: '', funcao: 'motorista',
+  });
   const inputFoto = useRef<HTMLInputElement>(null);
 
   // ---------- carga ----------
@@ -81,20 +83,20 @@ export default function FaltasSobrasPage() {
     setCarregando(false);
   }, [tipoAtivo, demo]);
 
-  const carregarMotoristas = useCallback(async () => {
+  const carregarEquipe = useCallback(async () => {
     if (demo) {
-      const { motoristasDemo } = await import('@/lib/demo');
-      setMotoristas(motoristasDemo());
+      const { equipeDemo } = await import('@/lib/demo');
+      setEquipe(equipeDemo());
       return;
     }
     const sb = getSupabase();
     if (!sb) return;
     const { data, error } = await sb.from('motoristas').select('*').order('nome');
-    if (!error) setMotoristas((data ?? []) as Motorista[]);
+    if (!error) setEquipe((data ?? []) as PessoaEquipe[]);
   }, [demo]);
 
   useEffect(() => { void carregar(); }, [carregar]);
-  useEffect(() => { void carregarMotoristas(); }, [carregarMotoristas]);
+  useEffect(() => { void carregarEquipe(); }, [carregarEquipe]);
 
   function bloqueadoNoDemo() {
     if (!demo) return false;
@@ -247,52 +249,67 @@ export default function FaltasSobrasPage() {
     );
   }
 
-  // ---------- motoristas ----------
-  async function adicionarMotorista() {
-    const nome = normNome(novoMotorista);
+  // ---------- equipe ----------
+  async function adicionarPessoa() {
+    const nome = normNome(novaPessoa.nome);
+    const { funcao } = novaPessoa;
     setMsg(null); setErro(null);
-    if (!nome) { setErro('Escreva o nome do motorista.'); return; }
-    if (motoristas.some((m) => m.nome === nome)) { setErro(`${nome} já está na lista.`); return; }
+    if (!nome) { setErro('Escreva o nome.'); return; }
+    // o mesmo nome pode existir nas duas funções — quem ajuda e às vezes dirige
+    if (equipe.some((p) => p.nome === nome && p.funcao === funcao)) {
+      setErro(`${nome} já está na lista de ${funcao}s.`);
+      return;
+    }
     if (bloqueadoNoDemo()) return;
     const sb = getSupabase();
     if (!sb) return;
-    const { error } = await sb.from('motoristas').insert({ unidade: usuario!.unidade, nome });
+    const { error } = await sb.from('motoristas').insert({ unidade: usuario!.unidade, nome, funcao });
     if (error) { setErro('Não cadastrou: ' + error.message + dica(error.message)); return; }
-    setNovoMotorista('');
-    setMsg(`${nome} entrou na lista.`);
-    await carregarMotoristas();
+    setNovaPessoa({ nome: '', funcao });
+    setMsg(`${nome} entrou na lista de ${funcao}s.`);
+    await carregarEquipe();
   }
 
-  async function alternarAtivo(m: Motorista) {
+  async function alternarAtivo(p: PessoaEquipe) {
     if (bloqueadoNoDemo()) return;
     const sb = getSupabase();
     if (!sb) return;
-    const { error } = await sb.from('motoristas').update({ ativo: !m.ativo }).eq('id', m.id);
+    const { error } = await sb.from('motoristas').update({ ativo: !p.ativo }).eq('id', p.id);
     if (error) { setErro(error.message + dica(error.message)); return; }
-    setMsg(m.ativo ? `${m.nome} saiu da lista de ativos.` : `${m.nome} voltou para os ativos.`);
-    await carregarMotoristas();
+    setMsg(p.ativo ? `${p.nome} saiu da lista de ativos.` : `${p.nome} voltou para os ativos.`);
+    await carregarEquipe();
   }
 
-  async function excluirMotorista(m: Motorista) {
-    if (!confirm(`Tirar ${m.nome} do cadastro?\n\nOs registros antigos guardam o nome e não mudam.`)) return;
+  async function excluirPessoa(p: PessoaEquipe) {
+    if (!confirm(`Tirar ${p.nome} do cadastro?\n\nOs registros antigos guardam o nome e não mudam.`)) return;
     if (bloqueadoNoDemo()) return;
     const sb = getSupabase();
     if (!sb) return;
-    const { error } = await sb.from('motoristas').delete().eq('id', m.id);
+    const { error } = await sb.from('motoristas').delete().eq('id', p.id);
     if (error) { setErro(error.message + dica(error.message)); return; }
-    setMsg(`${m.nome} saiu do cadastro.`);
-    await carregarMotoristas();
+    setMsg(`${p.nome} saiu do cadastro.`);
+    await carregarEquipe();
   }
 
   // ---------- consultas ----------
-  const ativos = useMemo(() => motoristas.filter((m) => m.ativo), [motoristas]);
-  // placas e ajudantes já usados viram sugestão: quem digita no celular erra menos
+  const motoristasAtivos = useMemo(
+    () => equipe.filter((p) => p.ativo && p.funcao === 'motorista'),
+    [equipe],
+  );
+  const ajudantesAtivos = useMemo(
+    () => equipe.filter((p) => p.ativo && p.funcao === 'ajudante'),
+    [equipe],
+  );
+  // motoristas primeiro, cada grupo em ordem alfabética
+  const equipeOrdenada = useMemo(
+    () => [...equipe].sort((a, b) => (a.funcao === b.funcao
+      ? a.nome.localeCompare(b.nome)
+      : a.funcao === 'motorista' ? -1 : 1)),
+    [equipe],
+  );
+  // placas já usadas viram sugestão: quem digita no celular erra menos
   const placas = useMemo(
     () => [...new Set(itens.map((o) => o.placa).filter(Boolean) as string[])].sort(),
-    [itens],
-  );
-  const ajudantesUsados = useMemo(
-    () => [...new Set(itens.flatMap((o) => o.ajudantes ?? []))].sort(),
     [itens],
   );
 
@@ -357,36 +374,45 @@ export default function FaltasSobrasPage() {
           </button>
         ))}
         <button
-          type="button" onClick={() => { setAba('motoristas'); setMsg(null); setErro(null); }}
+          type="button" onClick={() => { setAba('equipe'); setMsg(null); setErro(null); }}
           className={cn(
             'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
-            aba === 'motoristas' ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+            aba === 'equipe' ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
           )}
         >
-          <UserCog aria-hidden className="size-4" />
-          Motoristas
+          <Users aria-hidden className="size-4" />
+          Equipe
         </button>
       </div>
 
-      {/* ---------------- cadastro de motoristas ---------------- */}
-      {aba === 'motoristas' && (
+      {/* ---------------- cadastro da equipe ---------------- */}
+      {aba === 'equipe' && (
         <section className="painel sombra rounded-2xl p-4 motion-safe:animate-subir">
-          <h2 className="mb-1 text-[15px] font-bold">Motoristas</h2>
+          <h2 className="mb-1 text-[15px] font-bold">Motoristas e ajudantes</h2>
           <p className="mb-3 text-[12.5px] txt-fraco">
-            Quem aparece na lista ao registrar falta ou sobra. Desativar tira das opções sem
-            apagar nada — os registros antigos guardam o nome como texto.
+            Quem aparece para escolher ao registrar falta ou sobra — motorista num campo,
+            ajudantes no outro. Desativar tira das opções sem apagar nada: os registros antigos
+            guardam o nome como texto. Quem ajuda e às vezes dirige pode entrar nas duas funções.
           </p>
 
           {podeLancar && (
             <div className="mb-3 flex flex-wrap gap-2">
               <input
-                value={novoMotorista} onChange={(e) => setNovoMotorista(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void adicionarMotorista(); }}
-                placeholder="Nome do motorista" aria-label="Nome do motorista"
+                value={novaPessoa.nome} onChange={(e) => setNovaPessoa({ ...novaPessoa, nome: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter') void adicionarPessoa(); }}
+                placeholder="Nome" aria-label="Nome"
                 className={cn(ENTRADA, 'sm:max-w-xs')}
               />
+              <select
+                value={novaPessoa.funcao} aria-label="Função"
+                onChange={(e) => setNovaPessoa({ ...novaPessoa, funcao: e.target.value as FuncaoEquipe })}
+                className={cn(ENTRADA, 'sm:max-w-40')}
+              >
+                <option value="motorista">Motorista</option>
+                <option value="ajudante">Ajudante</option>
+              </select>
               <button
-                type="button" onClick={() => void adicionarMotorista()}
+                type="button" onClick={() => void adicionarPessoa()}
                 className="flex items-center gap-1.5 rounded-xl bg-marinho-800 px-3 py-2 text-[13px] font-semibold text-white"
               >
                 <UserPlus aria-hidden className="size-4" /> Adicionar
@@ -394,39 +420,50 @@ export default function FaltasSobrasPage() {
             </div>
           )}
 
-          {!motoristas.length ? (
+          {!equipe.length ? (
             <p className="rounded-xl painel-2 px-3 py-6 text-center text-[13px] txt-fraco">
-              Nenhum motorista cadastrado ainda.
+              Ninguém cadastrado ainda.
             </p>
           ) : (
-            <ul className="flex flex-col gap-1.5">
-              {motoristas.map((m) => (
-                <li
-                  key={m.id}
-                  className={cn('flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2',
-                    m.ativo ? 'borda' : 'borda opacity-60')}
-                >
-                  <span className="text-[13.5px] font-semibold">{m.nome}</span>
-                  {!m.ativo && (
-                    <span className="rounded-md painel-2 px-2 py-0.5 text-[11px] font-bold txt-fraco">inativo</span>
-                  )}
-                  {podeLancar && (
-                    <div className="ml-auto flex items-center gap-1.5">
-                      <button type="button" onClick={() => void alternarAtivo(m)} className={cn(BOTAO_LINHA, 'txt-fraco')}>
-                        {m.ativo ? 'Desativar' : 'Reativar'}
-                      </button>
-                      <button
-                        type="button" onClick={() => void excluirMotorista(m)}
-                        aria-label={`Tirar ${m.nome} do cadastro`}
-                        className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
-                      >
-                        <Trash2 aria-hidden className="size-3.5" />
-                      </button>
-                    </div>
-                  )}
-                </li>
-              ))}
-            </ul>
+            <>
+              <p className="mb-2 text-[12px] txt-fraco">
+                {motoristasAtivos.length} motorista(s) e {ajudantesAtivos.length} ajudante(s) ativos.
+              </p>
+              <ul className="flex flex-col gap-1.5">
+                {equipeOrdenada.map((p) => (
+                  <li
+                    key={p.id}
+                    className={cn('flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2',
+                      p.ativo ? 'borda' : 'borda opacity-60')}
+                  >
+                    <span
+                      className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold uppercase',
+                        p.funcao === 'motorista' ? 'bg-marinho-100 text-marinho-800' : 'painel-2 txt-fraco')}
+                    >
+                      {p.funcao}
+                    </span>
+                    <span className="text-[13.5px] font-semibold">{p.nome}</span>
+                    {!p.ativo && (
+                      <span className="rounded-md painel-2 px-2 py-0.5 text-[11px] font-bold txt-fraco">inativo</span>
+                    )}
+                    {podeLancar && (
+                      <div className="ml-auto flex items-center gap-1.5">
+                        <button type="button" onClick={() => void alternarAtivo(p)} className={cn(BOTAO_LINHA, 'txt-fraco')}>
+                          {p.ativo ? 'Desativar' : 'Reativar'}
+                        </button>
+                        <button
+                          type="button" onClick={() => void excluirPessoa(p)}
+                          aria-label={`Tirar ${p.nome} do cadastro`}
+                          className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
+                        >
+                          <Trash2 aria-hidden className="size-3.5" />
+                        </button>
+                      </div>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
           )}
         </section>
       )}
@@ -494,11 +531,11 @@ export default function FaltasSobrasPage() {
                 className={ENTRADA}
               >
                 <option value="">Selecione…</option>
-                {ativos.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)}
+                {motoristasAtivos.map((m) => <option key={m.id} value={m.nome}>{m.nome}</option>)}
               </select>
-              {!ativos.length && (
+              {!motoristasAtivos.length && (
                 <p className="mt-1 text-[11.5px] txt-fraco">
-                  Nenhum motorista cadastrado — cadastre na aba <b>Motoristas</b>.
+                  Nenhum motorista cadastrado — cadastre na aba <b>Equipe</b>.
                 </p>
               )}
             </div>
@@ -522,12 +559,17 @@ export default function FaltasSobrasPage() {
                 <div className="flex flex-col gap-1.5">
                   {form.ajudantes.map((a, i) => (
                     <div key={`aj-${i}`} className="flex items-center gap-1.5">
-                      <input
-                        list="lista-ajudantes" value={a} placeholder={`Ajudante ${i + 1}`}
-                        aria-label={`Ajudante ${i + 1}`} autoComplete="off"
+                      <select
+                        value={a} aria-label={`Ajudante ${i + 1}`}
                         onChange={(e) => mudarAjudante(i, e.target.value)}
                         className={ENTRADA}
-                      />
+                      >
+                        <option value="">Ajudante {i + 1}…</option>
+                        {/* quem já está em outro campo sai da lista, para não repetir */}
+                        {ajudantesAtivos
+                          .filter((p) => p.nome === a || !form.ajudantes.includes(p.nome))
+                          .map((p) => <option key={p.id} value={p.nome}>{p.nome}</option>)}
+                      </select>
                       {form.ajudantes.length > 1 && (
                         <button
                           type="button" onClick={() => tirarAjudante(i)}
@@ -548,9 +590,11 @@ export default function FaltasSobrasPage() {
                     <Plus aria-hidden className="size-3.5" /> Mais um ajudante
                   </button>
                 )}
-                <datalist id="lista-ajudantes">
-                  {ajudantesUsados.map((a) => <option key={a} value={a} />)}
-                </datalist>
+                {!ajudantesAtivos.length && (
+                  <p className="mt-1 text-[11.5px] txt-fraco">
+                    Nenhum ajudante cadastrado — cadastre na aba <b>Equipe</b>.
+                  </p>
+                )}
               </div>
             )}
 

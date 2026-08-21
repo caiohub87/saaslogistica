@@ -128,10 +128,17 @@ export interface Inventario {
 
 export type TipoOcorrencia = 'falta' | 'sobra';
 
-export interface Motorista {
+export type FuncaoEquipe = 'motorista' | 'ajudante';
+
+/**
+ * Quem sai na rota — motoristas e ajudantes na mesma lista.
+ * A tabela ainda se chama `motoristas`: nasceu só com eles.
+ */
+export interface PessoaEquipe {
   id: number;
   unidade: string;
   nome: string;
+  funcao: FuncaoEquipe;
   ativo: boolean;
   criado_em: string;
 }

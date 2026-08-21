@@ -14,11 +14,13 @@
 -- Pode rodar mais de uma vez: cria o que falta e atualiza as policies.
 -- ============================================================
 
--- ---------- motoristas ----------
--- Lista propria, mantida na tela: o nome do motorista no relatorio do ERP vem
--- de outro cadastro e nem sempre bate com quem realmente saiu com a carga.
+-- ---------- equipe da rota (motoristas e ajudantes) ----------
+-- Lista propria, mantida na tela: o nome no relatorio do ERP vem de outro
+-- cadastro e nem sempre bate com quem realmente saiu com a carga.
 -- Desativar (ativo=false) em vez de apagar preserva os registros antigos, que
 -- guardam o nome como texto.
+-- A tabela nasceu so com motoristas e manteve o nome; hoje guarda os dois,
+-- separados pela coluna funcao.
 create table if not exists motoristas (
   id bigint generated always as identity primary key,
   unidade text not null,
@@ -28,6 +30,17 @@ create table if not exists motoristas (
   unique (unidade, nome)
 );
 create index if not exists motoristas_unidade on motoristas (unidade, ativo, nome);
+
+-- funcao: quem dirige e quem ajuda saem da mesma lista, cada um no seu campo
+alter table motoristas add column if not exists funcao text not null default 'motorista';
+alter table motoristas drop constraint if exists motoristas_funcao_check;
+alter table motoristas add constraint motoristas_funcao_check
+  check (funcao in ('motorista', 'ajudante'));
+-- a mesma pessoa pode estar nas duas funcoes (o ajudante que as vezes dirige),
+-- entao o nome sozinho deixa de ser unico — o par nome+funcao e que e
+alter table motoristas drop constraint if exists motoristas_unidade_nome_key;
+create unique index if not exists motoristas_unidade_nome_funcao
+  on motoristas (unidade, nome, funcao);
 
 -- ---------- faltas e sobras ----------
 create table if not exists ocorrencias (

@@ -2,8 +2,8 @@
 
 import { paraISO } from '@/lib/produtividade';
 import type {
-  Agendamento, Inventario, Motorista, Ocorrencia, ProdutoInventario, StatusAgendamento,
-  TipoAgendamento, TipoOcorrencia, Usuario,
+  Agendamento, FuncaoEquipe, Inventario, Ocorrencia, PessoaEquipe, ProdutoInventario,
+  StatusAgendamento, TipoAgendamento, TipoOcorrencia, Usuario,
 } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
 
@@ -91,13 +91,19 @@ const inv = (
   created_at: new Date().toISOString(),
 });
 
-/** Motoristas de exemplo — a lista de verdade é cadastrada na própria tela. */
-export function motoristasDemo(): Motorista[] {
-  return ['ANTONIO CARLOS', 'FRANCISCO DAS CHAGAS', 'JOSE RIBAMAR', 'PAULO SERGIO', 'RAIMUNDO NONATO']
-    .map((nome, i) => ({
-      id: 9100 + i, unidade: 'Dilnor', nome, ativo: true,
+/** Equipe de exemplo — a lista de verdade é cadastrada na própria tela. */
+export function equipeDemo(): PessoaEquipe[] {
+  const mk = (nomes: string[], funcao: FuncaoEquipe, base: number) =>
+    nomes.map((nome, i) => ({
+      id: base + i, unidade: 'Dilnor', nome, funcao, ativo: true,
       criado_em: new Date().toISOString(),
     }));
+  return [
+    ...mk(['ANTONIO CARLOS', 'FRANCISCO DAS CHAGAS', 'JOSE RIBAMAR', 'PAULO SERGIO', 'RAIMUNDO NONATO'],
+      'motorista', 9100),
+    ...mk(['CLEITON ALVES', 'EDVAN SOUSA', 'GILVAN COSTA', 'ROBSON LIMA', 'VALDENIO ANTONIO', 'WELLINGTON DIAS'],
+      'ajudante', 9150),
+  ];
 }
 
 /**
