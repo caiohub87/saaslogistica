@@ -1,7 +1,8 @@
 'use client';
 
 import {
-  Check, Clock, FileUp, Loader2, Save, Search, Target, Trash2, TriangleAlert, UserPlus, Users, X,
+  Check, Clock, FileDown, FileUp, Loader2, Save, Search, Target, Trash2, TriangleAlert,
+  UserPlus, Users, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -10,6 +11,7 @@ import {
   paraISO, premioDaCarga, premioDaPessoa, type Carga, type ConfigCarga,
 } from '@/lib/produtividade';
 import { lerRelatorio } from '@/lib/relatorio';
+import type { PremiacaoCaju } from '@/lib/relatorioCaju';
 import { getSupabase } from '@/lib/supabase';
 import { useRelatorio } from '@/providers/RelatorioProvider';
 import { useSessao } from '@/providers/SessionProvider';
@@ -47,7 +49,9 @@ export default function ProdutividadePage() {
   const { pode, demo, usuario } = useSessao();
   const { cargas, meta, config, premio, carregando, definirRelatorio, limpar } = useRelatorio();
   const podeImportar = pode('analise', 'importar') || pode('produtividade', 'salvar');
+  const podeExportar = pode('produtividade', 'exportar');
 
+  const [gerandoCaju, setGerandoCaju] = useState(false);
   const [busca, setBusca] = useState('');
   const [faixaFiltro, setFaixaFiltro] = useState('');
   const [confs, setConfs] = useState<Record<string, ConfigCarga>>({});
@@ -249,6 +253,46 @@ export default function ProdutividadePage() {
     await buscarDiasSalvos();
   }
 
+  /**
+   * Relatório caju: NOME e SALDO, o que cada pessoa juntou na semana.
+   *
+   * Sai do que está GRAVADO nos 5 dias, não do que está marcado na tela — o
+   * arquivo de pagamento tem de refletir a premiação salva, incluindo os
+   * reajustes feitos depois em Premiações salvas.
+   */
+  async function gerarRelatorioCaju() {
+    setErro(null); setSalvo(null);
+    setGerandoCaju(true);
+    try {
+      const isos = diasDaSemana.map((d) => d.iso);
+      let premiacoes: PremiacaoCaju[];
+
+      if (demo) {
+        const { premiacoesDemo } = await import('@/lib/demo');
+        premiacoes = premiacoesDemo().filter((p) => isos.includes(p.data_saida)) as PremiacaoCaju[];
+      } else {
+        const sb = getSupabase();
+        if (!sb) { setErro('Banco não configurado.'); return; }
+        const { data, error } = await sb.from('premiacoes')
+          .select('motorista,aj1,aj2,valor_mot,valor_aj1,valor_aj2,equipe')
+          .eq('unidade', usuario!.unidade).in('data_saida', isos);
+        if (error) { setErro('Não gerou o relatório: ' + error.message); return; }
+        premiacoes = (data ?? []) as PremiacaoCaju[];
+      }
+
+      const { somarSemana, totalCaju, baixarRelatorioCaju } = await import('@/lib/relatorioCaju');
+      const pessoas = somarSemana(premiacoes);
+      if (!pessoas.length) {
+        setErro('Nenhuma premiação salva nesta semana — não há o que exportar.');
+        return;
+      }
+      const nome = await baixarRelatorioCaju(pessoas, semanaBase);
+      setSalvo(`${nome} · ${pessoas.length} pessoa(s) · ${fmtBRL(totalCaju(pessoas))} na semana.`);
+    } finally {
+      setGerandoCaju(false);
+    }
+  }
+
   if (!pode('produtividade', 'ver')) {
     return (
       <div className="painel sombra mx-auto max-w-md rounded-2xl p-6 text-center">
@@ -344,6 +388,18 @@ export default function ProdutividadePage() {
                 })}
               </div>
               <span className="ml-auto text-[12px] txt-fraco">{diasSalvos.size} de 5 dia(s) já salvos</span>
+              {podeExportar && (
+                <button
+                  type="button" onClick={() => void gerarRelatorioCaju()} disabled={gerandoCaju}
+                  title="Excel com NOME e SALDO: o que cada pessoa juntou nesta semana"
+                  className="flex items-center gap-1.5 rounded-lg border borda px-3 py-1.5 text-[12.5px] font-semibold disabled:opacity-60"
+                >
+                  {gerandoCaju
+                    ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                    : <FileDown aria-hidden className="size-3.5" />}
+                  Relatório caju
+                </button>
+              )}
             </div>
             <p className="mt-2 text-[12px] txt-fraco">
               {diaAtivo
