@@ -2,7 +2,8 @@
 
 import { paraISO } from '@/lib/produtividade';
 import type {
-  Agendamento, Inventario, ProdutoInventario, StatusAgendamento, TipoAgendamento, Usuario,
+  Agendamento, Inventario, Motorista, Ocorrencia, ProdutoInventario, StatusAgendamento,
+  TipoAgendamento, TipoOcorrencia, Usuario,
 } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
 
@@ -89,6 +90,45 @@ const inv = (
   aprovado_em: aprovado ? '2026-05-20T14:30:00.000Z' : null,
   created_at: new Date().toISOString(),
 });
+
+/** Motoristas de exemplo — a lista de verdade é cadastrada na própria tela. */
+export function motoristasDemo(): Motorista[] {
+  return ['ANTONIO CARLOS', 'FRANCISCO DAS CHAGAS', 'JOSE RIBAMAR', 'PAULO SERGIO', 'RAIMUNDO NONATO']
+    .map((nome, i) => ({
+      id: 9100 + i, unidade: 'Dilnor', nome, ativo: true,
+      criado_em: new Date().toISOString(),
+    }));
+}
+
+/** Faltas e sobras de exemplo. Sem foto: a do demo viria embutida no código. */
+export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
+  const dia = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  let seq = 9200;
+  const mk = (
+    data: string, lote: string, motorista: string, placa: string,
+    produto: string | null, embalagem: string | null, obs = '',
+  ): Ocorrencia => ({
+    id: seq++, unidade: 'Dilnor', tipo, data, lote, produto, embalagem,
+    motorista, placa, foto: null, obs: obs || null,
+    registrado_por: 'Demonstração', registrado_por_id: null,
+    criado_em: new Date().toISOString(),
+  });
+
+  return tipo === 'falta'
+    ? [
+      mk(dia(0), '96661', 'ANTONIO CARLOS', 'OEY 8503', '65696', '48UNID'),
+      mk(dia(-1), '96540', 'JOSE RIBAMAR', 'NQB 4C56', '70112', '12UNID', 'cliente recusou o volume'),
+      mk(dia(-3), '96488', 'PAULO SERGIO', 'OGD 2E34', '65210', '24UNID'),
+    ]
+    : [
+      mk(dia(0), '96526', 'FRANCISCO DAS CHAGAS', 'NQC 2532', null, null),
+      mk(dia(-2), '96501', 'RAIMUNDO NONATO', 'MYY 5F67', null, null, 'voltou sem etiqueta'),
+    ];
+}
 
 /** Agendamentos de exemplo, ancorados na semana de hoje para os selos aparecerem. */
 export function agendamentosDemo(tipo: TipoAgendamento): Agendamento[] {

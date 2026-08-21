@@ -50,6 +50,8 @@ export const TELAS: Tela[] = [
 
   { chave: 'inventario', nome: 'Inventário', grupo: 'Estoque', rota: '/inventario', acoes: ['ver', 'lancar', 'excluir', 'aprovar', 'exportar'],
     descricao: 'Conferência por fornecedor. "Aprovar" era a senha do gerente (79513).', migrada: true },
+  { chave: 'ocorrencias', nome: 'Faltas e sobras', grupo: 'Estoque', rota: '/faltas-sobras', acoes: ['ver', 'lancar', 'excluir'],
+    descricao: 'O que faltou e o que voltou sobrando, com foto da sobra e cadastro dos motoristas.', migrada: true },
 
   { chave: 'cadastros', nome: 'Cadastros', grupo: 'Administração', rota: '/cadastros', acoes: ['ver', 'editar'],
     descricao: 'Tabela de premiação e tipo de operação de cada pessoa.' },
@@ -137,6 +139,7 @@ export const PERFIS: Perfil[] = [
       inicio: ['ver'],
       recebimentos: ['ver', 'editar', 'imprimir'],
       inventario: ['ver', 'lancar', 'exportar'],
+      ocorrencias: ['ver', 'lancar'],
       desempenho: ['ver'],
     },
   },
@@ -156,6 +159,7 @@ export const PERFIS: Perfil[] = [
       agendamentos: ['ver', 'editar', 'excluir', 'imprimir'],
       recebimentos: ['ver', 'editar', 'excluir', 'imprimir'],
       inventario: ['ver', 'lancar', 'aprovar', 'exportar'],
+      ocorrencias: ['ver', 'lancar', 'excluir'],
       cadastros: ['ver', 'editar'],
       config: ['ver'],
       desempenho: ['ver'],

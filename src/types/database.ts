@@ -123,3 +123,35 @@ export interface Inventario {
   aprovado_em: string | null;
   created_at: string;
 }
+
+// ---------- faltas e sobras ----------
+
+export type TipoOcorrencia = 'falta' | 'sobra';
+
+export interface Motorista {
+  id: number;
+  unidade: string;
+  nome: string;
+  ativo: boolean;
+  criado_em: string;
+}
+
+export interface Ocorrencia {
+  id: number;
+  unidade: string;
+  tipo: TipoOcorrencia;
+  data: string;
+  lote: string;
+  /** só falta: código do produto e a embalagem ('65696' · '48UNID') */
+  produto: string | null;
+  embalagem: string | null;
+  /** texto, não vínculo: o registro não muda se o cadastro mudar depois */
+  motorista: string;
+  placa: string | null;
+  /** só sobra: a foto embutida como data:image/jpeg;base64 */
+  foto: string | null;
+  obs: string | null;
+  registrado_por: string | null;
+  registrado_por_id: string | null;
+  criado_em: string;
+}
