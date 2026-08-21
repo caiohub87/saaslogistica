@@ -1,7 +1,8 @@
 'use client';
 
 import {
-  Archive, ChevronDown, ChevronRight, History, Loader2, Pencil, Save, Trash2, TrendingUp, X,
+  Archive, ChevronDown, ChevronRight, FileDown, History, Loader2, Pencil, Save, Trash2,
+  TrendingUp, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
@@ -57,9 +58,11 @@ export default function SalvosPage() {
   const { config, premio } = useRelatorio();
   const podeEditar = pode('salvos', 'ver') && pode('produtividade', 'salvar');
   const podeExcluir = pode('salvos', 'excluir');
+  const podeExportar = pode('salvos', 'exportar');
 
   const [marcadas, setMarcadas] = useState<Set<number>>(new Set());
   const [excluindo, setExcluindo] = useState(false);
+  const [gerandoCaju, setGerandoCaju] = useState(false);
   const [linhas, setLinhas] = useState<Premiacao[]>([]);
   const [historico, setHistorico] = useState<Record<number, Alteracao[]>>({});
   const [carregando, setCarregando] = useState(true);
@@ -131,6 +134,30 @@ export default function SalvosPage() {
   const totalSemana = daSemana.reduce(
     (a, l) => a + equipeDe(l).reduce((x, p) => x + (p.valor ?? 0), 0), 0,
   );
+
+  /**
+   * Relatório caju: NOME e SALDO da semana inteira que está na tela.
+   *
+   * Sai daqui e não da Produtividade porque é aqui que está o que foi gravado
+   * — com os reajustes de nome, cargo e valor já aplicados. É o que vai virar
+   * pagamento.
+   */
+  async function gerarRelatorioCaju() {
+    setErro(null); setMsg(null);
+    setGerandoCaju(true);
+    try {
+      const { somarSemana, totalCaju, baixarRelatorioCaju } = await import('@/lib/relatorioCaju');
+      const pessoas = somarSemana(daSemana);
+      if (!pessoas.length) {
+        setErro('Nenhum valor a pagar nesta semana — não há o que exportar.');
+        return;
+      }
+      const nome = await baixarRelatorioCaju(pessoas, semanaAtiva);
+      setMsg(`${nome} · ${pessoas.length} pessoa(s) · ${fmtBRL(totalCaju(pessoas))} na semana.`);
+    } finally {
+      setGerandoCaju(false);
+    }
+  }
 
   async function verHistorico(p: Premiacao) {
     if (aberta === p.id) { setAberta(null); return; }
@@ -345,6 +372,18 @@ export default function SalvosPage() {
                 {semanas.map((s) => <option key={s} value={s}>{fmtISO(s)}</option>)}
               </select>
               <span className="text-[12px] txt-fraco">{daSemana.length} carga(s) · {dias.length} dia(s)</span>
+              {podeExportar && (
+                <button
+                  type="button" onClick={() => void gerarRelatorioCaju()} disabled={gerandoCaju}
+                  title="Excel com NOME e SALDO: o que cada pessoa juntou nesta semana"
+                  className="ml-auto flex items-center gap-1.5 rounded-lg border borda px-3 py-1.5 text-[12.5px] font-semibold disabled:opacity-60"
+                >
+                  {gerandoCaju
+                    ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                    : <FileDown aria-hidden className="size-3.5" />}
+                  Relatório caju
+                </button>
+              )}
             </div>
 
             <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
