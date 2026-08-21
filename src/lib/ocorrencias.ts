@@ -4,9 +4,14 @@
  * São duas coisas diferentes, mas com o mesmo esqueleto (lote, motorista,
  * placa, data), então dividem a tabela `ocorrencias` e a mesma tela, separadas
  * pela coluna `tipo` — igual aos agendamentos (enviar/receber). O que muda:
- *   FALTA  pede o produto (código + embalagem): é o item que não chegou.
- *   SOBRA  pede a foto: é o que voltou na carroceria, e a foto identifica
- *          melhor que qualquer descrição escrita às pressas.
+ *   FALTA  pede o produto (código + embalagem) e a equipe da rota: é o item
+ *          que não chegou. Depois passa por aprovação.
+ *   SOBRA  pede quantidade e foto: é o que voltou na carroceria, e no momento
+ *          do registro ninguém sabe ainda de que produto é aquilo. A validação
+ *          vem depois, informando o código — é o que fecha o registro.
+ *
+ * Aprovar a falta e validar a sobra são a mesma permissão ('aprovar'): as duas
+ * são a segunda conferência, feita por quem não registrou.
  */
 
 import { PackageMinus, PackagePlus, type LucideIcon } from 'lucide-react';
@@ -19,13 +24,23 @@ export interface ConfigOcorrencia {
   /** título do formulário */
   acao: string;
   Icone: LucideIcon;
-  /** produto (código + embalagem) só existe na falta */
+  /** produto (código + embalagem) no registro: só a falta já sabe qual é */
   temProduto: boolean;
-  /** foto só existe na sobra */
+  /** equipe da rota: só a falta */
+  temAjudantes: boolean;
+  /** quantidade e foto: só a sobra */
+  temQuantidade: boolean;
   temFoto: boolean;
+  /** rótulo da segunda conferência */
+  conferencia: string;
+  /** como a ocorrência aparece enquanto ela não acontece */
+  pendente: string;
   cor: string;
   vazio: string;
 }
+
+/** Quantos ajudantes cabem numa rota — acima disso é outra carga. */
+export const MAX_AJUDANTES = 3;
 
 export const CONFIG: Record<TipoOcorrencia, ConfigOcorrencia> = {
   falta: {
@@ -34,7 +49,11 @@ export const CONFIG: Record<TipoOcorrencia, ConfigOcorrencia> = {
     acao: 'Registrar falta',
     Icone: PackageMinus,
     temProduto: true,
+    temAjudantes: true,
+    temQuantidade: false,
     temFoto: false,
+    conferencia: 'Aprovar',
+    pendente: 'aguardando aprovação',
     cor: 'bg-erro-500/15 text-erro-600',
     vazio: 'Nenhuma falta registrada neste período.',
   },
@@ -44,11 +63,28 @@ export const CONFIG: Record<TipoOcorrencia, ConfigOcorrencia> = {
     acao: 'Registrar sobra',
     Icone: PackagePlus,
     temProduto: false,
+    temAjudantes: false,
+    temQuantidade: true,
     temFoto: true,
+    conferencia: 'Validar',
+    pendente: 'aguardando validação',
     cor: 'bg-ouro-100 text-ouro-700',
     vazio: 'Nenhuma sobra registrada neste período.',
   },
 };
+
+/** Já passou pela segunda conferência? */
+export const conferida = (o: { tipo: TipoOcorrencia; aprovado_em: string | null; validado_em: string | null }) =>
+  Boolean(o.tipo === 'falta' ? o.aprovado_em : o.validado_em);
+
+/** Quantidade digitada como a operação escreve: '12' ou '1,5'. */
+export function parseQtd(s: string): number | null {
+  const n = Number(String(s).trim().replace(/\./g, '').replace(',', '.'));
+  return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+export const fmtQtd = (n: number | null) =>
+  n == null ? '' : n.toLocaleString('pt-BR', { maximumFractionDigits: 3 });
 
 export const hojeISO = () => {
   const d = new Date();

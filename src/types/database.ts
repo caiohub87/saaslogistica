@@ -142,16 +142,30 @@ export interface Ocorrencia {
   tipo: TipoOcorrencia;
   data: string;
   lote: string;
-  /** só falta: código do produto e a embalagem ('65696' · '48UNID') */
+  /**
+   * Código do produto e embalagem ('65696' · '48UNID').
+   * Na falta vem no registro; na sobra só aparece na validação — é o que
+   * identifica o que voltou.
+   */
   produto: string | null;
   embalagem: string | null;
+  /** só sobra: quanto voltou */
+  quantidade: number | null;
   /** texto, não vínculo: o registro não muda se o cadastro mudar depois */
   motorista: string;
+  /** só falta: até 3, conforme a rota do dia */
+  ajudantes: string[];
   placa: string | null;
   /** só sobra: a foto embutida como data:image/jpeg;base64 */
   foto: string | null;
   obs: string | null;
   registrado_por: string | null;
   registrado_por_id: string | null;
+  /** só falta: null enquanto aguarda a aprovação */
+  aprovado_por: string | null;
+  aprovado_em: string | null;
+  /** só sobra: null enquanto ninguém identificou o produto */
+  validado_por: string | null;
+  validado_em: string | null;
   criado_em: string;
 }

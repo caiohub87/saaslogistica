@@ -100,33 +100,49 @@ export function motoristasDemo(): Motorista[] {
     }));
 }
 
-/** Faltas e sobras de exemplo. Sem foto: a do demo viria embutida no código. */
+/**
+ * Faltas e sobras de exemplo, com os dois estados da segunda conferência
+ * (aprovada/pendente, validada/pendente). Sem foto: a do demo teria de vir
+ * embutida no código.
+ */
 export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
   const dia = (n: number) => {
     const d = new Date();
     d.setDate(d.getDate() + n);
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
   };
+  const quando = (n: number) => new Date(Date.now() + n * 86400000).toISOString();
   let seq = 9200;
   const mk = (
-    data: string, lote: string, motorista: string, placa: string,
-    produto: string | null, embalagem: string | null, obs = '',
+    o: Partial<Ocorrencia> & { data: string; lote: string; motorista: string },
   ): Ocorrencia => ({
-    id: seq++, unidade: 'Dilnor', tipo, data, lote, produto, embalagem,
-    motorista, placa, foto: null, obs: obs || null,
+    id: seq++, unidade: 'Dilnor', tipo,
+    produto: null, embalagem: null, quantidade: null, ajudantes: [],
+    placa: null, foto: null, obs: null,
     registrado_por: 'Demonstração', registrado_por_id: null,
+    aprovado_por: null, aprovado_em: null,
+    validado_por: null, validado_em: null,
     criado_em: new Date().toISOString(),
+    ...o,
   });
 
   return tipo === 'falta'
     ? [
-      mk(dia(0), '96661', 'ANTONIO CARLOS', 'OEY 8503', '65696', '48UNID'),
-      mk(dia(-1), '96540', 'JOSE RIBAMAR', 'NQB 4C56', '70112', '12UNID', 'cliente recusou o volume'),
-      mk(dia(-3), '96488', 'PAULO SERGIO', 'OGD 2E34', '65210', '24UNID'),
+      mk({ data: dia(0), lote: '96661', motorista: 'ANTONIO CARLOS', placa: 'OEY 8503',
+        produto: '65696', embalagem: '48UNID', ajudantes: ['EDVAN SOUSA', 'CLEITON ALVES'] }),
+      mk({ data: dia(-1), lote: '96540', motorista: 'JOSE RIBAMAR', placa: 'NQB 4C56',
+        produto: '70112', embalagem: '12UNID', ajudantes: ['WELLINGTON DIAS'],
+        obs: 'cliente recusou o volume' }),
+      mk({ data: dia(-3), lote: '96488', motorista: 'PAULO SERGIO', placa: 'OGD 2E34',
+        produto: '65210', embalagem: '24UNID', ajudantes: ['ROBSON LIMA', 'GILVAN COSTA', 'VALDENIO ANTONIO'],
+        aprovado_por: 'Gerência (demo)', aprovado_em: quando(-2) }),
     ]
     : [
-      mk(dia(0), '96526', 'FRANCISCO DAS CHAGAS', 'NQC 2532', null, null),
-      mk(dia(-2), '96501', 'RAIMUNDO NONATO', 'MYY 5F67', null, null, 'voltou sem etiqueta'),
+      mk({ data: dia(0), lote: '96526', motorista: 'FRANCISCO DAS CHAGAS', placa: 'NQC 2532',
+        quantidade: 3 }),
+      mk({ data: dia(-2), lote: '96501', motorista: 'RAIMUNDO NONATO', placa: 'MYY 5F67',
+        quantidade: 12, produto: '65696', embalagem: '48UNID',
+        validado_por: 'Conferente (demo)', validado_em: quando(-1), obs: 'voltou sem etiqueta' }),
     ];
 }
 

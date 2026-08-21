@@ -6,8 +6,12 @@
 --
 -- Sao duas ocorrencias diferentes na mesma tabela, separadas pela coluna tipo
 -- — mesmo desenho dos agendamentos (enviar/receber):
---   FALTA  lote + codigo do produto + embalagem + motorista + placa
---   SOBRA  lote + motorista + placa + foto do que voltou
+--   FALTA  lote + codigo do produto + embalagem + motorista + ajudantes +
+--          placa. Passa por APROVACAO de quem tem a permissao.
+--   SOBRA  lote + motorista + placa + quantidade + foto do que voltou.
+--          Depois alguem VALIDA dizendo de que produto e aquilo.
+--
+-- Pode rodar mais de uma vez: cria o que falta e atualiza as policies.
 -- ============================================================
 
 -- ---------- motoristas ----------
@@ -48,9 +52,21 @@ create table if not exists ocorrencias (
 );
 create index if not exists ocorrencias_busca on ocorrencias (unidade, tipo, data desc);
 
+-- ---------- quantidade, equipe e as duas conferencias ----------
+-- Colunas separadas do create acima para quem ja rodou a primeira versao deste
+-- arquivo poder rodar de novo sem erro.
+alter table ocorrencias add column if not exists quantidade numeric;          -- sobra: quanto voltou
+alter table ocorrencias add column if not exists ajudantes text[] not null default '{}';  -- falta: ate 3
+-- falta: liberada por quem tem a permissao 'aprovar'
+alter table ocorrencias add column if not exists aprovado_por text;
+alter table ocorrencias add column if not exists aprovado_em timestamptz;
+-- sobra: nasce sem saber de que produto e; quem identifica preenche produto e assina aqui
+alter table ocorrencias add column if not exists validado_por text;
+alter table ocorrencias add column if not exists validado_em timestamptz;
+
 -- ---------- catalogo de telas ----------
 insert into app_telas (chave, nome, grupo, ordem, acoes) values
-  ('ocorrencias', 'Faltas e sobras', 'Estoque', 115, array['ver','lancar','excluir'])
+  ('ocorrencias', 'Faltas e sobras', 'Estoque', 115, array['ver','lancar','aprovar','excluir'])
 on conflict (chave) do update
   set nome = excluded.nome, grupo = excluded.grupo,
       ordem = excluded.ordem, acoes = excluded.acoes;
@@ -69,11 +85,17 @@ create policy "escrita motoristas" on motoristas for all to authenticated
 alter table ocorrencias enable row level security;
 drop policy if exists "leitura ocorrencias" on ocorrencias;
 drop policy if exists "escrita ocorrencias" on ocorrencias;
+drop policy if exists "conferencia ocorrencias" on ocorrencias;
 drop policy if exists "exclusao ocorrencias" on ocorrencias;
 create policy "leitura ocorrencias" on ocorrencias for select to authenticated
   using ( unidade = minha_unidade() and pode('ocorrencias','ver') );
 create policy "escrita ocorrencias" on ocorrencias for insert to authenticated
   with check ( unidade = minha_unidade() and pode('ocorrencias','lancar') );
+-- aprovar a falta e validar a sobra sao a segunda conferencia: quem registra
+-- nao libera o proprio registro, por isso permissao separada de 'lancar'
+create policy "conferencia ocorrencias" on ocorrencias for update to authenticated
+  using ( unidade = minha_unidade() and pode('ocorrencias','aprovar') )
+  with check ( unidade = minha_unidade() and pode('ocorrencias','aprovar') );
 -- excluir e acao separada: registrar nao da direito de apagar o registro alheio
 create policy "exclusao ocorrencias" on ocorrencias for delete to authenticated
   using ( unidade = minha_unidade() and pode('ocorrencias','excluir') );
@@ -86,4 +108,6 @@ create policy "exclusao ocorrencias" on ocorrencias for delete to authenticated
 --
 -- Para liberar a tela para alguem que nao e administrador:
 --   Usuarios e acessos -> a pessoa -> Faltas e sobras -> marcar Ver / Lancar.
+--   'Aprovar' e o que libera aprovar falta e validar sobra — deixe so com quem
+--   confere, senao a segunda conferencia vira formalidade.
 -- ============================================================

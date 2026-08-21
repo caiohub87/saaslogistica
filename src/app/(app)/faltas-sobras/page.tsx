@@ -1,13 +1,14 @@
 'use client';
 
 import {
-  Camera, Loader2, Plus, Search, Trash2, UserCog, UserPlus, X,
+  Camera, Check, Loader2, Plus, Search, ShieldCheck, Trash2, UserCog, UserPlus, X,
 } from 'lucide-react';
 import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  CONFIG, comprimirFoto, fmtData, hojeISO, normNome, normPlaca, produtoTexto,
+  CONFIG, comprimirFoto, conferida, fmtData, fmtQtd, hojeISO, MAX_AJUDANTES,
+  normNome, normPlaca, parseQtd, produtoTexto,
 } from '@/lib/ocorrencias';
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
@@ -17,15 +18,15 @@ import { cn } from '@/utils/cn';
 type Aba = TipoOcorrencia | 'motoristas';
 
 interface Form {
-  data: string; lote: string; produto: string; embalagem: string;
-  motorista: string; placa: string; foto: string | null; obs: string;
+  data: string; lote: string; produto: string; embalagem: string; quantidade: string;
+  motorista: string; ajudantes: string[]; placa: string; foto: string | null; obs: string;
 }
 const formVazio = (): Form => ({
-  data: hojeISO(), lote: '', produto: '', embalagem: '',
-  motorista: '', placa: '', foto: null, obs: '',
+  data: hojeISO(), lote: '', produto: '', embalagem: '', quantidade: '',
+  motorista: '', ajudantes: [''], placa: '', foto: null, obs: '',
 });
 
-const dica = (msg: string) => (/relation|does not exist/i.test(msg)
+const dica = (msg: string) => (/relation|does not exist|column/i.test(msg)
   ? ' — rode o SQL 14_faltas_sobras.sql no Supabase.'
   : /permission|policy|row-level/i.test(msg)
     ? ' — seu acesso não tem permissão para isso.'
@@ -34,6 +35,7 @@ const dica = (msg: string) => (/relation|does not exist/i.test(msg)
 export default function FaltasSobrasPage() {
   const { pode, demo, usuario } = useSessao();
   const podeLancar = pode('ocorrencias', 'lancar');
+  const podeAprovar = pode('ocorrencias', 'aprovar');
   const podeExcluir = pode('ocorrencias', 'excluir');
 
   const [aba, setAba] = useState<Aba>('falta');
@@ -49,8 +51,12 @@ export default function FaltasSobrasPage() {
   const [form, setForm] = useState<Form>(formVazio);
   const [salvando, setSalvando] = useState(false);
   const [lendoFoto, setLendoFoto] = useState(false);
+  const [ocupado, setOcupado] = useState<number | null>(null);
   const [fotoAberta, setFotoAberta] = useState<number | null>(null);
+  const [validando, setValidando] = useState<number | null>(null);
+  const [formValida, setFormValida] = useState({ produto: '', embalagem: '' });
   const [busca, setBusca] = useState('');
+  const [situacao, setSituacao] = useState<'todos' | 'pendentes' | 'ok'>('todos');
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState('');
   const [novoMotorista, setNovoMotorista] = useState('');
@@ -111,6 +117,18 @@ export default function FaltasSobrasPage() {
     setLendoFoto(false);
   }
 
+  // ---------- ajudantes ----------
+  // um campo só na tela; quem levou mais gente clica e ganha o próximo, até 3
+  const mudarAjudante = (i: number, nome: string) =>
+    setForm((f) => ({ ...f, ajudantes: f.ajudantes.map((a, j) => (j === i ? nome : a)) }));
+  const tirarAjudante = (i: number) =>
+    setForm((f) => {
+      const resto = f.ajudantes.filter((_, j) => j !== i);
+      return { ...f, ajudantes: resto.length ? resto : [''] };
+    });
+  const maisUmAjudante = () =>
+    setForm((f) => (f.ajudantes.length >= MAX_AJUDANTES ? f : { ...f, ajudantes: [...f.ajudantes, ''] }));
+
   // ---------- registrar ----------
   async function registrar() {
     if (!tipoAtivo) return;
@@ -118,6 +136,9 @@ export default function FaltasSobrasPage() {
     if (!form.lote.trim()) { setErro('Informe o lote.'); return; }
     if (!form.motorista.trim()) { setErro('Escolha o motorista.'); return; }
     if (cfg.temProduto && !form.produto.trim()) { setErro('Informe o código do produto.'); return; }
+
+    const qtd = cfg.temQuantidade ? parseQtd(form.quantidade) : null;
+    if (cfg.temQuantidade && qtd == null) { setErro('Informe quanto sobrou (quantidade maior que zero).'); return; }
     // a foto é o que identifica a sobra, mas não trava o registro: se o
     // celular falhar na hora, o lote e o motorista já valem mais que nada
     if (cfg.temFoto && !form.foto && !confirm('Registrar a sobra sem foto?')) return;
@@ -126,14 +147,18 @@ export default function FaltasSobrasPage() {
     const sb = getSupabase();
     if (!sb) return;
     setSalvando(true);
+    const equipe = [...new Set(form.ajudantes.map(normNome).filter(Boolean))];
     const { error } = await sb.from('ocorrencias').insert({
       unidade: usuario!.unidade,
       tipo: tipoAtivo,
       data: form.data,
       lote: form.lote.trim(),
+      // na sobra o produto entra só na validação — aqui ninguém sabe ainda qual é
       produto: cfg.temProduto ? form.produto.trim() : null,
       embalagem: cfg.temProduto ? (form.embalagem.trim() || null) : null,
+      quantidade: qtd,
       motorista: form.motorista,
+      ajudantes: cfg.temAjudantes ? equipe : [],
       placa: form.placa ? normPlaca(form.placa) : null,
       foto: cfg.temFoto ? form.foto : null,
       obs: form.obs.trim() || null,
@@ -143,7 +168,9 @@ export default function FaltasSobrasPage() {
     setSalvando(false);
 
     if (error) { setErro('Não registrou: ' + error.message + dica(error.message)); return; }
-    setMsg(`${cfg.temProduto ? 'Falta' : 'Sobra'} do lote ${form.lote.trim()} registrada.`);
+    setMsg(tipoAtivo === 'falta'
+      ? `Falta do lote ${form.lote.trim()} registrada — aguardando aprovação.`
+      : `Sobra do lote ${form.lote.trim()} registrada — falta validar o código do produto.`);
     setForm(formVazio());
     await carregar();
   }
@@ -161,6 +188,63 @@ export default function FaltasSobrasPage() {
     }
     setMsg('Registro excluído.');
     await carregar();
+  }
+
+  // ---------- segunda conferência ----------
+  /**
+   * Aprovar (falta) e validar (sobra) são a mesma permissão e o mesmo update.
+   *
+   * O update pede as linhas de volta (.select): barrado pela RLS, o Supabase
+   * responde sem erro e sem linha nenhuma — e a tela diria que deu certo.
+   */
+  async function conferir(o: Ocorrencia, dados: Record<string, unknown>, aviso: string) {
+    setMsg(null); setErro(null);
+    if (bloqueadoNoDemo()) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    setOcupado(o.id);
+    const { data, error } = await sb.from('ocorrencias').update(dados).eq('id', o.id).select('id');
+    setOcupado(null);
+    if (error) { setErro(error.message + dica(error.message)); return; }
+    if (!(data ?? []).length) {
+      setErro(`Nada mudou — seu acesso não tem a permissão ${cfg.conferencia === 'Aprovar' ? 'de aprovar falta' : 'de validar sobra'}.`);
+      return;
+    }
+    setValidando(null);
+    setMsg(aviso);
+    await carregar();
+  }
+
+  const aprovarFalta = (o: Ocorrencia) => conferir(
+    o,
+    { aprovado_por: usuario!.nome, aprovado_em: new Date().toISOString() },
+    `Falta do lote ${o.lote} aprovada por ${usuario!.nome}.`,
+  );
+
+  function retirarAprovacao(o: Ocorrencia) {
+    if (!confirm(`Retirar a aprovação da falta do lote ${o.lote}?`)) return;
+    void conferir(o, { aprovado_por: null, aprovado_em: null }, 'Aprovação retirada.');
+  }
+
+  function abrirValidacao(o: Ocorrencia) {
+    setValidando(o.id);
+    setFormValida({ produto: o.produto ?? '', embalagem: o.embalagem ?? '' });
+    setMsg(null); setErro(null);
+  }
+
+  function validarSobra(o: Ocorrencia) {
+    const codigo = formValida.produto.trim();
+    if (!codigo) { setErro('Informe o código do produto para validar a sobra.'); return; }
+    void conferir(
+      o,
+      {
+        produto: codigo,
+        embalagem: formValida.embalagem.trim() || null,
+        validado_por: usuario!.nome,
+        validado_em: new Date().toISOString(),
+      },
+      `Sobra do lote ${o.lote} validada como ${produtoTexto(codigo, formValida.embalagem.trim() || null)}.`,
+    );
   }
 
   // ---------- motoristas ----------
@@ -202,9 +286,13 @@ export default function FaltasSobrasPage() {
 
   // ---------- consultas ----------
   const ativos = useMemo(() => motoristas.filter((m) => m.ativo), [motoristas]);
-  // placas já usadas viram sugestão: quem digita no celular erra menos
+  // placas e ajudantes já usados viram sugestão: quem digita no celular erra menos
   const placas = useMemo(
     () => [...new Set(itens.map((o) => o.placa).filter(Boolean) as string[])].sort(),
+    [itens],
+  );
+  const ajudantesUsados = useMemo(
+    () => [...new Set(itens.flatMap((o) => o.ajudantes ?? []))].sort(),
     [itens],
   );
 
@@ -212,9 +300,12 @@ export default function FaltasSobrasPage() {
     const q = busca.trim().toLowerCase();
     return itens
       .filter((o) => (!ini || o.data >= ini) && (!fim || o.data <= fim))
-      .filter((o) => !q || [o.lote, o.motorista, o.placa, o.produto, o.embalagem, o.obs]
+      .filter((o) => situacao === 'todos' || (situacao === 'ok' ? conferida(o) : !conferida(o)))
+      .filter((o) => !q || [o.lote, o.motorista, o.placa, o.produto, o.embalagem, o.obs, ...(o.ajudantes ?? [])]
         .some((x) => (x ?? '').toLowerCase().includes(q)));
-  }, [itens, busca, ini, fim]);
+  }, [itens, busca, ini, fim, situacao]);
+
+  const pendentes = useMemo(() => itens.filter((o) => !conferida(o)).length, [itens]);
 
   if (!pode('ocorrencias', 'ver')) {
     return (
@@ -226,6 +317,7 @@ export default function FaltasSobrasPage() {
   }
 
   const ENTRADA = 'painel-2 w-full rounded-xl border borda px-3 py-2 text-sm outline-none focus:border-marinho-500';
+  const BOTAO_LINHA = 'flex items-center gap-1 rounded-lg border borda px-2 py-1 text-[11.5px] font-semibold';
 
   return (
     <div className="motion-safe:animate-entrada">
@@ -235,8 +327,9 @@ export default function FaltasSobrasPage() {
           Faltas e sobras
         </h1>
         <p className="mt-1 text-sm txt-fraco">
-          <b>Falta</b> é o que não chegou: lote, produto e quem levou.{' '}
-          <b>Sobra</b> é o que voltou na carroceria — com foto, que explica melhor que descrição.
+          <b>Falta</b> é o que não chegou: produto, lote e a equipe da rota — e passa por aprovação.{' '}
+          <b>Sobra</b> é o que voltou na carroceria: quantidade e foto na hora, e depois alguém
+          valida dizendo de que produto é.
         </p>
       </header>
 
@@ -251,7 +344,9 @@ export default function FaltasSobrasPage() {
         {([CONFIG.falta, CONFIG.sobra] as const).map((c) => (
           <button
             key={c.tipo} type="button"
-            onClick={() => { setAba(c.tipo); setForm(formVazio()); setMsg(null); setErro(null); }}
+            onClick={() => {
+              setAba(c.tipo); setForm(formVazio()); setMsg(null); setErro(null); setValidando(null);
+            }}
             className={cn(
               'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
               aba === c.tipo ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
@@ -317,16 +412,13 @@ export default function FaltasSobrasPage() {
                   )}
                   {podeLancar && (
                     <div className="ml-auto flex items-center gap-1.5">
-                      <button
-                        type="button" onClick={() => void alternarAtivo(m)}
-                        className="rounded-lg border borda px-2 py-1 text-[11.5px] font-semibold txt-fraco"
-                      >
+                      <button type="button" onClick={() => void alternarAtivo(m)} className={cn(BOTAO_LINHA, 'txt-fraco')}>
                         {m.ativo ? 'Desativar' : 'Reativar'}
                       </button>
                       <button
                         type="button" onClick={() => void excluirMotorista(m)}
                         aria-label={`Tirar ${m.nome} do cadastro`}
-                        className="rounded-lg border borda px-2 py-1 text-[11.5px] font-semibold text-erro-600 hover:bg-erro-500/10"
+                        className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
                       >
                         <Trash2 aria-hidden className="size-3.5" />
                       </button>
@@ -383,6 +475,17 @@ export default function FaltasSobrasPage() {
               </>
             )}
 
+            {cfg.temQuantidade && (
+              <div>
+                <label htmlFor="oc-qtd" className="mb-1 block text-[12.5px] font-semibold">Quantidade que sobrou</label>
+                <input
+                  id="oc-qtd" inputMode="decimal" placeholder="3" autoComplete="off"
+                  value={form.quantidade} onChange={(e) => setForm({ ...form, quantidade: e.target.value })}
+                  className={ENTRADA}
+                />
+              </div>
+            )}
+
             <div>
               <label htmlFor="oc-mot" className="mb-1 block text-[12.5px] font-semibold">Motorista</label>
               <select
@@ -411,7 +514,47 @@ export default function FaltasSobrasPage() {
               </datalist>
             </div>
 
-            <div className={cn(cfg.temFoto ? '' : 'lg:col-span-2', 'sm:col-span-2')}>
+            {cfg.temAjudantes && (
+              <div className="sm:col-span-2 lg:col-span-1">
+                <span className="mb-1 block text-[12.5px] font-semibold">
+                  Ajudantes <span className="txt-fraco">(opcional, até {MAX_AJUDANTES})</span>
+                </span>
+                <div className="flex flex-col gap-1.5">
+                  {form.ajudantes.map((a, i) => (
+                    <div key={`aj-${i}`} className="flex items-center gap-1.5">
+                      <input
+                        list="lista-ajudantes" value={a} placeholder={`Ajudante ${i + 1}`}
+                        aria-label={`Ajudante ${i + 1}`} autoComplete="off"
+                        onChange={(e) => mudarAjudante(i, e.target.value)}
+                        className={ENTRADA}
+                      />
+                      {form.ajudantes.length > 1 && (
+                        <button
+                          type="button" onClick={() => tirarAjudante(i)}
+                          aria-label={`Tirar o ajudante ${i + 1}`}
+                          className="rounded-lg border borda p-2 txt-fraco hover:bg-erro-500/10 hover:text-erro-600"
+                        >
+                          <X aria-hidden className="size-3.5" />
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                {form.ajudantes.length < MAX_AJUDANTES && (
+                  <button
+                    type="button" onClick={maisUmAjudante}
+                    className="mt-1.5 flex items-center gap-1 rounded-lg border borda px-2.5 py-1 text-[11.5px] font-semibold txt-fraco"
+                  >
+                    <Plus aria-hidden className="size-3.5" /> Mais um ajudante
+                  </button>
+                )}
+                <datalist id="lista-ajudantes">
+                  {ajudantesUsados.map((a) => <option key={a} value={a} />)}
+                </datalist>
+              </div>
+            )}
+
+            <div className="sm:col-span-2">
               <label htmlFor="oc-obs" className="mb-1 block text-[12.5px] font-semibold">
                 Observação <span className="txt-fraco">(opcional)</span>
               </label>
@@ -480,7 +623,21 @@ export default function FaltasSobrasPage() {
             <span className="rounded-md painel-2 px-2 py-0.5 text-[11.5px] font-bold txt-fraco">
               {lista.length}
             </span>
+            {!!pendentes && (
+              <span className="rounded-md bg-ouro-100 px-2 py-0.5 text-[11.5px] font-bold text-ouro-700">
+                {pendentes} {cfg.pendente}
+              </span>
+            )}
             <div className="ml-auto flex flex-wrap items-center gap-2">
+              <select
+                value={situacao} onChange={(e) => setSituacao(e.target.value as typeof situacao)}
+                aria-label="Situação"
+                className="painel-2 rounded-lg border borda px-2 py-1.5 text-[12.5px]"
+              >
+                <option value="todos">Todas</option>
+                <option value="pendentes">{cfg.pendente}</option>
+                <option value="ok">{cfg.tipo === 'falta' ? 'Já aprovadas' : 'Já validadas'}</option>
+              </select>
               <label className="flex items-center gap-1 text-[12px] txt-fraco">
                 De <input
                   type="date" value={ini} onChange={(e) => setIni(e.target.value)}
@@ -504,6 +661,13 @@ export default function FaltasSobrasPage() {
             </div>
           </div>
 
+          {!podeAprovar && (
+            <p className="mb-3 rounded-xl painel-2 px-3.5 py-2.5 text-[12.5px] txt-fraco">
+              Você registra e acompanha, mas não tem a permissão <b>Aprovar</b> desta tela — a que
+              libera a falta e valida a sobra. Quem concede é o administrador, em Usuários e acessos.
+            </p>
+          )}
+
           {carregando ? (
             <div className="flex justify-center py-12">
               <Loader2 aria-hidden className="size-6 animate-spin text-marinho-500" />
@@ -512,56 +676,157 @@ export default function FaltasSobrasPage() {
             <p className="rounded-xl painel-2 px-3 py-8 text-center text-[13px] txt-fraco">{cfg.vazio}</p>
           ) : (
             <ul className="flex flex-col gap-2">
-              {lista.map((o) => (
-                <li key={o.id} className="rounded-xl border borda p-3">
-                  <div className="flex flex-wrap items-center gap-2.5">
-                    <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold uppercase', cfg.cor)}>
-                      {o.tipo}
-                    </span>
-                    <span className="text-[14px] font-bold">Lote {o.lote}</span>
-                    {o.produto && (
-                      <span className="rounded-md painel-2 px-2 py-0.5 text-[12px] font-semibold">
-                        {produtoTexto(o.produto, o.embalagem)}
+              {lista.map((o) => {
+                const ok = conferida(o);
+                const emValidacao = validando === o.id;
+                return (
+                  <li key={o.id} className={cn('rounded-xl border p-3', ok ? 'borda' : 'border-ouro-500')}>
+                    <div className="flex flex-wrap items-center gap-2.5">
+                      <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold uppercase', cfg.cor)}>
+                        {o.tipo}
                       </span>
+                      <span className="text-[14px] font-bold">Lote {o.lote}</span>
+                      {o.produto && (
+                        <span className="rounded-md painel-2 px-2 py-0.5 text-[12px] font-semibold">
+                          {produtoTexto(o.produto, o.embalagem)}
+                        </span>
+                      )}
+                      {o.quantidade != null && (
+                        <span className="text-[12.5px] font-semibold">{fmtQtd(o.quantidade)} un</span>
+                      )}
+                      <span className="text-[12.5px] txt-fraco">{fmtData(o.data)}</span>
+
+                      {ok ? (
+                        <span className="flex items-center gap-1 rounded-md bg-ok-500/15 px-2 py-0.5 text-[11px] font-bold text-ok-600">
+                          <ShieldCheck aria-hidden className="size-3" />
+                          {o.tipo === 'falta'
+                            ? `aprovada por ${o.aprovado_por}`
+                            : `validada por ${o.validado_por}`}
+                        </span>
+                      ) : (
+                        <span className="rounded-md bg-ouro-100 px-2 py-0.5 text-[11px] font-bold text-ouro-700">
+                          {cfg.pendente}
+                        </span>
+                      )}
+
+                      <div className="ml-auto flex items-center gap-1.5">
+                        {podeAprovar && o.tipo === 'falta' && (
+                          ok ? (
+                            <button
+                              type="button" onClick={() => retirarAprovacao(o)} disabled={ocupado === o.id}
+                              className={cn(BOTAO_LINHA, 'txt-fraco')}
+                            >
+                              Retirar aprovação
+                            </button>
+                          ) : (
+                            <button
+                              type="button" onClick={() => void aprovarFalta(o)} disabled={ocupado === o.id}
+                              className={cn(BOTAO_LINHA, 'border-ok-500 text-ok-600 hover:bg-ok-500/10')}
+                            >
+                              {ocupado === o.id
+                                ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                                : <Check aria-hidden className="size-3.5" />}
+                              Aprovar
+                            </button>
+                          )
+                        )}
+                        {podeAprovar && o.tipo === 'sobra' && !emValidacao && (
+                          <button
+                            type="button" onClick={() => abrirValidacao(o)}
+                            className={cn(BOTAO_LINHA, ok ? 'txt-fraco' : 'border-ok-500 text-ok-600 hover:bg-ok-500/10')}
+                          >
+                            <Check aria-hidden className="size-3.5" />
+                            {ok ? 'Corrigir código' : 'Validar'}
+                          </button>
+                        )}
+                        {podeExcluir && (
+                          <button
+                            type="button" onClick={() => void excluir(o)}
+                            aria-label={`Excluir o registro do lote ${o.lote}`}
+                            className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
+                          >
+                            <Trash2 aria-hidden className="size-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] txt-fraco">
+                      <span>
+                        <b className="text-[12.5px]" style={{ color: 'var(--texto)' }}>{o.motorista}</b>
+                        {o.placa ? ` · ${o.placa}` : ''}
+                      </span>
+                      {!!(o.ajudantes ?? []).length && (
+                        <span>
+                          {o.ajudantes.length === 1 ? 'ajudante' : 'ajudantes'}: {o.ajudantes.join(', ')}
+                        </span>
+                      )}
+                      {o.obs && <span>· {o.obs}</span>}
+                      {o.registrado_por && <span className="ml-auto">registrado por {o.registrado_por}</span>}
+                    </div>
+
+                    {/* validação da sobra: o código do produto é o que fecha o registro */}
+                    {emValidacao && (
+                      <div className="mt-2 rounded-xl painel-2 p-3 motion-safe:animate-surgir">
+                        <p className="mb-2 text-[12px] font-semibold">
+                          De que produto é esta sobra? A foto e o lote ajudam a identificar.
+                        </p>
+                        <div className="flex flex-wrap items-end gap-2">
+                          <label className="grow sm:grow-0">
+                            <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">Código do produto</span>
+                            <input
+                              autoFocus inputMode="numeric" placeholder="65696" autoComplete="off"
+                              value={formValida.produto}
+                              onChange={(e) => setFormValida({ ...formValida, produto: e.target.value })}
+                              className="painel w-full rounded-lg border borda px-2.5 py-1.5 text-[13px] font-semibold outline-none focus:border-marinho-500 sm:w-36"
+                            />
+                          </label>
+                          <label className="grow sm:grow-0">
+                            <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">Unidade / embalagem</span>
+                            <input
+                              placeholder="48UNID" autoComplete="off"
+                              value={formValida.embalagem}
+                              onChange={(e) => setFormValida({ ...formValida, embalagem: e.target.value })}
+                              className="painel w-full rounded-lg border borda px-2.5 py-1.5 text-[13px] outline-none focus:border-marinho-500 sm:w-36"
+                            />
+                          </label>
+                          <button
+                            type="button" onClick={() => validarSobra(o)} disabled={ocupado === o.id}
+                            className="flex items-center gap-1.5 rounded-lg bg-marinho-800 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-60"
+                          >
+                            {ocupado === o.id
+                              ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                              : <ShieldCheck aria-hidden className="size-3.5" />}
+                            Confirmar validação
+                          </button>
+                          <button
+                            type="button" onClick={() => setValidando(null)}
+                            className={cn(BOTAO_LINHA, 'txt-fraco px-2.5 py-1.5 text-[12.5px]')}
+                          >
+                            <X aria-hidden className="size-3.5" /> Cancelar
+                          </button>
+                        </div>
+                      </div>
                     )}
-                    <span className="text-[12.5px] txt-fraco">{fmtData(o.data)}</span>
-                    {podeExcluir && (
+
+                    {o.foto && (
                       <button
-                        type="button" onClick={() => void excluir(o)}
-                        aria-label={`Excluir o registro do lote ${o.lote}`}
-                        className="ml-auto rounded-lg border borda px-2 py-1 text-erro-600 hover:bg-erro-500/10"
+                        type="button" onClick={() => setFotoAberta(fotoAberta === o.id ? null : o.id)}
+                        className="mt-2 block"
+                        aria-label={fotoAberta === o.id ? 'Fechar a foto' : 'Ver a foto maior'}
                       >
-                        <Trash2 aria-hidden className="size-3.5" />
+                        <Image
+                          src={o.foto} alt={`Sobra do lote ${o.lote}`} unoptimized
+                          width={fotoAberta === o.id ? 1280 : 96}
+                          height={fotoAberta === o.id ? 960 : 96}
+                          className={cn('rounded-xl border borda',
+                            fotoAberta === o.id ? 'h-auto w-full max-w-xl' : 'size-24 object-cover')}
+                        />
                       </button>
                     )}
-                  </div>
-
-                  <div className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-[12.5px] txt-fraco">
-                    <span>
-                      <b className="text-[12.5px]" style={{ color: 'var(--texto)' }}>{o.motorista}</b>
-                      {o.placa ? ` · ${o.placa}` : ''}
-                    </span>
-                    {o.obs && <span>· {o.obs}</span>}
-                    {o.registrado_por && <span className="ml-auto">registrado por {o.registrado_por}</span>}
-                  </div>
-
-                  {o.foto && (
-                    <button
-                      type="button" onClick={() => setFotoAberta(fotoAberta === o.id ? null : o.id)}
-                      className="mt-2 block"
-                      aria-label={fotoAberta === o.id ? 'Fechar a foto' : 'Ver a foto maior'}
-                    >
-                      <Image
-                        src={o.foto} alt={`Sobra do lote ${o.lote}`} unoptimized
-                        width={fotoAberta === o.id ? 1280 : 96}
-                        height={fotoAberta === o.id ? 960 : 96}
-                        className={cn('rounded-xl border borda',
-                          fotoAberta === o.id ? 'h-auto w-full max-w-xl' : 'size-24 object-cover')}
-                      />
-                    </button>
-                  )}
-                </li>
-              ))}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </section>
