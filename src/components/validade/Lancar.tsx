@@ -5,7 +5,8 @@ import { useMemo, useRef, useState } from 'react';
 
 import { FORNECEDORES } from '@/lib/inventario';
 import {
-  diasAte, fmtDataBR, lerPdfValidade, PERIODOS, SEM_FORNECEDOR, type Periodo,
+  agruparPorSku, diasAte, fmtDataBR, lerPdfValidade, PERIODOS, SEM_FORNECEDOR,
+  type Periodo, type SkuValidade,
 } from '@/lib/validade';
 import type { ItemValidade, RegistroValidade } from '@/types/database';
 import { cn } from '@/utils/cn';
@@ -18,11 +19,14 @@ const low = (s: unknown) =>
  *
  * Duas coisas acontecem aqui, e elas sao independentes de proposito:
  *   1. subir o PDF, que atualiza o retrato do deposito;
- *   2. registrar quanto de cada lote escoa em 30/60/90/120 dias.
+ *   2. registrar quanto de cada produto escoa em 30/60/90/120 dias.
  *
  * O upload NUNCA apaga registro: item que veio no PDF novo tem os numeros
  * atualizados, item que nao veio fica como estava. O relatorio e recortado por
  * faixa de dias, entao sumir da listagem nao quer dizer sumir do deposito.
+ *
+ * Uma linha por PRODUTO, nao por endereco: o relatorio repete o mesmo SKU uma
+ * vez para cada endereco, e quem controla validade pensa no produto.
  */
 export function Lancar({
   itens, registros, fornecedores, podeLancar, podeExcluir, demo, unidade, nomeUsuario,
@@ -49,18 +53,18 @@ export function Lancar({
   const [filtro, setFiltro] = useState<'todos' | 'sem_registro' | 'com_registro' | 'vencidos'>('todos');
   const [fornFiltro, setFornFiltro] = useState('__todos');
 
-  /** quantidade digitada por linha, antes de escolher o periodo */
+  /** o que a pessoa digitou em cada linha, antes de escolher o prazo */
   const [qtd, setQtd] = useState<Record<string, string>>({});
+  const [data, setData] = useState<Record<string, string>>({});
   const [ocupado, setOcupado] = useState<string | null>(null);
 
-  const chave = (i: ItemValidade) => i.produto_id + '@' + i.endereco;
+  /** uma linha por produto; o retrato bruto continua com uma por endereco */
+  const skus = useMemo(() => agruparPorSku(itens), [itens]);
 
-  const porItem = useMemo(() => {
+  /** os registros de um SKU, venham do endereco que vierem */
+  const porSku = useMemo(() => {
     const m: Record<string, RegistroValidade[]> = {};
-    registros.forEach((r) => {
-      const k = r.produto_id + '@' + r.endereco;
-      (m[k] ??= []).push(r);
-    });
+    registros.forEach((r) => { (m[r.produto_id] ??= []).push(r); });
     return m;
   }, [registros]);
 
@@ -71,25 +75,25 @@ export function Lancar({
 
   const filtrados = useMemo(() => {
     const q = low(busca);
-    return itens
-      .filter((i) => {
-        const temReg = (porItem[chave(i)]?.length ?? 0) > 0;
+    return skus
+      .filter((s) => {
+        const temReg = (porSku[s.produto_id]?.length ?? 0) > 0;
         if (filtro === 'sem_registro' && temReg) return false;
         if (filtro === 'com_registro' && !temReg) return false;
-        if (filtro === 'vencidos' && (diasAte(i.validade) ?? 0) >= 0) return false;
+        if (filtro === 'vencidos' && (diasAte(s.validade) ?? 0) >= 0) return false;
         return true;
       })
-      .filter((i) => fornFiltro === '__todos'
-        || (fornecedores[i.produto_id] ?? SEM_FORNECEDOR) === fornFiltro)
-      .filter((i) => !q || low(i.produto_id).includes(q) || low(i.descricao).includes(q)
-        || low(i.endereco).includes(q))
+      .filter((s) => fornFiltro === '__todos'
+        || (fornecedores[s.produto_id] ?? SEM_FORNECEDOR) === fornFiltro)
+      .filter((s) => !q || low(s.produto_id).includes(q) || low(s.descricao).includes(q)
+        || s.enderecos.some((e) => low(e).includes(q)))
       .sort((a, b) => (a.validade < b.validade ? -1 : a.validade > b.validade ? 1
         : a.descricao.localeCompare(b.descricao, 'pt-BR')));
-  }, [itens, porItem, busca, filtro, fornFiltro, fornecedores]);
+  }, [skus, porSku, busca, filtro, fornFiltro, fornecedores]);
 
   const semFornecedor = useMemo(
-    () => new Set(itens.filter((i) => !fornecedores[i.produto_id]).map((i) => i.produto_id)).size,
-    [itens, fornecedores],
+    () => skus.filter((s) => !fornecedores[s.produto_id]).length,
+    [skus, fornecedores],
   );
 
   async function processar(file: File) {
@@ -107,31 +111,37 @@ export function Lancar({
     }
   }
 
-  async function registrar(i: ItemValidade, periodo: Periodo) {
-    const k = chave(i);
-    const n = Number(String(qtd[k] ?? '').replace(',', '.'));
+  async function registrar(s: SkuValidade, periodo: Periodo) {
+    const n = Number(String(qtd[s.produto_id] ?? '').replace(',', '.'));
     if (!n || n <= 0) {
       setAviso({ tipo: 'erro', texto: 'Digite a quantidade antes de escolher o prazo.' });
       return;
     }
-    setOcupado(k);
+    const venc = data[s.produto_id] ?? s.validade;
+    if (!venc) {
+      setAviso({ tipo: 'erro', texto: 'Informe a data de vencimento antes de escolher o prazo.' });
+      return;
+    }
+
+    setOcupado(s.produto_id);
     const erro = await aoRegistrar({
       unidade,
-      produto_id: i.produto_id,
-      endereco: i.endereco,
+      produto_id: s.produto_id,
+      endereco: s.endereco,
       quantidade: n,
       periodo,
-      vencimento: i.validade,
+      vencimento: venc,
       obs: null,
       registrado_por: nomeUsuario,
       registrado_por_id: null,
     });
     setOcupado(null);
     if (erro) { setAviso({ tipo: 'erro', texto: erro }); return; }
-    setQtd((q) => ({ ...q, [k]: '' }));
+
+    setQtd((q) => ({ ...q, [s.produto_id]: '' }));
     setAviso({
       tipo: 'ok',
-      texto: `${n} un. de ${i.descricao || i.produto_id} em ${periodo} dias.`,
+      texto: `${n} un. de ${s.descricao || s.produto_id} em ${periodo} dias, vencendo ${fmtDataBR(venc)}.`,
     });
   }
 
@@ -142,9 +152,9 @@ export function Lancar({
         <section className="painel sombra rounded-2xl p-4">
           <h2 className="text-[15px] font-bold">Subir a relação de validade</h2>
           <p className="mb-3 mt-1 text-[12.5px] txt-fraco">
-            O PDF que o WMS gera. Cada linha é um lote num endereço — o mesmo produto aparece
-            várias vezes, uma por endereço. Subir de novo <b>atualiza</b> os números e{' '}
-            <b>não apaga</b> nada que você já registrou.
+            O PDF que o WMS gera. Ele traz o mesmo produto uma vez por endereço; aqui cada produto
+            vira <b>uma linha só</b>, com o estoque somado. Subir de novo <b>atualiza</b> os números
+            e <b>não apaga</b> nada que você já registrou.
           </p>
 
           <button
@@ -192,9 +202,9 @@ export function Lancar({
       <section className="painel sombra rounded-2xl p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
           <h2 className="text-[15px] font-bold">
-            Lotes
+            Produtos
             <span className="ml-2 rounded-md painel-2 px-2 py-0.5 text-[12px] font-semibold txt-fraco">
-              {filtrados.length} de {itens.length}
+              {filtrados.length} de {skus.length}
             </span>
           </h2>
 
@@ -211,7 +221,7 @@ export function Lancar({
             value={filtro} onChange={(e) => setFiltro(e.target.value as typeof filtro)}
             className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
           >
-            <option value="todos">Todos os lotes</option>
+            <option value="todos">Todos os produtos</option>
             <option value="sem_registro">Ainda sem registro</option>
             <option value="com_registro">Já registrados</option>
             <option value="vencidos">Já vencidos</option>
@@ -222,12 +232,12 @@ export function Lancar({
             className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
           >
             <option value="__todos">Todos os fornecedores</option>
-            {[...new Set(itens.map((i) => fornecedores[i.produto_id] ?? SEM_FORNECEDOR))]
+            {[...new Set(skus.map((s) => fornecedores[s.produto_id] ?? SEM_FORNECEDOR))]
               .sort().map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
         </div>
 
-        {itens.length === 0 ? (
+        {skus.length === 0 ? (
           <p className="py-10 text-center text-sm txt-fraco">
             Nenhuma relação de validade carregada ainda.
             {podeLancar ? ' Suba o PDF acima para começar.' : ''}
@@ -237,37 +247,41 @@ export function Lancar({
             <table className="w-full border-collapse text-[13px]">
               <thead>
                 <tr className="painel-2 text-left">
-                  <Th>Produto</Th><Th>Endereço</Th>
-                  <Th num>Estoque</Th><Th>Validade</Th><Th>Fornecedor</Th>
+                  <Th>Produto</Th><Th num>Estoque</Th>
+                  <Th>Validade no relatório</Th><Th>Fornecedor</Th>
                   <Th>Registrar</Th><Th>Registrado</Th>
                 </tr>
               </thead>
               <tbody>
                 {filtrados.length === 0 ? (
-                  <tr><td colSpan={7} className="px-3 py-8 text-center text-sm txt-fraco">
-                    Nenhum lote no filtro atual.
+                  <tr><td colSpan={6} className="px-3 py-8 text-center text-sm txt-fraco">
+                    Nenhum produto no filtro atual.
                   </td></tr>
-                ) : filtrados.map((i) => {
-                  const k = chave(i);
-                  const meus = porItem[k] ?? [];
-                  const restantes = diasAte(i.validade);
+                ) : filtrados.map((s) => {
+                  const meus = porSku[s.produto_id] ?? [];
+                  const restantes = diasAte(s.validade);
                   return (
-                    <tr key={k} className="border-b borda align-top">
+                    <tr key={s.produto_id} className="border-b borda align-top">
                       <td className="px-3 py-2">
-                        <span className="font-mono text-[12px] txt-fraco">{i.produto_id}</span>
-                        <span className="block max-w-64 text-[12.5px] font-semibold">{i.descricao}</span>
-                      </td>
-                      <td className="whitespace-nowrap px-3 py-2 font-mono text-[12px]">{i.endereco}</td>
-                      <td className="whitespace-nowrap px-3 py-2 text-right">
-                        <b className={cn((i.qtd_un ?? 0) < 0 && 'text-erro-600')}>
-                          {(i.qtd_un ?? 0).toLocaleString('pt-BR')}
-                        </b>
-                        <span className="block text-[11px] txt-fraco">
-                          {(i.qtd_cx ?? 0).toLocaleString('pt-BR')} cx · emb {i.emb_padrao ?? '—'}
+                        <span className="font-mono text-[12px] txt-fraco">{s.produto_id}</span>
+                        <span className="block max-w-72 text-[12.5px] font-semibold">{s.descricao}</span>
+                        <span className="block font-mono text-[10.5px] txt-fraco">
+                          {s.enderecos.join(' · ')}
                         </span>
                       </td>
+
+                      <td className="whitespace-nowrap px-3 py-2 text-right">
+                        <b className={cn(s.qtd_un < 0 && 'text-erro-600')}>
+                          {s.qtd_un.toLocaleString('pt-BR')}
+                        </b>
+                        <span className="block text-[11px] txt-fraco">
+                          emb {s.emb_padrao ?? '—'}
+                          {s.lotes > 1 && ` · ${s.lotes} lotes`}
+                        </span>
+                      </td>
+
                       <td className="whitespace-nowrap px-3 py-2">
-                        {fmtDataBR(i.validade)}
+                        {fmtDataBR(s.validade)}
                         <span className={cn(
                           'block text-[11px] font-bold',
                           restantes == null ? 'txt-fraco'
@@ -279,29 +293,40 @@ export function Lancar({
                               : `faltam ${restantes}d`}
                         </span>
                       </td>
+
                       <td className="px-3 py-2">
                         <Fornecedor
-                          valor={fornecedores[i.produto_id]}
+                          valor={fornecedores[s.produto_id]}
                           opcoes={listaFornecedores}
                           podeEditar={podeLancar}
-                          aoEscolher={(f) => aoDefinirFornecedor(i.produto_id, f)}
+                          aoEscolher={(f) => aoDefinirFornecedor(s.produto_id, f)}
                         />
                       </td>
+
                       <td className="px-3 py-2">
                         {podeLancar ? (
                           <div className="flex flex-col gap-1">
-                            <input
-                              value={qtd[k] ?? ''} inputMode="decimal" placeholder="qtd un."
-                              onChange={(e) => setQtd((q) => ({ ...q, [k]: e.target.value }))}
-                              className="painel-2 w-24 rounded-lg border borda px-2 py-1 text-[12.5px] outline-none focus:border-marinho-500"
-                            />
+                            <div className="flex gap-1">
+                              <input
+                                value={qtd[s.produto_id] ?? ''} inputMode="decimal" placeholder="qtd un."
+                                aria-label="Quantidade em unidades"
+                                onChange={(e) => setQtd((q) => ({ ...q, [s.produto_id]: e.target.value }))}
+                                className="painel-2 w-20 rounded-lg border borda px-2 py-1 text-[12.5px] outline-none focus:border-marinho-500"
+                              />
+                              <input
+                                type="date" aria-label="Data de vencimento"
+                                value={data[s.produto_id] ?? s.validade}
+                                onChange={(e) => setData((d) => ({ ...d, [s.produto_id]: e.target.value }))}
+                                className="painel-2 rounded-lg border borda px-2 py-1 text-[12.5px] outline-none focus:border-marinho-500"
+                              />
+                            </div>
                             <div className="flex gap-1">
                               {PERIODOS.map((p) => (
                                 <button
-                                  key={p} type="button" disabled={ocupado === k}
-                                  onClick={() => void registrar(i, p)}
+                                  key={p} type="button" disabled={ocupado === s.produto_id}
+                                  onClick={() => void registrar(s, p)}
                                   title={`Registrar em ${p} dias`}
-                                  className="rounded-md border borda px-1.5 py-1 text-[11px] font-bold txt-fraco transition-colors hover:border-marinho-500 hover:bg-marinho-50 hover:text-marinho-800 disabled:opacity-50"
+                                  className="rounded-md border borda px-2 py-1 text-[11px] font-bold txt-fraco transition-colors hover:border-marinho-500 hover:bg-marinho-50 hover:text-marinho-800 disabled:opacity-50"
                                 >
                                   {p}
                                 </button>
@@ -310,6 +335,7 @@ export function Lancar({
                           </div>
                         ) : <span className="text-[12px] txt-fraco">—</span>}
                       </td>
+
                       <td className="px-3 py-2">
                         {meus.length === 0 ? (
                           <span className="text-[12px] txt-fraco">—</span>
@@ -320,7 +346,8 @@ export function Lancar({
                                 key={r.id}
                                 className="inline-flex items-center gap-1 whitespace-nowrap rounded-md bg-marinho-50 px-2 py-0.5 text-[11.5px] font-bold text-marinho-800"
                               >
-                                {r.quantidade.toLocaleString('pt-BR')} un · {r.periodo}d
+                                {Number(r.quantidade).toLocaleString('pt-BR')} un · {r.periodo}d
+                                <span className="font-normal opacity-75">{fmtDataBR(r.vencimento)}</span>
                                 {podeExcluir && !demo && (
                                   <button
                                     type="button" aria-label="Remover registro"
@@ -390,6 +417,7 @@ function Fornecedor({ valor, opcoes, podeEditar, aoEscolher }: {
     <span className="flex items-center gap-1">
       <input
         list="forn-validade" value={texto} autoComplete="off" placeholder="fornecedor…"
+        aria-label="Fornecedor do produto"
         onChange={(e) => setTexto(e.target.value)}
         className="painel-2 w-32 rounded-lg border borda px-2 py-1 text-[12px] outline-none focus:border-marinho-500"
       />

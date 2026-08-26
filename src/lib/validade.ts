@@ -11,7 +11,7 @@
  */
 
 import { parseNum } from './inventario';
-import type { Inventario } from '@/types/database';
+import type { Inventario, ItemValidade } from '@/types/database';
 
 // ---------------------------------------------------------------- periodos
 
@@ -185,6 +185,70 @@ export async function lerPdfValidade(
   const porChave = new Map<string, LinhaValidade>();
   achadas.forEach((l) => porChave.set(l.produto_id + '@' + l.endereco, l));
   return [...porChave.values()];
+}
+
+// ---------------------------------------------------------------- um SKU, uma linha
+
+export interface SkuValidade {
+  produto_id: string;
+  descricao: string;
+  /** o endereco que representa o SKU — e nele que o registro fica pendurado */
+  endereco: string;
+  /** todos os enderecos em que o SKU apareceu no relatorio */
+  enderecos: string[];
+  emb_padrao: number | null;
+  /** soma do estoque de todos os enderecos */
+  qtd_un: number;
+  qtd_cx: number;
+  /** a validade mais proxima entre os enderecos */
+  validade: string;
+  /** quantas linhas do relatorio foram juntadas nesta */
+  lotes: number;
+}
+
+/**
+ * O mesmo SKU aparece uma vez por endereco no relatorio. Aqui vira UMA linha:
+ * quem controla validade pensa em produto, nao em rua do deposito.
+ *
+ * O endereco que representa o SKU e o do lote que vence PRIMEIRO — e ele que
+ * da a urgencia, e e nele que o registro fica pendurado. Os demais continuam
+ * listados na tela para quem precisar ir buscar, e o estoque e a soma de todos.
+ *
+ * O retrato bruto (validade_itens) continua com uma linha por endereco: o que
+ * se junta e a APRESENTACAO, nao o que foi lido do PDF.
+ */
+export function agruparPorSku(itens: ItemValidade[]): SkuValidade[] {
+  const porSku = new Map<string, SkuValidade>();
+
+  for (const i of itens) {
+    const atual = porSku.get(i.produto_id);
+    if (!atual) {
+      porSku.set(i.produto_id, {
+        produto_id: i.produto_id,
+        descricao: i.descricao,
+        endereco: i.endereco,
+        enderecos: [i.endereco],
+        emb_padrao: i.emb_padrao,
+        qtd_un: Number(i.qtd_un ?? 0),
+        qtd_cx: Number(i.qtd_cx ?? 0),
+        validade: i.validade,
+        lotes: 1,
+      });
+      continue;
+    }
+
+    if (!atual.enderecos.includes(i.endereco)) atual.enderecos.push(i.endereco);
+    atual.qtd_un += Number(i.qtd_un ?? 0);
+    atual.qtd_cx += Number(i.qtd_cx ?? 0);
+    atual.lotes += 1;
+    // o que vence antes manda: passa a ser a validade e o endereco da linha
+    if (i.validade < atual.validade) {
+      atual.validade = i.validade;
+      atual.endereco = i.endereco;
+    }
+  }
+
+  return [...porSku.values()];
 }
 
 // ---------------------------------------------------------------- fornecedor do SKU
