@@ -2,8 +2,9 @@
 
 import { paraISO } from '@/lib/produtividade';
 import type {
-  Agendamento, FuncaoEquipe, Inventario, Ocorrencia, PessoaEquipe, ProdutoInventario,
-  StatusAgendamento, TipoAgendamento, TipoOcorrencia, Usuario,
+  Agendamento, FuncaoEquipe, Inventario, ItemValidade, Ocorrencia, PessoaEquipe,
+  ProdutoInventario, RegistroValidade, StatusAgendamento, TipoAgendamento, TipoOcorrencia,
+  Usuario,
 } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
 
@@ -356,3 +357,66 @@ export const INVENTARIOS_DEMO: Inventario[] = [
   corte(9006, 'COLGATE', '2026-06-29', 120000, [3, 7, 12]),
   corte(9007, 'MARILAN', '2026-06-30', 95000, [1, 5]),
 ];
+
+/**
+ * Validade de exemplo — linhas reais da Relacao Preventiva, para a tela abrir
+ * com conteudo. Inclui de proposito: o mesmo SKU em dois enderecos, um lote ja
+ * vencido, um lote dividido em dois prazos e um produto sem fornecedor
+ * conhecido — os quatro casos que a tela precisa saber mostrar.
+ */
+const itemVal = (
+  id: number, produto_id: string, descricao: string, endereco: string,
+  emb: number, cx: number, un: number, validade: string, dias: number,
+): ItemValidade => ({
+  id, unidade: 'Dilnor', produto_id, descricao, endereco,
+  emb_padrao: emb, qtd_cx: cx, qtd_un: un, validade, dias,
+  observacao: null, lido_em: new Date().toISOString(),
+});
+
+const regVal = (
+  id: number, produto_id: string, endereco: string,
+  quantidade: number, periodo: 30 | 60 | 90 | 120, vencimento: string,
+): RegistroValidade => ({
+  id, unidade: 'Dilnor', produto_id, endereco, quantidade, periodo, vencimento,
+  obs: null, registrado_por: 'Demonstração', registrado_por_id: null,
+  criado_em: new Date().toISOString(),
+});
+
+export const VALIDADE_DEMO: {
+  itens: ItemValidade[];
+  registros: RegistroValidade[];
+  fornecedores: Record<string, string>;
+} = {
+  itens: [
+    itemVal(1, '105702', 'CREME D COLG TOTAL 90G CLEAN MINT*', '60.29.00.301', 48, 54, 2592, '2026-12-01', 97),
+    itemVal(2, '105702', 'CREME D COLG TOTAL 90G CLEAN MINT*', '60.29.00.031', 48, 0.042, 2, '2026-12-01', 97),
+    itemVal(3, '108545', 'PR LIMP AJAX DESENG COZINHA 500ML GT20%', '60.38.00.404', 12, 1, 12, '2026-08-26', 0),
+    itemVal(4, '109947', 'BISC MARILAN L 300G MANTEIGA', '06.27.00.102', 24, 44, 1056, '2026-11-26', 92),
+    itemVal(5, '110531', 'BISC MARILAN COOKIE 60G CHOCOLATE', '04.33.00.204', 42, 1, 42, '2026-12-06', 102),
+    itemVal(6, '108996', 'FARINHA DE TRIGO BOA SORTE ESPECIAL 1 KG', '02.18.00.102', 10, 580, 5800, '2026-12-15', 111),
+    itemVal(7, '110450', 'BARRA PROT BOLD 60G TRUFA CHOCO DP', '02.12.00.302', 96, 10, 960, '2026-12-01', 97),
+    itemVal(8, '107921', 'MIST BOLO BRANDINI 400G FESTA', '05.33.00.209', 12, 1, 12, '2026-08-16', -10),
+  ],
+  registros: [
+    // o mesmo lote dividido em dois prazos — o caso que a tela precisa suportar
+    regVal(101, '105702', '60.29.00.301', 1600, 60, '2026-12-01'),
+    regVal(102, '105702', '60.29.00.301', 992, 90, '2026-12-01'),
+    // o mesmo SKU noutro endereco, somando na mesma celula da Visao
+    regVal(103, '105702', '60.29.00.031', 2, 60, '2026-12-01'),
+    regVal(104, '108545', '60.38.00.404', 12, 30, '2026-08-26'),
+    regVal(105, '109947', '06.27.00.102', 1056, 90, '2026-11-26'),
+    regVal(106, '110531', '04.33.00.204', 42, 120, '2026-12-06'),
+    regVal(107, '108996', '02.18.00.102', 5800, 120, '2026-12-15'),
+    regVal(108, '110450', '02.12.00.302', 960, 90, '2026-12-01'),
+    regVal(109, '107921', '05.33.00.209', 12, 30, '2026-08-16'),
+  ],
+  fornecedores: {
+    105702: 'COLGATE',
+    108545: 'COLGATE',
+    109947: 'MARILAN',
+    110531: 'MARILAN',
+    108996: 'J MACEDO',
+    110450: 'BOLD',
+    // 107921 fica de fora de proposito: cai em SEM FORNECEDOR
+  },
+};

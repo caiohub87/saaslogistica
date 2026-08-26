@@ -51,6 +51,8 @@ export const TELAS: Tela[] = [
   { chave: 'inventario', nome: 'Inventário', grupo: 'Estoque', rota: '/inventario', acoes: ['ver', 'lancar', 'excluir', 'aprovar', 'exportar'],
     descricao: 'Conferência por fornecedor, inventário de corte e posição atual item a item. '
       + '"Aprovar" era a senha do gerente (79513).', migrada: true },
+  { chave: 'validade', nome: 'Validade', grupo: 'Estoque', rota: '/validade', acoes: ['ver', 'lancar', 'excluir'],
+    descricao: 'Sobe o relatório de validade do WMS e organiza o que escoar em 30, 60, 90 ou 120 dias.', migrada: true },
   { chave: 'ocorrencias', nome: 'Faltas e sobras', grupo: 'Estoque', rota: '/faltas-sobras', acoes: ['ver', 'lancar', 'aprovar', 'excluir'],
     descricao: 'O que faltou e o que voltou sobrando. "Aprovar" libera a falta e valida a sobra pelo código do produto.', migrada: true },
 
@@ -140,6 +142,7 @@ export const PERFIS: Perfil[] = [
       inicio: ['ver'],
       recebimentos: ['ver', 'editar', 'imprimir'],
       inventario: ['ver', 'lancar', 'exportar'],
+      validade: ['ver', 'lancar'],
       ocorrencias: ['ver', 'lancar'],
       desempenho: ['ver'],
     },
@@ -160,6 +163,7 @@ export const PERFIS: Perfil[] = [
       agendamentos: ['ver', 'editar', 'excluir', 'imprimir'],
       recebimentos: ['ver', 'editar', 'excluir', 'imprimir'],
       inventario: ['ver', 'lancar', 'aprovar', 'exportar'],
+      validade: ['ver', 'lancar', 'excluir'],
       ocorrencias: ['ver', 'lancar', 'aprovar', 'excluir'],
       cadastros: ['ver', 'editar'],
       config: ['ver'],
