@@ -142,6 +142,56 @@ export interface Inventario {
   created_at: string;
 }
 
+// ---------- controle de validade ----------
+
+/** Uma linha da "Relação Preventiva de Validade": um lote num endereço. */
+export interface ItemValidade {
+  id: number;
+  unidade: string;
+  produto_id: string;
+  descricao: string;
+  endereco: string;
+  emb_padrao: number | null;
+  qtd_cx: number | null;
+  qtd_un: number | null;
+  validade: string;
+  /** como o WMS calculou no dia do relatório; negativo = já venceu */
+  dias: number | null;
+  observacao: string | null;
+  lido_em: string;
+}
+
+/**
+ * Quanto vai escoar em qual prazo. O período é decisão de quem olha o
+ * depósito — não sai da validade do lote.
+ */
+export interface RegistroValidade {
+  id: number;
+  unidade: string;
+  produto_id: string;
+  endereco: string;
+  quantidade: number;
+  periodo: 30 | 60 | 90 | 120;
+  /** a validade copiada do item quando o registro foi feito */
+  vencimento: string | null;
+  obs: string | null;
+  registrado_por: string | null;
+  registrado_por_id: string | null;
+  criado_em: string;
+}
+
+/**
+ * De quem é cada SKU. O PDF de validade não traz fabricante, então o vínculo
+ * é deduzido dos inventários já lançados ou escolhido à mão.
+ */
+export interface ProdutoFornecedor {
+  unidade: string;
+  produto_id: string;
+  fornecedor: string;
+  origem: 'corte' | 'manual';
+  atualizado_em: string;
+}
+
 // ---------- faltas e sobras ----------
 
 export type TipoOcorrencia = 'falta' | 'sobra';
