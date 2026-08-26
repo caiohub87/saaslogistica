@@ -63,7 +63,11 @@ export default function InicioPage() {
   const mediaProd = dias.length ? dias.reduce((a, d) => a + d.prodFinal, 0) / dias.length : 0;
 
   // ---------- inventário: divergência por lançamento ----------
-  const invOrdenado = [...inventarios].sort((a, b) => (a.data_inventario < b.data_inventario ? -1 : 1));
+  // só o inventário normal, igual ao padrão do Comparativo: o corte é contagem
+  // parcial e misturado aqui faria o resumo do dia divergir do que a gerência vê
+  const invOrdenado = [...inventarios]
+    .filter((l) => (l.tipo ?? 'normal') === 'normal')
+    .sort((a, b) => (a.data_inventario < b.data_inventario ? -1 : 1));
   const serieInv: PontoArea[] = invOrdenado.map((l) => ({
     rotulo: l.data_inventario.slice(8, 10) + '/' + l.data_inventario.slice(5, 7),
     valor: totais(l.produtos ?? []).fin,

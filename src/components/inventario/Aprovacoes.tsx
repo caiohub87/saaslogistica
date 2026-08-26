@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, ShieldCheck } from 'lucide-react';
+import { Loader2, Scissors, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
 import { fmtBRL, fmtData, totais } from '@/lib/inventario';
@@ -126,7 +126,15 @@ export function Aprovacoes({ lancamentos, podeAprovar, nomeUsuario, demo, aoMuda
               return (
                 <tr key={l.id} className="border-b borda">
                   <td className="whitespace-nowrap px-3 py-2">{fmtData(l.data_inventario)}</td>
-                  <td className="px-3 py-2"><b>{l.fornecedor}</b></td>
+                  <td className="px-3 py-2">
+                    <b>{l.fornecedor}</b>
+                    {(l.tipo ?? 'normal') === 'corte' && (
+                      <span className="ml-1.5 inline-flex items-center gap-1 rounded-md bg-marinho-50 px-2 py-0.5 text-[11px] font-bold text-marinho-800">
+                        <Scissors aria-hidden className="size-3" />
+                        Corte
+                      </span>
+                    )}
+                  </td>
                   <td className="px-3 py-2 text-right">{t.total}</td>
                   <td className={cn('whitespace-nowrap px-3 py-2 text-right font-bold',
                     t.fin < 0 ? 'text-erro-600' : 'text-ok-600')}>

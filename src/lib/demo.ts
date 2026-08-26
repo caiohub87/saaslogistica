@@ -86,8 +86,34 @@ const inv = (
 ): Inventario => ({
   id, unidade: 'Dilnor', fornecedor, data_inventario: data, valor_estoque: est,
   produtos: produtos(entrada, saida, itens),
+  tipo: 'normal',
   aprovado_por: aprovado ?? null,
   aprovado_em: aprovado ? '2026-05-20T14:30:00.000Z' : null,
+  created_at: new Date().toISOString(),
+});
+
+/**
+ * Corte de exemplo: poucos itens, todos com falta, e reaproveitando ids que ja
+ * existem no inventario normal do mesmo fornecedor — e assim que a Visao geral
+ * mostra o corte ganhando do inventario mais antigo, item a item.
+ */
+const corte = (
+  id: number, fornecedor: string, data: string, est: number, ids: number[],
+): Inventario => ({
+  id, unidade: 'Dilnor', fornecedor, data_inventario: data, valor_estoque: est,
+  produtos: ids.map((n, i) => ({
+    id: String(100000 + n),
+    descricao: `PRODUTO DE EXEMPLO ${n + 1}`,
+    embalagem: 'UN/24',
+    sld_estoq: 100 + n,
+    sld_contagem: 100 + n - (i + 1),
+    dif_qtde: -(i + 1),
+    dif_financeira: -(i + 1) * 37.5,
+    fabricante: fornecedor === 'COLGATE' ? '6090' : '8629',
+  })),
+  tipo: 'corte',
+  aprovado_por: null,
+  aprovado_em: null,
   created_at: new Date().toISOString(),
 });
 
@@ -326,4 +352,7 @@ export const INVENTARIOS_DEMO: Inventario[] = [
   inv(9003, 'COLGATE', '2026-06-15', 120000, 2500, 900, 105),
   inv(9004, 'COLGATE', '2026-04-20', 118000, 3100, 2400, 98, 'Regigledson'),
   inv(9005, 'MARILAN', '2026-06-22', 95000, 840, 1620, 47),
+  // cortes: mais recentes que o inventario normal, entao valem na Visao geral
+  corte(9006, 'COLGATE', '2026-06-29', 120000, [3, 7, 12]),
+  corte(9007, 'MARILAN', '2026-06-30', 95000, [1, 5]),
 ];

@@ -1,13 +1,15 @@
 'use client';
 
 import {
-  AlertTriangle, ClipboardList, FileSpreadsheet, Loader2, Save, Search, SignatureIcon,
-  Trash2, TrendingUp, Upload, X,
+  AlertTriangle, ClipboardList, FileSpreadsheet, Loader2, Package, Save, Scissors, Search,
+  SignatureIcon, Trash2, TrendingUp, Upload, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { Aprovacoes } from '@/components/inventario/Aprovacoes';
 import { Comparativo } from '@/components/inventario/Comparativo';
+import { Corte } from '@/components/inventario/Corte';
+import { VisaoGeral } from '@/components/inventario/VisaoGeral';
 import {
   acuracidadeDe, comDivAnt, fmtBRL, fmtData, fmtPct, fmtQtd, FORNECEDORES,
   lerArquivo, low, montarProdutos, normFornecedor, parseNum, pctEstoque, totais,
@@ -20,9 +22,11 @@ import { cn } from '@/utils/cn';
 
 const hojeISO = () => new Date().toISOString().slice(0, 10);
 
-type Aba = 'lancamentos' | 'comparativo' | 'aprovacao';
+type Aba = 'geral' | 'lancamentos' | 'corte' | 'comparativo' | 'aprovacao';
 const ABAS: { id: Aba; nome: string; Icone: typeof ClipboardList }[] = [
+  { id: 'geral', nome: 'Visão geral', Icone: Package },
   { id: 'lancamentos', nome: 'Lançamentos', Icone: ClipboardList },
+  { id: 'corte', nome: 'Corte', Icone: Scissors },
   { id: 'comparativo', nome: 'Comparativo', Icone: TrendingUp },
   { id: 'aprovacao', nome: 'Aprovações', Icone: SignatureIcon },
 ];
@@ -41,7 +45,7 @@ export default function InventarioPage() {
   const podeExcluir = pode('inventario', 'excluir');
   const podeAprovar = pode('inventario', 'aprovar');
   const podeExportar = pode('inventario', 'exportar');
-  const [aba, setAba] = useState<Aba>('lancamentos');
+  const [aba, setAba] = useState<Aba>('geral');
 
   const [lancamentos, setLancamentos] = useState<Inventario[]>([]);
   const [carregando, setCarregando] = useState(true);
@@ -107,7 +111,10 @@ export default function InventarioPage() {
       const produtos = montarProdutos(await lerArquivo(file));
       setPendente({
         fornecedor: forn, data_inventario: data, valor_estoque: est, produtos,
-        substitui: lancamentos.some((l) => l.fornecedor === forn && l.data_inventario === data),
+        // so o inventario normal do mesmo dia e substituido; o corte tem vida propria
+        substitui: lancamentos.some((l) => l.fornecedor === forn
+          && l.data_inventario === data
+          && (l.tipo ?? 'normal') === 'normal'),
       });
       setAviso({ tipo: 'info', texto: 'Arquivo lido. Confira os números e clique em Salvar inventário.' });
     } catch (e) {
@@ -132,8 +139,9 @@ export default function InventarioPage() {
         data_inventario: pendente.data_inventario,
         valor_estoque: pendente.valor_estoque,
         produtos: pendente.produtos,
+        tipo: 'normal',
       },
-      { onConflict: 'unidade,fornecedor,data_inventario' },
+      { onConflict: 'unidade,fornecedor,data_inventario,tipo' },
     );
     setSalvando(false);
     if (error) {
@@ -141,7 +149,10 @@ export default function InventarioPage() {
         tipo: 'erro',
         texto: 'Não salvou: ' + error.message +
           (/permission|policy|row-level/i.test(error.message)
-            ? ' — seu acesso não tem permissão de lançar inventário.' : ''),
+            ? ' — seu acesso não tem permissão de lançar inventário.'
+            : /tipo|column|constraint|conflict/i.test(error.message)
+              ? ' — falta a coluna tipo: rode supabase/15_inventario_corte.sql no Supabase.'
+              : ''),
       });
       return;
     }
@@ -239,6 +250,20 @@ export default function InventarioPage() {
           </button>
         ))}
       </div>
+
+      {aba === 'geral' && (
+        <VisaoGeral lancamentos={lancamentos} carregando={carregando} />
+      )}
+
+      {aba === 'corte' && (
+        <Corte
+          lancamentos={lancamentos}
+          unidade={usuario?.unidade ?? 'Dilnor'}
+          podeLancar={podeLancar}
+          demo={demo}
+          aoMudar={carregar}
+        />
+      )}
 
       {aba === 'comparativo' && (
         <Comparativo
@@ -338,6 +363,12 @@ export default function InventarioPage() {
                 {filtrados.length} de {produtos.length} produtos
               </span>
             )}
+            {lanc && (lanc.tipo ?? 'normal') === 'corte' && (
+              <span className="ml-1.5 inline-flex items-center gap-1 rounded-md bg-marinho-50 px-2 py-0.5 text-[11px] font-bold text-marinho-800">
+                <Scissors aria-hidden className="size-3" />
+                Corte
+              </span>
+            )}
           </h2>
           {lanc && podeExcluir && (
             <button
@@ -383,7 +414,9 @@ export default function InventarioPage() {
               >
                 {doFornecedor.map((l) => (
                   <option key={l.id} value={l.id}>
-                    {fmtData(l.data_inventario)} — {(l.produtos ?? []).length} produtos
+                    {fmtData(l.data_inventario)}
+                    {(l.tipo ?? 'normal') === 'corte' ? ' · corte' : ''}
+                    {' '}— {(l.produtos ?? []).length} produtos
                   </option>
                 ))}
               </select>

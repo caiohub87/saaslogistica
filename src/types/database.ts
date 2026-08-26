@@ -109,7 +109,20 @@ export interface ProdutoInventario {
   sld_contagem: number;
   dif_qtde: number;
   dif_financeira: number;
+  /**
+   * Só no corte: o "Id Fabricante" que veio na linha, sem os zeros à esquerda.
+   * É ele que decidiu em qual fornecedor o produto caiu.
+   */
+  fabricante?: string;
+  /** Só no corte: a razão social da mesma linha — identifica código novo. */
+  razao_social?: string;
 }
+
+/**
+ * normal — um arquivo, um fornecedor, contagem completa.
+ * corte  — um arquivo com vários fornecedores, separados por Id Fabricante.
+ */
+export type TipoInventario = 'normal' | 'corte';
 
 export interface Inventario {
   id: number;
@@ -118,6 +131,11 @@ export interface Inventario {
   data_inventario: string;
   valor_estoque: number;
   produtos: ProdutoInventario[];
+  /**
+   * Linhas gravadas antes de 15_inventario_corte.sql não têm a coluna;
+   * quem lê deve tratar a ausência como 'normal'.
+   */
+  tipo: TipoInventario;
   /** null = aguardando aprovação do gerente */
   aprovado_por: string | null;
   aprovado_em: string | null;
