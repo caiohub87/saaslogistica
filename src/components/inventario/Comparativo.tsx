@@ -22,6 +22,12 @@ export function Comparativo({ lancamentos, unidade, podeExportar }: {
   lancamentos: Inventario[]; unidade: string; podeExportar: boolean;
 }) {
   const [fornecedor, setFornecedor] = useState('__todos');
+  /**
+   * Comeca em 'normal' de proposito: e o relatorio que a gerencia ja confere
+   * hoje. Somar o corte muda os totalizadores, entao tem que ser uma escolha
+   * consciente, nao o padrao.
+   */
+  const [tipo, setTipo] = useState<'normal' | 'corte' | 'todos'>('normal');
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState('');
   const [msg, setMsg] = useState('');
@@ -35,8 +41,9 @@ export function Comparativo({ lancamentos, unidade, podeExportar }: {
     () => lancamentos.filter((l) =>
       (!ini || l.data_inventario >= ini) &&
       (!fim || l.data_inventario <= fim) &&
-      (fornecedor === '__todos' || l.fornecedor === fornecedor)),
-    [lancamentos, ini, fim, fornecedor],
+      (fornecedor === '__todos' || l.fornecedor === fornecedor) &&
+      (tipo === 'todos' || (l.tipo ?? 'normal') === tipo)),
+    [lancamentos, ini, fim, fornecedor, tipo],
   );
 
   /** ordem cronológica: os gráficos e os totalizadores dependem disso */
@@ -96,6 +103,14 @@ export function Comparativo({ lancamentos, unidade, podeExportar }: {
             <option value="__todos">Todos os fornecedores</option>
             {fornecedores.map((f) => <option key={f} value={f}>{f}</option>)}
           </select>
+          <select
+            value={tipo} onChange={(e) => setTipo(e.target.value as typeof tipo)}
+            className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
+          >
+            <option value="normal">Só inventário normal</option>
+            <option value="corte">Só corte</option>
+            <option value="todos">Normal e corte juntos</option>
+          </select>
           <label className="flex items-center gap-1 text-[12.5px] txt-fraco">
             De <input type="date" value={ini} onChange={(e) => setIni(e.target.value)}
               className="painel-2 rounded-lg border borda px-2 py-1.5" />
@@ -115,6 +130,15 @@ export function Comparativo({ lancamentos, unidade, podeExportar }: {
           )}
           {msg && <span className="text-[12px] txt-fraco">{msg}</span>}
         </div>
+
+        {tipo !== 'normal' && (
+          <p className="mb-3 rounded-xl bg-ouro-100 px-3.5 py-2.5 text-[12.5px] font-semibold text-ouro-700">
+            {tipo === 'corte'
+              ? 'Mostrando só o inventário de corte — estes não são os números do relatório que a gerência confere.'
+              : 'Corte somado ao inventário normal: os totalizadores ficam diferentes do relatório que a gerência confere hoje.'}
+            {podeExportar && ' O Excel sai com exatamente o que está na tela.'}
+          </p>
+        )}
 
         {linhas.length === 0 ? (
           <p className="py-6 text-center text-sm txt-fraco">Nenhum inventário no período.</p>
@@ -195,7 +219,7 @@ function TabelaGerencia({ linhas }: { linhas: LinhaGerencia[] }) {
       <table className="w-full border-collapse text-[13px]">
         <thead>
           <tr className="painel-2 text-left">
-            <Th>Data</Th><Th>Fornecedor</Th><Th num>Produtos</Th><Th num>Divergentes</Th>
+            <Th>Data</Th><Th>Fornecedor</Th><Th>Tipo</Th><Th num>Produtos</Th><Th num>Divergentes</Th>
             <Th num>R$ Est. Invent.</Th><Th num>Acuracidade</Th><Th num>Entrada</Th>
             <Th num>Saída</Th><Th num>Diferença</Th><Th num>% Dif</Th>
           </tr>
@@ -210,6 +234,14 @@ function TabelaGerencia({ linhas }: { linhas: LinhaGerencia[] }) {
                   <tr key={l.fornecedor + l.data + i} className="border-b borda">
                     <Td>{fmtData(l.data)}</Td>
                     <Td><b>{l.fornecedor}</b></Td>
+                    <Td>
+                      <span className={cn(
+                        'whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold',
+                        l.tipo === 'corte' ? 'bg-marinho-50 text-marinho-800' : 'painel-2 txt-fraco',
+                      )}>
+                        {l.tipo === 'corte' ? 'Corte' : 'Inventário'}
+                      </span>
+                    </Td>
                     <Td num>{l.produtos}</Td>
                     <Td num>{l.divergentes}</Td>
                     <Td num>{fmtBRL(l.est)}</Td>
@@ -242,6 +274,7 @@ function LinhaTotal({ rotulo, t, ano }: { rotulo: string; t: LinhaGerencia; ano?
     <tr className={cn('font-extrabold', ano ? 'bg-marinho-900' : 'bg-marinho-800')} style={{ color: '#ffe45c' }}>
       <td className="px-3 py-2">{rotulo}</td>
       <td className="px-3 py-2">TOTALIZADORES ——&gt;</td>
+      <td className="px-3 py-2" />
       <td className="px-3 py-2 text-right">{t.produtos}</td>
       <td className="px-3 py-2 text-right">{t.divergentes}</td>
       <td className="whitespace-nowrap px-3 py-2 text-right">{fmtBRL(t.est)}</td>

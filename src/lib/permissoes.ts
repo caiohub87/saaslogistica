@@ -49,7 +49,8 @@ export const TELAS: Tela[] = [
     descricao: 'Agenda do depósito. Antes pedia a senha 1609.' , migrada: true },
 
   { chave: 'inventario', nome: 'Inventário', grupo: 'Estoque', rota: '/inventario', acoes: ['ver', 'lancar', 'excluir', 'aprovar', 'exportar'],
-    descricao: 'Conferência por fornecedor. "Aprovar" era a senha do gerente (79513).', migrada: true },
+    descricao: 'Conferência por fornecedor, inventário de corte e posição atual item a item. '
+      + '"Aprovar" era a senha do gerente (79513).', migrada: true },
   { chave: 'ocorrencias', nome: 'Faltas e sobras', grupo: 'Estoque', rota: '/faltas-sobras', acoes: ['ver', 'lancar', 'aprovar', 'excluir'],
     descricao: 'O que faltou e o que voltou sobrando. "Aprovar" libera a falta e valida a sobra pelo código do produto.', migrada: true },
 

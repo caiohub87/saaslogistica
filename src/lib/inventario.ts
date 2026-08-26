@@ -7,7 +7,7 @@
  * conferir contra aqueles quatro casos.
  */
 
-import type { Inventario, ProdutoInventario } from '@/types/database';
+import type { Inventario, ProdutoInventario, TipoInventario } from '@/types/database';
 
 // ---------------------------------------------------------------- numeros
 
@@ -190,6 +190,8 @@ export async function lerArquivo(file: File): Promise<unknown[][]> {
 interface Colunas {
   id: number; descricao: number; embalagem: number;
   sld_estoq: number; sld_contagem: number; dif_qtde: number; dif_financeira: number;
+  /** so o corte usa: quem fabricou a linha, e a razao social para conferencia */
+  fabricante: number; razao_social: number;
 }
 
 export function mapearColunas(cabecalho: unknown[]): Colunas {
@@ -214,11 +216,13 @@ export function mapearColunas(cabecalho: unknown[]): Colunas {
     sld_contagem: idx('sld contagem', 'saldo contagem'),
     dif_qtde: idx('dif qtde', 'dif qtd'),
     dif_financeira: idx('dif financeira'),
+    fabricante: idx('id fabricante', 'cod fabricante', 'codigo fabricante'),
+    razao_social: idx('razao social'),
   };
 }
 
-/** Um arquivo = um lancamento, no fornecedor escolhido na tela. */
-export function montarProdutos(linhas: unknown[][]): ProdutoInventario[] {
+/** Acha a linha do cabecalho e mapeia as colunas — comum ao normal e ao corte. */
+function abrirPlanilha(linhas: unknown[][]): { cm: Colunas; corpo: unknown[][] } {
   let hi = linhas.findIndex(
     (r) => r && r.some((c) => ['sld contagem', 'dif qtde', 'sld estoq'].includes(low(c))),
   );
@@ -231,28 +235,208 @@ export function montarProdutos(linhas: unknown[][]): ProdutoInventario[] {
       'Não encontrei as colunas "Id" e "Sld Contagem". O cabeçalho lido foi: ' + (achadas || '(vazio)') + '.',
     );
   }
+  return { cm, corpo: linhas.slice(hi + 1) };
+}
+
+/** Uma linha de produto. Devolve null quando e rodape ou linha vazia. */
+function lerProduto(row: unknown[], cm: Colunas): ProdutoInventario | null {
+  const g = (k: keyof Colunas) => (cm[k] >= 0 ? row[cm[k]] : null);
+  const id = norm(g('id'));
+  if (!id || /total/i.test(id)) return null;
+  const est = parseNum(g('sld_estoq'));
+  const cont = parseNum(g('sld_contagem'));
+  return {
+    id,
+    descricao: norm(g('descricao')),
+    embalagem: norm(g('embalagem')),
+    sld_estoq: est,
+    sld_contagem: cont,
+    dif_qtde: cm.dif_qtde >= 0 ? parseNum(g('dif_qtde')) : cont - est,
+    dif_financeira: parseNum(g('dif_financeira')),
+  };
+}
+
+/** Um arquivo = um lancamento, no fornecedor escolhido na tela. */
+export function montarProdutos(linhas: unknown[][]): ProdutoInventario[] {
+  const { cm, corpo } = abrirPlanilha(linhas);
 
   const produtos: ProdutoInventario[] = [];
-  linhas.slice(hi + 1).forEach((row) => {
+  corpo.forEach((row) => {
     if (!row) return;
-    const g = (k: keyof Colunas) => (cm[k] >= 0 ? row[cm[k]] : null);
-    const id = norm(g('id'));
-    if (!id || /total/i.test(id)) return;
-    const est = parseNum(g('sld_estoq'));
-    const cont = parseNum(g('sld_contagem'));
-    produtos.push({
-      id,
-      descricao: norm(g('descricao')),
-      embalagem: norm(g('embalagem')),
-      sld_estoq: est,
-      sld_contagem: cont,
-      dif_qtde: cm.dif_qtde >= 0 ? parseNum(g('dif_qtde')) : cont - est,
-      dif_financeira: parseNum(g('dif_financeira')),
-    });
+    const p = lerProduto(row, cm);
+    if (p) produtos.push(p);
   });
 
   if (!produtos.length) throw new Error('O arquivo não tem nenhuma linha de produto.');
   return produtos;
+}
+
+// ---------------------------------------------------------------- corte
+
+/**
+ * De qual fornecedor e cada produto do inventario de corte.
+ *
+ * O corte vem num arquivo so, com produtos de varios fornecedores misturados.
+ * Quem decide e a coluna "Id Fabricante" — NAO a marca que aparece na
+ * descricao: a racao QUALIDY, por exemplo, e do fabricante 8820, que e ADIMAX.
+ *
+ * A chave aqui e o codigo SEM zeros a esquerda; o ERP grava '006090' e a
+ * gerencia fala '6090'. Um fornecedor pode ter mais de um codigo.
+ */
+export const FABRICANTES: Record<string, string> = {
+  105: 'CONSERVA ODERICH',
+  1938: 'ADL',
+  8820: 'ADIMAX', 8902: 'ADIMAX',
+  9277: 'VITAO',
+  9163: 'MURIEL',
+  168: 'NUTRIMENTAL', 233: 'NUTRIMENTAL',
+  187: 'ENERGIZER',            // razao social SPECTRUM BRANDS; a marca e RAYOVAC
+  9322: 'GRENDENE',
+  8629: 'MARILAN', 8711: 'MARILAN',
+  9187: 'ACE',
+  203: 'J MACEDO', 232: 'J MACEDO', 7813: 'J MACEDO', 8895: 'J MACEDO',
+  9371: 'ONTEX', 7837: 'ONTEX',   // 7837 vem como FALCON no arquivo
+  6090: 'COLGATE', 6317: 'COLGATE', 7708: 'COLGATE',
+  9536: 'BOLD',                   // tambem aparece como BARRIND INDUSTRIA
+  8663: 'CIA CANOINHAS',
+  8986: 'SANTA MARIA', 9075: 'SANTA MARIA',
+};
+
+/** Onde caem os produtos cujo Id Fabricante ainda nao esta no mapa acima. */
+export const NAO_IDENTIFICADO = 'NÃO IDENTIFICADO';
+
+/** '006090' -> '6090'. So digitos, sem zeros a esquerda. */
+export const codigoFabricante = (v: unknown) =>
+  String(v ?? '').replace(/\D/g, '').replace(/^0+/, '');
+
+export interface GrupoCorte {
+  fornecedor: string;
+  /** os Id Fabricante que cairam neste fornecedor, ja sem zeros a esquerda */
+  codigos: string[];
+  produtos: ProdutoInventario[];
+  /** so no grupo NAO IDENTIFICADO: o codigo e a razao social de cada desconhecido */
+  desconhecidos: { codigo: string; razao: string }[];
+}
+
+/**
+ * Quebra o arquivo de corte em um grupo por fornecedor.
+ *
+ * Codigo fora do mapa nao e descartado: vai para o grupo NAO IDENTIFICADO
+ * junto com a razao social, para a tela mostrar e alguem decidir depois. Perder
+ * item calado seria pior do que mostrar um grupo a mais.
+ */
+export function montarCorte(linhas: unknown[][]): GrupoCorte[] {
+  const { cm, corpo } = abrirPlanilha(linhas);
+  if (cm.fabricante < 0) {
+    throw new Error(
+      'Este arquivo não tem a coluna "Id Fabricante" — sem ela não dá para saber de quem é cada ' +
+      'produto. Confira se é mesmo o relatório de corte, ou lance por fornecedor na aba Lançamentos.',
+    );
+  }
+
+  const grupos = new Map<string, GrupoCorte>();
+  corpo.forEach((row) => {
+    if (!row) return;
+    const p = lerProduto(row, cm);
+    if (!p) return;
+
+    const codigo = codigoFabricante(row[cm.fabricante]);
+    const razao = cm.razao_social >= 0 ? norm(row[cm.razao_social]) : '';
+    const fornecedor = FABRICANTES[codigo] ?? NAO_IDENTIFICADO;
+
+    const g = grupos.get(fornecedor)
+      ?? { fornecedor, codigos: [], produtos: [], desconhecidos: [] };
+    if (codigo && !g.codigos.includes(codigo)) g.codigos.push(codigo);
+    if (fornecedor === NAO_IDENTIFICADO && !g.desconhecidos.some((d) => d.codigo === codigo)) {
+      g.desconhecidos.push({ codigo: codigo || '(vazio)', razao });
+    }
+    g.produtos.push({
+      ...p,
+      ...(codigo ? { fabricante: codigo } : {}),
+      ...(razao ? { razao_social: razao } : {}),
+    });
+    grupos.set(fornecedor, g);
+  });
+
+  if (!grupos.size) throw new Error('O arquivo não tem nenhuma linha de produto.');
+
+  // NAO IDENTIFICADO por ultimo: e o que precisa de atencao, nao o que abre a lista
+  return [...grupos.values()].sort((a, b) => {
+    if (a.fornecedor === NAO_IDENTIFICADO) return 1;
+    if (b.fornecedor === NAO_IDENTIFICADO) return -1;
+    return a.fornecedor.localeCompare(b.fornecedor, 'pt-BR');
+  });
+}
+
+/**
+ * O valor de estoque que o corte herda para poder calcular acuracidade.
+ *
+ * O arquivo de corte so traz os itens cortados — somar o custo deles daria um
+ * denominador muito menor que o estoque real e uma acuracidade artificialmente
+ * pessima. Entao a base e a do inventario NORMAL mais recente do mesmo
+ * fornecedor ate a data do corte. Sem base, devolve 0 e a tela mostra '—' em
+ * vez de um numero sobre denominador inventado.
+ */
+export function baseEstoqueCorte(
+  fornecedor: string, data: string, todos: Inventario[],
+): { valor: number; de: string | null } {
+  const anterior = todos
+    .filter((l) => (l.tipo ?? 'normal') === 'normal'
+      && l.fornecedor === fornecedor
+      && l.data_inventario <= data
+      && +l.valor_estoque > 0)
+    .sort((a, b) => (a.data_inventario < b.data_inventario ? 1 : -1))[0];
+
+  return anterior
+    ? { valor: +anterior.valor_estoque, de: anterior.data_inventario }
+    : { valor: 0, de: null };
+}
+
+// ---------------------------------------------------------------- posicao atual
+
+export interface ItemPosicao extends ProdutoInventario {
+  /** data do lancamento de onde veio esta contagem */
+  data: string;
+  tipo: TipoInventario;
+  aprovado: boolean;
+}
+
+/**
+ * Posicao atual item a item de um fornecedor: de cada produto vale a contagem
+ * MAIS RECENTE, venha ela do inventario normal ou do corte.
+ *
+ * Um item contado no corte de ontem ganha do inventario normal do mes passado.
+ * No mesmo dia, o corte ganha do normal: ele e a recontagem.
+ */
+export function posicaoAtual(lancs: Inventario[], fornecedor: string): ItemPosicao[] {
+  const cronologico = lancs
+    .filter((l) => l.fornecedor === fornecedor)
+    .sort((a, b) => {
+      if (a.data_inventario !== b.data_inventario) {
+        return a.data_inventario < b.data_inventario ? -1 : 1;
+      }
+      return (a.tipo ?? 'normal') === 'corte' ? 1 : -1;
+    });
+
+  const atual = new Map<string, ItemPosicao>();
+  cronologico.forEach((l) => {
+    (l.produtos ?? []).forEach((p) => {
+      atual.set(p.id, {
+        ...p,
+        data: l.data_inventario,
+        tipo: l.tipo ?? 'normal',
+        aprovado: Boolean(l.aprovado_em),
+      });
+    });
+  });
+
+  // divergencia primeiro, e a maior no topo: e o que a pessoa abre a tela para ver
+  return [...atual.values()].sort((a, b) => {
+    const da = Math.abs(a.dif_financeira);
+    const db = Math.abs(b.dif_financeira);
+    if (da !== db) return db - da;
+    return a.descricao.localeCompare(b.descricao, 'pt-BR');
+  });
 }
 
 // ---------------------------------------------------------------- relatorio da gerencia
@@ -261,6 +445,8 @@ export function montarProdutos(linhas: unknown[][]): ProdutoInventario[] {
 export interface LinhaGerencia {
   data: string;
   fornecedor: string;
+  /** so para a tela distinguir as duas rotinas; o Excel da gerencia nao usa */
+  tipo: TipoInventario;
   /** R$ EST. INVENT. */
   est: number;
   acu: number | null;
@@ -285,6 +471,7 @@ export function linhasGerencia(lancs: Inventario[]): LinhaGerencia[] {
     return {
       data: l.data_inventario,
       fornecedor: l.fornecedor,
+      tipo: l.tipo ?? 'normal',
       est,
       acu: acuracidade(est, t.pos, saida),
       entrada: t.pos,
@@ -309,7 +496,7 @@ export function totalGerencia(rs: LinhaGerencia[]): LinhaGerencia {
   const saida = rs.reduce((a, r) => a + r.saida, 0);
   const dif = entrada - saida;
   return {
-    data: '', fornecedor: '',
+    data: '', fornecedor: '', tipo: 'normal',   // linha de totalizador: nao representa um lancamento
     est, acu: acuracidade(est, entrada, saida), entrada, saida, dif,
     pct: pctEstoque(est, dif),
     produtos: rs.reduce((a, r) => a + r.produtos, 0),
