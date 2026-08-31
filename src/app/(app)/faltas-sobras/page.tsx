@@ -26,6 +26,19 @@ interface Form {
   /** só usado quando o código não está em inventário nenhum */
   descricao: string;
 }
+/** O cadastro da aba Equipe guarda três coisas na mesma lista. */
+type TipoCadastro = FuncaoEquipe | 'veiculo';
+
+/** Uma linha da lista de cadastro, seja pessoa ou veículo. */
+interface LinhaCadastro {
+  id: number;
+  tipo: TipoCadastro;
+  rotulo: string;
+  ativo: boolean;
+  alternar: () => Promise<void>;
+  excluir: () => Promise<void>;
+}
+
 const formVazio = (): Form => ({
   data: hojeISO(), lote: '', produto: '', embalagem: '', quantidade: '',
   motorista: '', ajudantes: [''], placa: '', foto: null, obs: '', descricao: '',
@@ -72,9 +85,9 @@ export default function FaltasSobrasPage() {
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState('');
   const [frota, setFrota] = useState<Veiculo[]>([]);
-  const [novaPlaca, setNovaPlaca] = useState('');
-  const [novaPessoa, setNovaPessoa] = useState<{ nome: string; funcao: FuncaoEquipe }>({
-    nome: '', funcao: 'motorista',
+  /** pessoas e veículos entram pelo mesmo formulário; o tipo decide o destino */
+  const [novoCadastro, setNovoCadastro] = useState<{ valor: string; tipo: TipoCadastro }>({
+    valor: '', tipo: 'motorista',
   });
   const inputFoto = useRef<HTMLInputElement>(null);
 
@@ -396,9 +409,8 @@ export default function FaltasSobrasPage() {
   }
 
   // ---------- equipe ----------
-  async function adicionarPessoa() {
-    const nome = normNome(novaPessoa.nome);
-    const { funcao } = novaPessoa;
+  async function adicionarPessoa(bruto: string, funcao: FuncaoEquipe) {
+    const nome = normNome(bruto);
     setMsg(null); setErro(null);
     if (!nome) { setErro('Escreva o nome.'); return; }
     // o mesmo nome pode existir nas duas funções — quem ajuda e às vezes dirige
@@ -411,7 +423,7 @@ export default function FaltasSobrasPage() {
     if (!sb) return;
     const { error } = await sb.from('motoristas').insert({ unidade: usuario!.unidade, nome, funcao });
     if (error) { setErro('Não cadastrou: ' + error.message + dica(error.message)); return; }
-    setNovaPessoa({ nome: '', funcao });
+    setNovoCadastro((c) => ({ ...c, valor: '' }));
     setMsg(`${nome} entrou na lista de ${funcao}s.`);
     await carregarEquipe();
   }
@@ -438,8 +450,8 @@ export default function FaltasSobrasPage() {
   }
 
   // ---------- frota ----------
-  async function adicionarVeiculo() {
-    const placa = normPlaca(novaPlaca);
+  async function adicionarVeiculo(bruta: string) {
+    const placa = normPlaca(bruta);
     setMsg(null); setErro(null);
     if (!placa) { setErro('Escreva a placa.'); return; }
     if (frota.some((v) => v.placa === placa)) {
@@ -451,9 +463,16 @@ export default function FaltasSobrasPage() {
     if (!sb) return;
     const { error } = await sb.from('veiculos').insert({ unidade: usuario!.unidade, placa });
     if (error) { setErro('Não cadastrou: ' + error.message + dica(error.message)); return; }
-    setNovaPlaca('');
+    setNovoCadastro((c) => ({ ...c, valor: '' }));
     setMsg(`${placa} entrou na frota.`);
     await carregarEquipe();
+  }
+
+  /** O formulário é um só: aqui o tipo escolhido decide para onde vai. */
+  async function adicionarCadastro() {
+    const { valor, tipo } = novoCadastro;
+    if (tipo === 'veiculo') { await adicionarVeiculo(valor); return; }
+    await adicionarPessoa(valor, tipo);
   }
 
   async function alternarVeiculo(v: Veiculo) {
@@ -486,12 +505,29 @@ export default function FaltasSobrasPage() {
     () => equipe.filter((p) => p.ativo && p.funcao === 'ajudante'),
     [equipe],
   );
-  // motoristas primeiro, cada grupo em ordem alfabética
-  const equipeOrdenada = useMemo(
-    () => [...equipe].sort((a, b) => (a.funcao === b.funcao
-      ? a.nome.localeCompare(b.nome)
-      : a.funcao === 'motorista' ? -1 : 1)),
-    [equipe],
+  /**
+   * Pessoas e veículos numa lista só, que é como a tela mostra: motoristas,
+   * depois ajudantes, depois a frota — cada grupo em ordem alfabética.
+   *
+   * Cada linha carrega o que fazer com ela, porque desativar um motorista e
+   * desativar um carro batem em tabelas diferentes.
+   */
+  const cadastro: LinhaCadastro[] = useMemo(() => {
+    const ordem: Record<TipoCadastro, number> = { motorista: 0, ajudante: 1, veiculo: 2 };
+    const pessoas: LinhaCadastro[] = equipe.map((p) => ({
+      id: p.id, tipo: p.funcao, rotulo: p.nome, ativo: p.ativo,
+      alternar: () => alternarAtivo(p), excluir: () => excluirPessoa(p),
+    }));
+    const carros: LinhaCadastro[] = frota.map((v) => ({
+      id: v.id, tipo: 'veiculo' as const, rotulo: v.placa, ativo: v.ativo,
+      alternar: () => alternarVeiculo(v), excluir: () => excluirVeiculo(v),
+    }));
+    return [...pessoas, ...carros].sort((a, b) => (a.tipo === b.tipo
+      ? a.rotulo.localeCompare(b.rotulo, 'pt-BR')
+      : ordem[a.tipo] - ordem[b.tipo]));
+    // as funções de ação são estáveis o bastante: dependem só de equipe/frota
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [equipe, frota],
   );
   const frotaAtiva = useMemo(() => frota.filter((v) => v.ativo), [frota]);
   /**
@@ -581,33 +617,38 @@ export default function FaltasSobrasPage() {
 
       {/* ---------------- cadastro da equipe ---------------- */}
       {aba === 'equipe' && (
-        <>
         <section className="painel sombra rounded-2xl p-4 motion-safe:animate-subir">
-          <h2 className="mb-1 text-[15px] font-bold">Motoristas e ajudantes</h2>
+          <h2 className="mb-1 text-[15px] font-bold">Equipe e veículos</h2>
           <p className="mb-3 text-[12.5px] txt-fraco">
-            Quem aparece para escolher ao registrar falta ou sobra — motorista num campo,
-            ajudantes no outro. Desativar tira das opções sem apagar nada: os registros antigos
-            guardam o nome como texto. Quem ajuda e às vezes dirige pode entrar nas duas funções.
+            Quem e o que aparece para escolher ao registrar falta ou sobra. Desativar tira das
+            opções sem apagar nada: os registros antigos guardam o nome e a placa como texto.
+            Quem ajuda e às vezes dirige pode entrar nas duas funções.
           </p>
 
           {podeLancar && (
             <div className="mb-3 flex flex-wrap gap-2">
               <input
-                value={novaPessoa.nome} onChange={(e) => setNovaPessoa({ ...novaPessoa, nome: e.target.value })}
-                onKeyDown={(e) => { if (e.key === 'Enter') void adicionarPessoa(); }}
-                placeholder="Nome" aria-label="Nome"
+                value={novoCadastro.valor}
+                onChange={(e) => setNovoCadastro({ ...novoCadastro, valor: e.target.value })}
+                onKeyDown={(e) => { if (e.key === 'Enter') void adicionarCadastro(); }}
+                placeholder={novoCadastro.tipo === 'veiculo' ? 'OEY 8503' : 'Nome'}
+                aria-label={novoCadastro.tipo === 'veiculo' ? 'Placa' : 'Nome'}
+                autoComplete="off"
                 className={cn(ENTRADA, 'sm:max-w-xs')}
               />
               <select
-                value={novaPessoa.funcao} aria-label="Função"
-                onChange={(e) => setNovaPessoa({ ...novaPessoa, funcao: e.target.value as FuncaoEquipe })}
+                value={novoCadastro.tipo} aria-label="O que está cadastrando"
+                onChange={(e) => setNovoCadastro({
+                  ...novoCadastro, tipo: e.target.value as TipoCadastro,
+                })}
                 className={cn(ENTRADA, 'sm:max-w-40')}
               >
                 <option value="motorista">Motorista</option>
                 <option value="ajudante">Ajudante</option>
+                <option value="veiculo">Veículo</option>
               </select>
               <button
-                type="button" onClick={() => void adicionarPessoa()}
+                type="button" onClick={() => void adicionarCadastro()}
                 className="flex items-center gap-1.5 rounded-xl bg-marinho-800 px-3 py-2 text-[13px] font-semibold text-white"
               >
                 <UserPlus aria-hidden className="size-4" /> Adicionar
@@ -615,40 +656,46 @@ export default function FaltasSobrasPage() {
             </div>
           )}
 
-          {!equipe.length ? (
+          {!cadastro.length ? (
             <p className="rounded-xl painel-2 px-3 py-6 text-center text-[13px] txt-fraco">
-              Ninguém cadastrado ainda.
+              Nada cadastrado ainda.
             </p>
           ) : (
             <>
               <p className="mb-2 text-[12px] txt-fraco">
-                {motoristasAtivos.length} motorista(s) e {ajudantesAtivos.length} ajudante(s) ativos.
+                {motoristasAtivos.length} motorista(s), {ajudantesAtivos.length} ajudante(s) e{' '}
+                {frotaAtiva.length} veículo(s) ativos.
               </p>
               <ul className="flex flex-col gap-1.5">
-                {equipeOrdenada.map((p) => (
+                {cadastro.map((c) => (
                   <li
-                    key={p.id}
+                    key={c.tipo + c.id}
                     className={cn('flex flex-wrap items-center gap-2 rounded-xl border px-3 py-2',
-                      p.ativo ? 'borda' : 'borda opacity-60')}
+                      c.ativo ? 'borda' : 'borda opacity-60')}
                   >
                     <span
                       className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold uppercase',
-                        p.funcao === 'motorista' ? 'bg-marinho-100 text-marinho-800' : 'painel-2 txt-fraco')}
+                        c.tipo === 'motorista' ? 'bg-marinho-100 text-marinho-800'
+                          : c.tipo === 'veiculo' ? 'bg-ouro-100 text-ouro-700'
+                            : 'painel-2 txt-fraco')}
                     >
-                      {p.funcao}
+                      {c.tipo}
                     </span>
-                    <span className="text-[13.5px] font-semibold">{p.nome}</span>
-                    {!p.ativo && (
+                    <span className={cn('text-[13.5px] font-semibold',
+                      c.tipo === 'veiculo' && 'font-mono tracking-wide')}>
+                      {c.rotulo}
+                    </span>
+                    {!c.ativo && (
                       <span className="rounded-md painel-2 px-2 py-0.5 text-[11px] font-bold txt-fraco">inativo</span>
                     )}
                     {podeLancar && (
                       <div className="ml-auto flex items-center gap-1.5">
-                        <button type="button" onClick={() => void alternarAtivo(p)} className={cn(BOTAO_LINHA, 'txt-fraco')}>
-                          {p.ativo ? 'Desativar' : 'Reativar'}
+                        <button type="button" onClick={() => void c.alternar()} className={cn(BOTAO_LINHA, 'txt-fraco')}>
+                          {c.ativo ? 'Desativar' : 'Reativar'}
                         </button>
                         <button
-                          type="button" onClick={() => void excluirPessoa(p)}
-                          aria-label={`Tirar ${p.nome} do cadastro`}
+                          type="button" onClick={() => void c.excluir()}
+                          aria-label={`Tirar ${c.rotulo} do cadastro`}
                           className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
                         >
                           <Trash2 aria-hidden className="size-3.5" />
@@ -661,77 +708,6 @@ export default function FaltasSobrasPage() {
             </>
           )}
         </section>
-
-        {/* ---------------- frota ---------------- */}
-        <section className="painel sombra mt-4 rounded-2xl p-4 motion-safe:animate-subir">
-          <h2 className="mb-1 text-[15px] font-bold">Veículos</h2>
-          <p className="mb-3 text-[12.5px] txt-fraco">
-            As placas que aparecem para escolher ao registrar falta ou sobra. Escolher em vez de
-            digitar é o que faz a análise por carro fechar: a mesma placa escrita de dois jeitos
-            viraria dois veículos na hora de somar. Desativar tira das opções sem apagar nada —
-            os registros antigos guardam a placa como texto.
-          </p>
-
-          {podeLancar && (
-            <div className="mb-3 flex flex-wrap gap-2">
-              <input
-                value={novaPlaca} onChange={(e) => setNovaPlaca(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') void adicionarVeiculo(); }}
-                placeholder="OEY 8503" aria-label="Placa" autoComplete="off"
-                className={cn(ENTRADA, 'sm:max-w-40')}
-              />
-              <button
-                type="button" onClick={() => void adicionarVeiculo()}
-                className="flex items-center gap-1.5 rounded-xl bg-marinho-800 px-3 py-2 text-[13px] font-semibold text-white"
-              >
-                <Plus aria-hidden className="size-4" /> Adicionar
-              </button>
-            </div>
-          )}
-
-          {!frota.length ? (
-            <p className="rounded-xl painel-2 px-3 py-6 text-center text-[13px] txt-fraco">
-              Nenhum veículo cadastrado ainda.
-            </p>
-          ) : (
-            <>
-              <p className="mb-2 text-[12px] txt-fraco">
-                {frotaAtiva.length} veículo(s) ativo(s) de {frota.length} cadastrado(s).
-              </p>
-              <ul className="flex flex-wrap gap-1.5">
-                {frota.map((v) => (
-                  <li
-                    key={v.id}
-                    className={cn('flex items-center gap-2 rounded-xl border px-3 py-1.5',
-                      v.ativo ? 'borda' : 'borda opacity-60')}
-                  >
-                    <span className="font-mono text-[13px] font-semibold tracking-wide">{v.placa}</span>
-                    {!v.ativo && (
-                      <span className="rounded-md painel-2 px-1.5 py-0.5 text-[10.5px] font-bold txt-fraco">
-                        inativo
-                      </span>
-                    )}
-                    {podeLancar && (
-                      <span className="flex items-center gap-1">
-                        <button type="button" onClick={() => void alternarVeiculo(v)} className={cn(BOTAO_LINHA, 'txt-fraco')}>
-                          {v.ativo ? 'Desativar' : 'Reativar'}
-                        </button>
-                        <button
-                          type="button" onClick={() => void excluirVeiculo(v)}
-                          aria-label={`Tirar ${v.placa} do cadastro`}
-                          className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
-                        >
-                          <Trash2 aria-hidden className="size-3.5" />
-                        </button>
-                      </span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </>
-          )}
-        </section>
-        </>
       )}
 
       {/* ---------------- registrar ---------------- */}
