@@ -8,7 +8,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   acharProduto, catalogoDeInventarios, CONFIG, comprimirFoto, conferida, fmtData, fmtQtd,
-  hojeISO, MAX_AJUDANTES, normNome, normPlaca, parseQtd, produtoTexto,
+  hojeISO, MAX_AJUDANTES, normNome, normPlaca, parseQtd, produtoTexto, variantesDeCodigo,
   type ProdutoConhecido,
 } from '@/lib/ocorrencias';
 import { getSupabase } from '@/lib/supabase';
@@ -51,6 +51,11 @@ export default function FaltasSobrasPage() {
   const [equipe, setEquipe] = useState<PessoaEquipe[]>([]);
   /** código do produto -> nome, vindo dos inventários já lançados */
   const [catalogo, setCatalogo] = useState<Record<string, ProdutoConhecido>>({});
+  /** o que o catálogo do ERP respondeu sobre o código digitado agora */
+  const [doCadastro, setDoCadastro] = useState<ProdutoConhecido | null>(null);
+  const [buscandoProduto, setBuscandoProduto] = useState(false);
+  /** códigos que já foram perguntados ao ERP — evita repetir o que não existe */
+  const jaConsultados = useRef<Set<string>>(new Set());
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -130,13 +135,88 @@ export default function FaltasSobrasPage() {
   useEffect(() => { void carregarEquipe(); }, [carregarEquipe]);
   useEffect(() => { void carregarCatalogo(); }, [carregarCatalogo]);
 
-  /** o que os inventários sabem sobre o código que está digitado agora */
+  /**
+   * O catálogo do ERP tem ~11 mil produtos — carregar tudo a cada visita pesaria
+   * no 4G do depósito, então a consulta é pelo código que está sendo digitado.
+   * Espera meio segundo depois da última tecla para não consultar letra a letra.
+   */
+  useEffect(() => {
+    const codigo = form.produto.trim();
+    if (!codigo || acharProduto(codigo, catalogo)) {
+      setDoCadastro(null); setBuscandoProduto(false); return;
+    }
+    if (demo) { setBuscandoProduto(false); return; }
+
+    let vivo = true;
+    // marca "procurando" já: sem isso a tela diz "não encontrado" no meio da
+    // digitação e some depois, o que parece erro
+    setBuscandoProduto(true);
+    const t = setTimeout(async () => {
+      const sb = getSupabase();
+      if (!sb) { setBuscandoProduto(false); return; }
+      const { data } = await sb.from('produtos')
+        .select('codigo, descricao, embalagem')
+        .in('codigo', variantesDeCodigo(codigo)).limit(1);
+      const p = (data ?? [])[0] as { codigo: string; descricao: string; embalagem: string | null } | undefined;
+      if (vivo) {
+        setDoCadastro(p
+          ? { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' }
+          : null);
+        setBuscandoProduto(false);
+      }
+    }, 500);
+
+    return () => { vivo = false; clearTimeout(t); };
+  }, [form.produto, catalogo, demo]);
+
+  /**
+   * O que se sabe sobre o código digitado agora.
+   *
+   * O inventário vem primeiro porque traz a embalagem que foi realmente contada;
+   * o catálogo do ERP entra para o produto que nunca passou por um inventário.
+   */
   const produtoAchado = useMemo(
-    () => acharProduto(form.produto, catalogo),
-    [form.produto, catalogo],
+    () => acharProduto(form.produto, catalogo) ?? doCadastro,
+    [form.produto, catalogo, doCadastro],
   );
-  /** digitou um código que nenhum inventário conhece: o nome vai na mão */
-  const produtoDesconhecido = Boolean(form.produto.trim()) && !produtoAchado;
+  /** digitou um código que nem o inventário nem o ERP conhecem: nome na mão */
+  const produtoDesconhecido =
+    Boolean(form.produto.trim()) && !produtoAchado && !buscandoProduto;
+
+  /**
+   * Registros antigos, gravados antes de existir a coluna do nome, mostram só o
+   * código. Uma consulta ao catálogo do ERP com os códigos que aparecem na lista
+   * resolve todos de uma vez — e o resultado entra no mesmo catálogo, então
+   * serve também ao formulário.
+   */
+  useEffect(() => {
+    if (demo) return;
+    const faltando = [...new Set(itens
+      .filter((o) => o.produto && !o.descricao)
+      .map((o) => o.produto as string))]
+      .filter((c) => !acharProduto(c, catalogo) && !jaConsultados.current.has(c));
+    if (!faltando.length) return;
+
+    faltando.forEach((c) => jaConsultados.current.add(c));
+    let vivo = true;
+    void (async () => {
+      const sb = getSupabase();
+      if (!sb) return;
+      const { data } = await sb.from('produtos')
+        .select('codigo, descricao, embalagem')
+        .in('codigo', faltando.flatMap(variantesDeCodigo)).limit(2000);
+      if (!vivo || !data?.length) return;
+      setCatalogo((atual) => {
+        const novo = { ...atual };
+        (data as { codigo: string; descricao: string; embalagem: string | null }[])
+          .forEach((p) => {
+            novo[p.codigo] ??= { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' };
+          });
+        return novo;
+      });
+    })();
+    return () => { vivo = false; };
+  }, [itens, catalogo, demo]);
 
   function bloqueadoNoDemo() {
     if (!demo) return false;
@@ -279,11 +359,22 @@ export default function FaltasSobrasPage() {
     setMsg(null); setErro(null);
   }
 
-  function validarSobra(o: Ocorrencia) {
+  async function validarSobra(o: Ocorrencia) {
     const codigo = formValida.produto.trim();
     if (!codigo) { setErro('Informe o código do produto para validar a sobra.'); return; }
-    // mesma busca da falta: identificar a sobra é dizer que produto é aquele
-    const achado = acharProduto(codigo, catalogo);
+
+    // mesma busca da falta: identificar a sobra é dizer que produto é aquele.
+    // O inventário primeiro (traz a embalagem contada), o catálogo do ERP depois.
+    let achado = acharProduto(codigo, catalogo);
+    if (!achado && !demo) {
+      const sb = getSupabase();
+      const { data } = await (sb?.from('produtos')
+        .select('codigo, descricao, embalagem')
+        .in('codigo', variantesDeCodigo(codigo)).limit(1) ?? Promise.resolve({ data: null }));
+      const p = (data ?? [])[0] as { codigo: string; descricao: string; embalagem: string | null } | undefined;
+      if (p) achado = { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' };
+    }
+
     void conferir(
       o,
       {
@@ -559,12 +650,14 @@ export default function FaltasSobrasPage() {
                   <p id="oc-prod-achado" className="mt-1 text-[12px] leading-snug">
                     {produtoAchado ? (
                       <span className="font-semibold text-ok-600">{produtoAchado.descricao || 'Produto encontrado'}</span>
+                    ) : buscandoProduto ? (
+                      <span className="txt-fraco">Procurando…</span>
                     ) : produtoDesconhecido ? (
                       <span className="txt-fraco">
-                        Código não encontrado nos inventários — escreva o nome abaixo.
+                        Código não encontrado — escreva o nome abaixo.
                       </span>
                     ) : (
-                      <span className="txt-fraco">O nome aparece sozinho se o produto já foi inventariado.</span>
+                      <span className="txt-fraco">O nome aparece sozinho a partir do código.</span>
                     )}
                   </p>
                 </div>
@@ -923,7 +1016,7 @@ export default function FaltasSobrasPage() {
                             />
                           </label>
                           <button
-                            type="button" onClick={() => validarSobra(o)} disabled={ocupado === o.id}
+                            type="button" onClick={() => void validarSobra(o)} disabled={ocupado === o.id}
                             className="flex items-center gap-1.5 rounded-lg bg-marinho-800 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-60"
                           >
                             {ocupado === o.id

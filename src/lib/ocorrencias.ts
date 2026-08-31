@@ -158,6 +158,20 @@ export function acharProduto(
   return null;
 }
 
+/**
+ * As duas formas do mesmo código: como foi digitado e sem zeros à esquerda.
+ *
+ * O catálogo do ERP grava sem zero ('65696'), mas a tela do WMS mostra com
+ * ('065696') e é assim que a pessoa às vezes digita. Consultar as duas resolve
+ * sem precisar de função no banco.
+ */
+export function variantesDeCodigo(codigo: string): string[] {
+  const bruto = String(codigo ?? '').trim();
+  if (!bruto) return [];
+  const limpo = bruto.replace(/^0+/, '');
+  return limpo && limpo !== bruto ? [bruto, limpo] : [bruto];
+}
+
 /** Placa aceita com ou sem traço; guarda em maiúsculas e sem espaço sobrando. */
 export const normPlaca = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');
 
