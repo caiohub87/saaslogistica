@@ -224,6 +224,11 @@ export interface Ocorrencia {
    */
   produto: string | null;
   embalagem: string | null;
+  /**
+   * Nome do produto no momento do registro — achado nos inventários pelo código
+   * ou digitado à mão. Null nos registros anteriores a esta coluna.
+   */
+  descricao: string | null;
   /** só sobra: quanto voltou */
   quantidade: number | null;
   /** texto, não vínculo: o registro não muda se o cadastro mudar depois */

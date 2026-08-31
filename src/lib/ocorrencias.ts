@@ -16,7 +16,7 @@
 
 import { PackageMinus, PackagePlus, type LucideIcon } from 'lucide-react';
 
-import type { TipoOcorrencia } from '@/types/database';
+import type { Inventario, TipoOcorrencia } from '@/types/database';
 
 export interface ConfigOcorrencia {
   tipo: TipoOcorrencia;
@@ -94,6 +94,69 @@ export const hojeISO = () => {
 /** '65696' + '48UNID' -> '65696/48UNID', como a operação escreve. */
 export const produtoTexto = (produto: string | null, embalagem: string | null) =>
   [produto, embalagem].filter(Boolean).join('/');
+
+// ---------------------------------------------------------------- catalogo de produtos
+
+/** O que se sabe de um produto a partir do que já foi contado. */
+export interface ProdutoConhecido {
+  id: string;
+  descricao: string;
+  embalagem: string;
+}
+
+/**
+ * Nome e embalagem de cada produto, a partir dos inventários já lançados.
+ *
+ * Serve para quem registra uma falta não precisar decorar o que é o código
+ * '65696': digitou o código, a tela mostra o nome. É SÓ LEITURA — o inventário
+ * não é alterado em nada por causa disto.
+ *
+ * Vale o lançamento mais recente que tenha o produto, e uma descrição vazia não
+ * apaga uma que já existia: um corte traz poucos itens e às vezes com descrição
+ * mais pobre que a do inventário completo.
+ */
+export function catalogoDeInventarios(lancamentos: Inventario[]): Record<string, ProdutoConhecido> {
+  const mapa: Record<string, ProdutoConhecido> = {};
+
+  [...lancamentos]
+    .sort((a, b) => (a.data_inventario < b.data_inventario ? -1 : 1))
+    .forEach((l) => {
+      (l.produtos ?? []).forEach((p) => {
+        const id = String(p.id ?? '').trim();
+        if (!id) return;
+        const anterior = mapa[id];
+        mapa[id] = {
+          id,
+          descricao: (p.descricao || anterior?.descricao || '').trim(),
+          embalagem: (p.embalagem || anterior?.embalagem || '').trim(),
+        };
+      });
+    });
+
+  return mapa;
+}
+
+/**
+ * Acha o produto pelo código digitado.
+ *
+ * Compara sem zeros à esquerda porque o ERP às vezes escreve '065696' e a
+ * pessoa digita '65696' — é o mesmo item.
+ */
+export function acharProduto(
+  codigo: string, catalogo: Record<string, ProdutoConhecido>,
+): ProdutoConhecido | null {
+  const bruto = String(codigo ?? '').trim();
+  if (!bruto) return null;
+  if (catalogo[bruto]) return catalogo[bruto];
+
+  const limpo = bruto.replace(/^0+/, '');
+  if (limpo && catalogo[limpo]) return catalogo[limpo];
+
+  for (const p of Object.values(catalogo)) {
+    if (p.id.replace(/^0+/, '') === limpo) return p;
+  }
+  return null;
+}
 
 /** Placa aceita com ou sem traço; guarda em maiúsculas e sem espaço sobrando. */
 export const normPlaca = (s: string) => s.trim().toUpperCase().replace(/\s+/g, ' ');

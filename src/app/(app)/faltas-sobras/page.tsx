@@ -7,12 +7,15 @@ import Image from 'next/image';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
-  CONFIG, comprimirFoto, conferida, fmtData, fmtQtd, hojeISO, MAX_AJUDANTES,
-  normNome, normPlaca, parseQtd, produtoTexto,
+  acharProduto, catalogoDeInventarios, CONFIG, comprimirFoto, conferida, fmtData, fmtQtd,
+  hojeISO, MAX_AJUDANTES, normNome, normPlaca, parseQtd, produtoTexto,
+  type ProdutoConhecido,
 } from '@/lib/ocorrencias';
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
-import type { FuncaoEquipe, Ocorrencia, PessoaEquipe, TipoOcorrencia } from '@/types/database';
+import type {
+  FuncaoEquipe, Inventario, Ocorrencia, PessoaEquipe, TipoOcorrencia,
+} from '@/types/database';
 import { cn } from '@/utils/cn';
 
 type Aba = TipoOcorrencia | 'equipe';
@@ -20,10 +23,12 @@ type Aba = TipoOcorrencia | 'equipe';
 interface Form {
   data: string; lote: string; produto: string; embalagem: string; quantidade: string;
   motorista: string; ajudantes: string[]; placa: string; foto: string | null; obs: string;
+  /** só usado quando o código não está em inventário nenhum */
+  descricao: string;
 }
 const formVazio = (): Form => ({
   data: hojeISO(), lote: '', produto: '', embalagem: '', quantidade: '',
-  motorista: '', ajudantes: [''], placa: '', foto: null, obs: '',
+  motorista: '', ajudantes: [''], placa: '', foto: null, obs: '', descricao: '',
 });
 
 const dica = (msg: string) => (/relation|does not exist|column/i.test(msg)
@@ -44,6 +49,8 @@ export default function FaltasSobrasPage() {
 
   const [itens, setItens] = useState<Ocorrencia[]>([]);
   const [equipe, setEquipe] = useState<PessoaEquipe[]>([]);
+  /** código do produto -> nome, vindo dos inventários já lançados */
+  const [catalogo, setCatalogo] = useState<Record<string, ProdutoConhecido>>({});
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
@@ -95,8 +102,41 @@ export default function FaltasSobrasPage() {
     if (!error) setEquipe((data ?? []) as PessoaEquipe[]);
   }, [demo]);
 
+  /**
+   * Nome dos produtos, tirado dos inventários já lançados. SÓ LEITURA: nada
+   * aqui grava no inventário.
+   *
+   * Falhar aqui não atrapalha a tela — quem não tem permissão de ver inventário
+   * simplesmente digita o nome do produto na mão, que é o mesmo caminho de quem
+   * registra um código que nunca foi contado.
+   */
+  const carregarCatalogo = useCallback(async () => {
+    if (demo) {
+      const { INVENTARIOS_DEMO } = await import('@/lib/demo');
+      setCatalogo(catalogoDeInventarios(INVENTARIOS_DEMO));
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) return;
+    const { data, error } = await sb.from('inventarios')
+      .select('data_inventario, produtos')
+      .order('data_inventario', { ascending: false }).limit(300);
+    if (!error && data) {
+      setCatalogo(catalogoDeInventarios(data as unknown as Inventario[]));
+    }
+  }, [demo]);
+
   useEffect(() => { void carregar(); }, [carregar]);
   useEffect(() => { void carregarEquipe(); }, [carregarEquipe]);
+  useEffect(() => { void carregarCatalogo(); }, [carregarCatalogo]);
+
+  /** o que os inventários sabem sobre o código que está digitado agora */
+  const produtoAchado = useMemo(
+    () => acharProduto(form.produto, catalogo),
+    [form.produto, catalogo],
+  );
+  /** digitou um código que nenhum inventário conhece: o nome vai na mão */
+  const produtoDesconhecido = Boolean(form.produto.trim()) && !produtoAchado;
 
   function bloqueadoNoDemo() {
     if (!demo) return false;
@@ -157,7 +197,12 @@ export default function FaltasSobrasPage() {
       lote: form.lote.trim(),
       // na sobra o produto entra só na validação — aqui ninguém sabe ainda qual é
       produto: cfg.temProduto ? form.produto.trim() : null,
-      embalagem: cfg.temProduto ? (form.embalagem.trim() || null) : null,
+      embalagem: cfg.temProduto
+        ? (form.embalagem.trim() || produtoAchado?.embalagem || null) : null,
+      // o nome achado no inventário fica GRAVADO junto, e não é lido de lá toda
+      // vez: o registro é a foto do momento, igual ao motorista desta tabela
+      descricao: cfg.temProduto
+        ? (produtoAchado?.descricao || form.descricao.trim() || null) : null,
       quantidade: qtd,
       motorista: form.motorista,
       ajudantes: cfg.temAjudantes ? equipe : [],
@@ -237,11 +282,14 @@ export default function FaltasSobrasPage() {
   function validarSobra(o: Ocorrencia) {
     const codigo = formValida.produto.trim();
     if (!codigo) { setErro('Informe o código do produto para validar a sobra.'); return; }
+    // mesma busca da falta: identificar a sobra é dizer que produto é aquele
+    const achado = acharProduto(codigo, catalogo);
     void conferir(
       o,
       {
         produto: codigo,
-        embalagem: formValida.embalagem.trim() || null,
+        embalagem: formValida.embalagem.trim() || achado?.embalagem || null,
+        descricao: achado?.descricao || null,
         validado_por: usuario!.nome,
         validado_em: new Date().toISOString(),
       },
@@ -318,7 +366,8 @@ export default function FaltasSobrasPage() {
     return itens
       .filter((o) => (!ini || o.data >= ini) && (!fim || o.data <= fim))
       .filter((o) => situacao === 'todos' || (situacao === 'ok' ? conferida(o) : !conferida(o)))
-      .filter((o) => !q || [o.lote, o.motorista, o.placa, o.produto, o.embalagem, o.obs, ...(o.ajudantes ?? [])]
+      .filter((o) => !q || [o.lote, o.motorista, o.placa, o.produto, o.embalagem, o.descricao,
+        o.obs, ...(o.ajudantes ?? [])]
         .some((x) => (x ?? '').toLowerCase().includes(q)));
   }, [itens, busca, ini, fim, situacao]);
 
@@ -497,18 +546,50 @@ export default function FaltasSobrasPage() {
                   <label htmlFor="oc-prod" className="mb-1 block text-[12.5px] font-semibold">Código do produto</label>
                   <input
                     id="oc-prod" inputMode="numeric" placeholder="65696" autoComplete="off"
+                    list="oc-catalogo"
                     value={form.produto} onChange={(e) => setForm({ ...form, produto: e.target.value })}
                     className={ENTRADA}
+                    aria-describedby="oc-prod-achado"
                   />
+                  <datalist id="oc-catalogo">
+                    {Object.values(catalogo).slice(0, 1000).map((p) => (
+                      <option key={p.id} value={p.id}>{p.descricao}</option>
+                    ))}
+                  </datalist>
+                  <p id="oc-prod-achado" className="mt-1 text-[12px] leading-snug">
+                    {produtoAchado ? (
+                      <span className="font-semibold text-ok-600">{produtoAchado.descricao || 'Produto encontrado'}</span>
+                    ) : produtoDesconhecido ? (
+                      <span className="txt-fraco">
+                        Código não encontrado nos inventários — escreva o nome abaixo.
+                      </span>
+                    ) : (
+                      <span className="txt-fraco">O nome aparece sozinho se o produto já foi inventariado.</span>
+                    )}
+                  </p>
                 </div>
                 <div>
                   <label htmlFor="oc-emb" className="mb-1 block text-[12.5px] font-semibold">Unidade / embalagem</label>
                   <input
-                    id="oc-emb" placeholder="48UNID" autoComplete="off"
+                    id="oc-emb" placeholder={produtoAchado?.embalagem || '48UNID'} autoComplete="off"
                     value={form.embalagem} onChange={(e) => setForm({ ...form, embalagem: e.target.value })}
                     className={ENTRADA}
                   />
                 </div>
+
+                {/* só quando nenhum inventário conhece o código: o nome vai na mão */}
+                {produtoDesconhecido && (
+                  <div className="sm:col-span-2">
+                    <label htmlFor="oc-desc" className="mb-1 block text-[12.5px] font-semibold">
+                      Nome do produto
+                    </label>
+                    <input
+                      id="oc-desc" placeholder="BISC MARILAN RECH 80G CHOCOLATE" autoComplete="off"
+                      value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
+                      className={ENTRADA}
+                    />
+                  </div>
+                )}
               </>
             )}
 
@@ -733,6 +814,13 @@ export default function FaltasSobrasPage() {
                       {o.produto && (
                         <span className="rounded-md painel-2 px-2 py-0.5 text-[12px] font-semibold">
                           {produtoTexto(o.produto, o.embalagem)}
+                          {/* registro antigo não tem o nome gravado; aí vale o
+                              que os inventários souberem hoje sobre o código */}
+                          {(o.descricao || acharProduto(o.produto, catalogo)?.descricao) && (
+                            <span className="ml-1.5 font-normal txt-fraco">
+                              {o.descricao || acharProduto(o.produto, catalogo)?.descricao}
+                            </span>
+                          )}
                         </span>
                       )}
                       {o.quantidade != null && (

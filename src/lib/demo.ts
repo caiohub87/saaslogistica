@@ -150,7 +150,7 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
     o: Partial<Ocorrencia> & { data: string; lote: string; motorista: string },
   ): Ocorrencia => ({
     id: seq++, unidade: 'Dilnor', tipo,
-    produto: null, embalagem: null, quantidade: null, ajudantes: [],
+    produto: null, embalagem: null, descricao: null, quantidade: null, ajudantes: [],
     placa: null, foto: null, obs: null,
     registrado_por: 'Demonstração', registrado_por_id: null,
     aprovado_por: null, aprovado_em: null,
@@ -161,8 +161,10 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
 
   return tipo === 'falta'
     ? [
+      // codigo que EXISTE no inventario de demonstracao: o nome vem sozinho
       mk({ data: dia(0), lote: '96661', motorista: 'ANTONIO CARLOS', placa: 'OEY 8503',
-        produto: '65696', embalagem: '48UNID', ajudantes: ['EDVAN SOUSA', 'CLEITON ALVES'] }),
+        produto: '100003', embalagem: 'UN/24', descricao: 'PRODUTO DE EXEMPLO 4',
+        ajudantes: ['EDVAN SOUSA', 'CLEITON ALVES'] }),
       mk({ data: dia(-1), lote: '96540', motorista: 'JOSE RIBAMAR', placa: 'NQB 4C56',
         produto: '70112', embalagem: '12UNID', ajudantes: ['WELLINGTON DIAS'],
         obs: 'cliente recusou o volume' }),
