@@ -211,6 +211,18 @@ export interface PessoaEquipe {
   criado_em: string;
 }
 
+/**
+ * Um veículo da frota. A placa escolhida ao registrar é gravada como texto na
+ * ocorrência — este cadastro só alimenta a lista de opções.
+ */
+export interface Veiculo {
+  id: number;
+  unidade: string;
+  placa: string;
+  ativo: boolean;
+  criado_em: string;
+}
+
 export interface Ocorrencia {
   id: number;
   unidade: string;

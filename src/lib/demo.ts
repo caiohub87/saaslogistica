@@ -4,7 +4,7 @@ import { paraISO } from '@/lib/produtividade';
 import type {
   Agendamento, FuncaoEquipe, Inventario, ItemValidade, Ocorrencia, PessoaEquipe,
   ProdutoInventario, RegistroValidade, StatusAgendamento, TipoAgendamento, TipoOcorrencia,
-  Usuario,
+  Usuario, Veiculo,
 } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
 
@@ -131,6 +131,15 @@ export function equipeDemo(): PessoaEquipe[] {
     ...mk(['CLEITON ALVES', 'EDVAN SOUSA', 'GILVAN COSTA', 'ROBSON LIMA', 'VALDENIO ANTONIO', 'WELLINGTON DIAS'],
       'ajudante', 9150),
   ];
+}
+
+/** Frota de exemplo — a lista de verdade é cadastrada na própria tela. */
+export function frotaDemo(): Veiculo[] {
+  return ['KKL 4490', 'MMN 6B87', 'NQB 9732', 'NQC 2532', 'OEY 6703', 'OEY 8503']
+    .map((placa, i) => ({
+      id: 9300 + i, unidade: 'Dilnor', placa, ativo: true,
+      criado_em: new Date().toISOString(),
+    }));
 }
 
 /**

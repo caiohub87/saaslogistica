@@ -14,7 +14,7 @@ import {
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
 import type {
-  FuncaoEquipe, Inventario, Ocorrencia, PessoaEquipe, TipoOcorrencia,
+  FuncaoEquipe, Inventario, Ocorrencia, PessoaEquipe, TipoOcorrencia, Veiculo,
 } from '@/types/database';
 import { cn } from '@/utils/cn';
 
@@ -71,6 +71,8 @@ export default function FaltasSobrasPage() {
   const [situacao, setSituacao] = useState<'todos' | 'pendentes' | 'ok'>('todos');
   const [ini, setIni] = useState('');
   const [fim, setFim] = useState('');
+  const [frota, setFrota] = useState<Veiculo[]>([]);
+  const [novaPlaca, setNovaPlaca] = useState('');
   const [novaPessoa, setNovaPessoa] = useState<{ nome: string; funcao: FuncaoEquipe }>({
     nome: '', funcao: 'motorista',
   });
@@ -97,14 +99,19 @@ export default function FaltasSobrasPage() {
 
   const carregarEquipe = useCallback(async () => {
     if (demo) {
-      const { equipeDemo } = await import('@/lib/demo');
+      const { equipeDemo, frotaDemo } = await import('@/lib/demo');
       setEquipe(equipeDemo());
+      setFrota(frotaDemo());
       return;
     }
     const sb = getSupabase();
     if (!sb) return;
-    const { data, error } = await sb.from('motoristas').select('*').order('nome');
-    if (!error) setEquipe((data ?? []) as PessoaEquipe[]);
+    const [p, v] = await Promise.all([
+      sb.from('motoristas').select('*').order('nome'),
+      sb.from('veiculos').select('*').order('placa'),
+    ]);
+    if (!p.error) setEquipe((p.data ?? []) as PessoaEquipe[]);
+    if (!v.error) setFrota((v.data ?? []) as Veiculo[]);
   }, [demo]);
 
   /**
@@ -430,6 +437,46 @@ export default function FaltasSobrasPage() {
     await carregarEquipe();
   }
 
+  // ---------- frota ----------
+  async function adicionarVeiculo() {
+    const placa = normPlaca(novaPlaca);
+    setMsg(null); setErro(null);
+    if (!placa) { setErro('Escreva a placa.'); return; }
+    if (frota.some((v) => v.placa === placa)) {
+      setErro(`A placa ${placa} já está cadastrada.`);
+      return;
+    }
+    if (bloqueadoNoDemo()) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    const { error } = await sb.from('veiculos').insert({ unidade: usuario!.unidade, placa });
+    if (error) { setErro('Não cadastrou: ' + error.message + dica(error.message)); return; }
+    setNovaPlaca('');
+    setMsg(`${placa} entrou na frota.`);
+    await carregarEquipe();
+  }
+
+  async function alternarVeiculo(v: Veiculo) {
+    if (bloqueadoNoDemo()) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    const { error } = await sb.from('veiculos').update({ ativo: !v.ativo }).eq('id', v.id);
+    if (error) { setErro(error.message + dica(error.message)); return; }
+    setMsg(v.ativo ? `${v.placa} saiu da frota ativa.` : `${v.placa} voltou para a frota ativa.`);
+    await carregarEquipe();
+  }
+
+  async function excluirVeiculo(v: Veiculo) {
+    if (!confirm(`Tirar ${v.placa} do cadastro?\n\nOs registros antigos guardam a placa e não mudam.`)) return;
+    if (bloqueadoNoDemo()) return;
+    const sb = getSupabase();
+    if (!sb) return;
+    const { error } = await sb.from('veiculos').delete().eq('id', v.id);
+    if (error) { setErro(error.message + dica(error.message)); return; }
+    setMsg(`${v.placa} saiu do cadastro.`);
+    await carregarEquipe();
+  }
+
   // ---------- consultas ----------
   const motoristasAtivos = useMemo(
     () => equipe.filter((p) => p.ativo && p.funcao === 'motorista'),
@@ -446,11 +493,18 @@ export default function FaltasSobrasPage() {
       : a.funcao === 'motorista' ? -1 : 1)),
     [equipe],
   );
-  // placas já usadas viram sugestão: quem digita no celular erra menos
-  const placas = useMemo(
-    () => [...new Set(itens.map((o) => o.placa).filter(Boolean) as string[])].sort(),
-    [itens],
-  );
+  const frotaAtiva = useMemo(() => frota.filter((v) => v.ativo), [frota]);
+  /**
+   * As placas que a tela oferece: a frota cadastrada, mais as que aparecem em
+   * registros antigos e ainda não foram cadastradas — assim ninguém perde a
+   * placa de um carro que saiu da frota antes deste cadastro existir.
+   */
+  const placas = useMemo(() => {
+    const doCadastro = frotaAtiva.map((v) => v.placa);
+    const doHistorico = (itens.map((o) => o.placa).filter(Boolean) as string[])
+      .filter((p) => !doCadastro.includes(p));
+    return [...new Set([...doCadastro, ...doHistorico])].sort();
+  }, [frotaAtiva, itens]);
 
   const lista = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -527,6 +581,7 @@ export default function FaltasSobrasPage() {
 
       {/* ---------------- cadastro da equipe ---------------- */}
       {aba === 'equipe' && (
+        <>
         <section className="painel sombra rounded-2xl p-4 motion-safe:animate-subir">
           <h2 className="mb-1 text-[15px] font-bold">Motoristas e ajudantes</h2>
           <p className="mb-3 text-[12.5px] txt-fraco">
@@ -606,6 +661,77 @@ export default function FaltasSobrasPage() {
             </>
           )}
         </section>
+
+        {/* ---------------- frota ---------------- */}
+        <section className="painel sombra mt-4 rounded-2xl p-4 motion-safe:animate-subir">
+          <h2 className="mb-1 text-[15px] font-bold">Veículos</h2>
+          <p className="mb-3 text-[12.5px] txt-fraco">
+            As placas que aparecem para escolher ao registrar falta ou sobra. Escolher em vez de
+            digitar é o que faz a análise por carro fechar: a mesma placa escrita de dois jeitos
+            viraria dois veículos na hora de somar. Desativar tira das opções sem apagar nada —
+            os registros antigos guardam a placa como texto.
+          </p>
+
+          {podeLancar && (
+            <div className="mb-3 flex flex-wrap gap-2">
+              <input
+                value={novaPlaca} onChange={(e) => setNovaPlaca(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void adicionarVeiculo(); }}
+                placeholder="OEY 8503" aria-label="Placa" autoComplete="off"
+                className={cn(ENTRADA, 'sm:max-w-40')}
+              />
+              <button
+                type="button" onClick={() => void adicionarVeiculo()}
+                className="flex items-center gap-1.5 rounded-xl bg-marinho-800 px-3 py-2 text-[13px] font-semibold text-white"
+              >
+                <Plus aria-hidden className="size-4" /> Adicionar
+              </button>
+            </div>
+          )}
+
+          {!frota.length ? (
+            <p className="rounded-xl painel-2 px-3 py-6 text-center text-[13px] txt-fraco">
+              Nenhum veículo cadastrado ainda.
+            </p>
+          ) : (
+            <>
+              <p className="mb-2 text-[12px] txt-fraco">
+                {frotaAtiva.length} veículo(s) ativo(s) de {frota.length} cadastrado(s).
+              </p>
+              <ul className="flex flex-wrap gap-1.5">
+                {frota.map((v) => (
+                  <li
+                    key={v.id}
+                    className={cn('flex items-center gap-2 rounded-xl border px-3 py-1.5',
+                      v.ativo ? 'borda' : 'borda opacity-60')}
+                  >
+                    <span className="font-mono text-[13px] font-semibold tracking-wide">{v.placa}</span>
+                    {!v.ativo && (
+                      <span className="rounded-md painel-2 px-1.5 py-0.5 text-[10.5px] font-bold txt-fraco">
+                        inativo
+                      </span>
+                    )}
+                    {podeLancar && (
+                      <span className="flex items-center gap-1">
+                        <button type="button" onClick={() => void alternarVeiculo(v)} className={cn(BOTAO_LINHA, 'txt-fraco')}>
+                          {v.ativo ? 'Desativar' : 'Reativar'}
+                        </button>
+                        <button
+                          type="button" onClick={() => void excluirVeiculo(v)}
+                          aria-label={`Tirar ${v.placa} do cadastro`}
+                          className={cn(BOTAO_LINHA, 'text-erro-600 hover:bg-erro-500/10')}
+                        >
+                          <Trash2 aria-hidden className="size-3.5" />
+                        </button>
+                      </span>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+        </>
       )}
 
       {/* ---------------- registrar ---------------- */}
@@ -715,14 +841,21 @@ export default function FaltasSobrasPage() {
             </div>
             <div>
               <label htmlFor="oc-placa" className="mb-1 block text-[12.5px] font-semibold">Placa</label>
-              <input
-                id="oc-placa" list="lista-placas" placeholder="OEY 8503" autoComplete="off"
-                value={form.placa} onChange={(e) => setForm({ ...form, placa: e.target.value })}
+              {/* escolher em vez de digitar: 'OEY 8503' e 'OEY8503' digitados a
+                  mao viram dois veiculos na hora de somar as ocorrencias */}
+              <select
+                id="oc-placa" value={form.placa}
+                onChange={(e) => setForm({ ...form, placa: e.target.value })}
                 className={ENTRADA}
-              />
-              <datalist id="lista-placas">
-                {placas.map((p) => <option key={p} value={p} />)}
-              </datalist>
+              >
+                <option value="">Selecione…</option>
+                {placas.map((p) => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {!placas.length && (
+                <p className="mt-1 text-[11.5px] txt-fraco">
+                  Nenhum veículo cadastrado — cadastre na aba <b>Equipe</b>.
+                </p>
+              )}
             </div>
 
             {cfg.temAjudantes && (
