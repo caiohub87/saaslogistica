@@ -135,7 +135,7 @@ export function equipeDemo(): PessoaEquipe[] {
 
 /** Frota de exemplo — a lista de verdade é cadastrada na própria tela. */
 export function frotaDemo(): Veiculo[] {
-  return ['KKL 4490', 'MMN 6B87', 'NQB 9732', 'NQC 2532', 'OEY 6703', 'OEY 8503']
+  return ['KKK 6709', 'NQB 9732', 'NQC 2532', 'OEY 6673', 'OEY 6703', 'OEY 8503']
     .map((placa, i) => ({
       id: 9300 + i, unidade: 'Dilnor', placa, ativo: true,
       criado_em: new Date().toISOString(),

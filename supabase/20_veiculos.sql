@@ -68,13 +68,16 @@ insert into veiculos (unidade, placa) values
   ('Dilnor', 'NQB 9752'),
   ('Dilnor', 'OEY 8503'),
   ('Dilnor', 'NQC 2542'),
-  ('Dilnor', 'PFK 1501'),
-  ('Dilnor', 'NIB 9029'),
-  ('Dilnor', 'MMN 6B87'),
-  ('Dilnor', 'KKL 4490'),
-  ('Dilnor', 'KMA 4599'),
   ('Dilnor', 'KKK 6709')
 on conflict (unidade, placa) do nothing;
+
+-- Estas cinco entraram na primeira versao deste arquivo e NAO sao da frota.
+-- O delete existe para quem ja rodou aquela versao; quem nao rodou nao perde
+-- nada. Apagar daqui nao mexe em ocorrencia nenhuma: a placa fica gravada como
+-- texto no registro, este cadastro so alimenta a lista de opcoes.
+delete from veiculos
+ where unidade = 'Dilnor'
+   and placa in ('PFK 1501', 'NIB 9029', 'MMN 6B87', 'KKL 4490', 'KMA 4599');
 
 -- Conferir:
 --   select placa from veiculos where unidade = 'Dilnor' order by placa;
