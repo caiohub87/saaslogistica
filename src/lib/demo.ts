@@ -2,8 +2,8 @@
 
 import { paraISO } from '@/lib/produtividade';
 import type {
-  Agendamento, FuncaoEquipe, Inventario, ItemValidade, Ocorrencia, PessoaEquipe,
-  ProdutoInventario, RegistroValidade, StatusAgendamento, TipoAgendamento, TipoOcorrencia,
+  Agendamento, FuncaoEquipe, Inventario, ItemValidade, Ocorrencia, PedidoReentrega, PessoaEquipe,
+  ProdutoInventario, Reentrega, RegistroValidade, StatusAgendamento, TipoAgendamento, TipoOcorrencia,
   Usuario, Veiculo,
 } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
@@ -188,6 +188,98 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
         quantidade: 12, produto: '65696', embalagem: '48UNID',
         validado_por: 'Conferente (demo)', validado_em: quando(-1), obs: 'voltou sem etiqueta' }),
     ];
+}
+
+/**
+ * Foto de palete de mentira, para a demonstração ter o que abrir.
+ *
+ * Desenho em SVG em vez de uma foto real embutida: uma JPEG de verdade em
+ * base64 seriam dezenas de KB ilegíveis no meio do código-fonte. A situação da
+ * solicitação sai de a foto EXISTIR, então precisa ser algo não vazio — foi
+ * justamente isso que uma string vazia aqui quebrou.
+ */
+const FOTO_DEMO = 'data:image/svg+xml;utf8,' + encodeURIComponent(
+  '<svg xmlns="http://www.w3.org/2000/svg" width="640" height="440">'
+  + '<rect width="640" height="440" fill="#e7edf5"/>'
+  + '<rect x="90" y="120" width="460" height="190" rx="6" fill="#c9a26b"/>'
+  + '<rect x="90" y="310" width="460" height="26" rx="4" fill="#8a6a3d"/>'
+  + '<rect x="120" y="336" width="46" height="34" fill="#8a6a3d"/>'
+  + '<rect x="297" y="336" width="46" height="34" fill="#8a6a3d"/>'
+  + '<rect x="474" y="336" width="46" height="34" fill="#8a6a3d"/>'
+  + '<rect x="250" y="150" width="140" height="100" rx="4" fill="#fff" stroke="#94a6bd"/>'
+  + '<text x="320" y="205" font-family="Arial" font-size="15" fill="#5d7089" '
+  + 'text-anchor="middle">DOCUMENTO</text>'
+  + '<text x="320" y="410" font-family="Arial" font-size="17" fill="#5d7089" '
+  + 'text-anchor="middle">Foto de exemplo — modo de demonstração</text>'
+  + '</svg>',
+);
+
+/**
+ * Reentregas de exemplo, uma em cada etapa do fluxo — é assim que dá para
+ * conferir a tela sem depender de alguém percorrer os cinco passos à mão.
+ */
+export function reentregasDemo(): Reentrega[] {
+  const dia = (n: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() + n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+  const quando = (n: number) => new Date(Date.now() + n * 86400000).toISOString();
+
+  let seq = 9400;
+  const peds = (n: number, carga: string): PedidoReentrega[] =>
+    Array.from({ length: n }, (_, i) => ({
+      pedido: `${carga}-${i + 1}`,
+      cliente: ['SUPERMERCADO SAO LUIS', 'MERCADINHO BOA VISTA', 'ATACADAO CENTRAL',
+        'MERCEARIA DO JOAO'][i % 4],
+      codcli: String(1000 + i * 7),
+      carga,
+      peso: 180 + i * 37,
+      valor: 900 + i * 211,
+      motivo: i % 2 ? 'Tempo insuficiente' : 'Cliente não fez pedido',
+    }));
+
+  // `carga` e `n` só montam a lista de pedidos: ficam de fora do objeto final
+  const mk = (
+    { carga, n, ...o }: Partial<Reentrega> & { lote: string; data: string; carga: string; n: number },
+  ): Reentrega => {
+    const lista = peds(n, carga);
+    return {
+      id: seq++, unidade: 'Dilnor',
+      paletes: 1, lote_a_parte: false,
+      clientes: new Set(lista.map((p) => p.codcli)).size,
+      peso: lista.reduce((a, p) => a + p.peso, 0),
+      motorista: 'ANTONIO CARLOS', ajudantes: ['EDVAN SOUSA'],
+      pedidos: lista, obs: null, foto: null, desfecho: null,
+      registrado_por: 'Demonstração', registrado_por_id: null,
+      foto_por: null, foto_por_id: null, foto_em: null,
+      aprovado_por: null, aprovado_por_id: null, aprovado_em: null,
+      finalizado_por: null, finalizado_por_id: null, finalizado_em: null,
+      criado_em: new Date().toISOString(),
+      ...o,
+    };
+  };
+
+  return [
+    // aguardando a foto do palete
+    mk({ lote: '96712', data: dia(0), carga: '94806', n: 4, paletes: 2 }),
+    // fotografada, esperando aprovação — foto vazia de propósito (ver acima)
+    mk({ lote: '96705', data: dia(-1), carga: '94812', n: 3, lote_a_parte: true,
+      foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-1) }),
+    // aprovada, no depósito
+    mk({ lote: '96698', data: dia(-3), carga: '94799', n: 6, paletes: 3,
+      foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-3),
+      aprovado_por: 'Gerência (demo)', aprovado_em: quando(-2) }),
+    // finalizadas: uma de cada desfecho
+    mk({ lote: '96690', data: dia(-6), carga: '94781', n: 2,
+      foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-6),
+      aprovado_por: 'Gerência (demo)', aprovado_em: quando(-5),
+      desfecho: 'reenviada', finalizado_por: 'Gerência (demo)', finalizado_em: quando(-4) }),
+    mk({ lote: '96684', data: dia(-9), carga: '94770', n: 5, lote_a_parte: true,
+      foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-9),
+      aprovado_por: 'Gerência (demo)', aprovado_em: quando(-8),
+      desfecho: 'devolvida', finalizado_por: 'Conferente (demo)', finalizado_em: quando(-7) }),
+  ];
 }
 
 /** Agendamentos de exemplo, ancorados na semana de hoje para os selos aparecerem. */

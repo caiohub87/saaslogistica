@@ -6,7 +6,8 @@
  * editor. O banco continua sendo a autoridade: a RLS decide de verdade.
  */
 
-export type Acao = 'ver' | 'importar' | 'salvar' | 'editar' | 'excluir' | 'aprovar' | 'lancar' | 'exportar' | 'imprimir';
+export type Acao = 'ver' | 'importar' | 'salvar' | 'editar' | 'excluir' | 'aprovar' | 'lancar'
+  | 'exportar' | 'imprimir' | 'fotografar' | 'finalizar';
 
 export interface Tela {
   chave: string;
@@ -51,6 +52,10 @@ export const TELAS: Tela[] = [
   { chave: 'inventario', nome: 'Inventário', grupo: 'Estoque', rota: '/inventario', acoes: ['ver', 'lancar', 'excluir', 'aprovar', 'exportar'],
     descricao: 'Conferência por fornecedor, inventário de corte e posição atual item a item. '
       + '"Aprovar" era a senha do gerente (79513).', migrada: true },
+  { chave: 'reentregas', nome: 'Reentregas', grupo: 'Estoque', rota: '/reentregas',
+    acoes: ['ver', 'lancar', 'fotografar', 'aprovar', 'finalizar', 'excluir', 'imprimir'],
+    descricao: 'O palete que voltou para o depósito: solicitação, foto, aprovação e o fecho '
+      + 'como reenviado ou devolvido.', migrada: true },
   { chave: 'validade', nome: 'Validade', grupo: 'Estoque', rota: '/validade', acoes: ['ver', 'lancar', 'excluir'],
     descricao: 'Sobe o relatório de validade do WMS e organiza o que escoar em 30, 60, 90 ou 120 dias.', migrada: true },
   { chave: 'ocorrencias', nome: 'Faltas e sobras', grupo: 'Estoque', rota: '/faltas-sobras', acoes: ['ver', 'lancar', 'aprovar', 'excluir'],
@@ -80,6 +85,8 @@ export const ACAO_LABEL: Record<Acao, string> = {
   lancar: 'Lançar',
   exportar: 'Exportar',
   imprimir: 'Imprimir',
+  fotografar: 'Fotografar',
+  finalizar: 'Finalizar',
 };
 
 /** Explica o peso de cada acao — evita dar 'excluir' sem perceber. */
@@ -91,7 +98,10 @@ export const ACAO_PESO: Record<Acao, 'leve' | 'media' | 'forte'> = {
   lancar: 'media',
   editar: 'media',
   salvar: 'media',
+  fotografar: 'media',
   aprovar: 'forte',
+  // fechar a reentrega encerra o acompanhamento do palete: some das pendências
+  finalizar: 'forte',
   excluir: 'forte',
 };
 
@@ -116,6 +126,9 @@ export const PERFIS: Perfil[] = [
       analise: ['ver', 'importar'],
       produtividade: ['ver'],
       escalasalvas: ['ver', 'imprimir'],
+      // monta a solicitação de reentrega e imprime o documento do palete;
+      // fotografar e aprovar ficam com o depósito e a gerência
+      reentregas: ['ver', 'lancar', 'imprimir'],
       desempenho: ['ver'],
     },
   },
@@ -144,6 +157,8 @@ export const PERFIS: Perfil[] = [
       inventario: ['ver', 'lancar', 'exportar'],
       validade: ['ver', 'lancar'],
       ocorrencias: ['ver', 'lancar'],
+      // quem está no depósito fotografa o palete; aprovar é de quem confere
+      reentregas: ['ver', 'fotografar'],
       desempenho: ['ver'],
     },
   },
@@ -165,6 +180,7 @@ export const PERFIS: Perfil[] = [
       inventario: ['ver', 'lancar', 'aprovar', 'exportar'],
       validade: ['ver', 'lancar', 'excluir'],
       ocorrencias: ['ver', 'lancar', 'aprovar', 'excluir'],
+      reentregas: ['ver', 'lancar', 'aprovar', 'finalizar', 'imprimir'],
       cadastros: ['ver', 'editar'],
       config: ['ver'],
       desempenho: ['ver'],

@@ -223,6 +223,62 @@ export interface Veiculo {
   criado_em: string;
 }
 
+// ---------- reentregas ----------
+
+/** Um pedido em reentrega dentro da solicitação — cópia do relatório do dia. */
+export interface PedidoReentrega {
+  pedido: string;
+  cliente: string;
+  codcli: string;
+  /** a carga de onde ele voltou */
+  carga: string;
+  peso: number;
+  valor: number;
+  motivo: string;
+}
+
+export type DesfechoReentrega = 'reenviada' | 'devolvida';
+
+/**
+ * O palete que voltou para o depósito, do pedido ao reenvio ou devolução.
+ *
+ * `situacao` não existe no banco: sai dos carimbos, como em Ocorrencia. Use
+ * situacaoDe() em lib/reentregas.ts em vez de ler as datas na mão.
+ */
+export interface Reentrega {
+  id: number;
+  unidade: string;
+  /** lote destinado à mercadoria — digitado, não vem do relatório */
+  lote: string;
+  paletes: number;
+  /** o mesmo pedido fica no depósito para sair noutro dia */
+  lote_a_parte: boolean;
+  clientes: number;
+  peso: number;
+  motorista: string;
+  ajudantes: string[];
+  pedidos: PedidoReentrega[];
+  /** dia em que a mercadoria voltou ao depósito */
+  data: string;
+  obs: string | null;
+  /** a foto do palete, embutida como data:image/jpeg;base64 */
+  foto: string | null;
+  /** null enquanto não foi finalizada */
+  desfecho: DesfechoReentrega | null;
+  registrado_por: string | null;
+  registrado_por_id: string | null;
+  foto_por: string | null;
+  foto_por_id: string | null;
+  foto_em: string | null;
+  aprovado_por: string | null;
+  aprovado_por_id: string | null;
+  aprovado_em: string | null;
+  finalizado_por: string | null;
+  finalizado_por_id: string | null;
+  finalizado_em: string | null;
+  criado_em: string;
+}
+
 export interface Ocorrencia {
   id: number;
   unidade: string;
