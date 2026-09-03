@@ -85,7 +85,7 @@ export default function InventarioPage() {
     if (error) {
       setErro(
         error.message +
-        (/relation|does not exist/i.test(error.message)
+        (/relation|does not exist|schema cache/i.test(error.message)
           ? ' — rode o SQL dos inventários no Supabase.' : ''),
       );
       setLancamentos([]);

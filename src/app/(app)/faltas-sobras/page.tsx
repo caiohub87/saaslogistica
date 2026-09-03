@@ -44,11 +44,40 @@ const formVazio = (): Form => ({
   motorista: '', ajudantes: [''], placa: '', foto: null, obs: '', descricao: '',
 });
 
-const dica = (msg: string) => (/relation|does not exist|column/i.test(msg)
-  ? ' — rode o SQL 14_faltas_sobras.sql no Supabase.'
-  : /permission|policy|row-level/i.test(msg)
+/** De qual arquivo SQL vem cada tabela desta tela — faltando uma, rodar a outra não resolve. */
+const ORIGEM: Record<string, string> = {
+  ocorrencias: '14_faltas_sobras.sql',
+  motoristas: '14_faltas_sobras.sql',
+  produtos: '18_produtos.sql',
+  veiculos: '20_veiculos.sql',
+};
+
+/**
+ * Traduz o erro do banco em instrução.
+ *
+ * São DUAS frases diferentes para "a tabela não existe", e a tela precisa das
+ * duas: o Postgres escreve `relation "x" does not exist`, mas quando a tabela
+ * nunca foi criada quem responde antes dele é o PostgREST, com
+ * `Could not find the table 'public.x' in the schema cache` — que não tem
+ * nenhuma das palavras da outra. Sem este caso a pessoa recebia a mensagem
+ * técnica crua, sem saber que o que faltava era rodar um SQL.
+ */
+const dica = (msg: string) => {
+  const semTabela = /Could not find the table '(?:public\.)?(\w+)'/i.exec(msg);
+  if (semTabela) {
+    const tabela = semTabela[1];
+    const arquivo = ORIGEM[tabela];
+    return arquivo
+      ? ` — a tabela ${tabela} não existe: rode supabase/${arquivo} no Supabase.`
+      : ` — a tabela ${tabela} não existe no banco: falta rodar o SQL que a cria.`;
+  }
+  if (/relation|does not exist|column|schema cache/i.test(msg)) {
+    return ' — rode o SQL 14_faltas_sobras.sql no Supabase.';
+  }
+  return /permission|policy|row-level/i.test(msg)
     ? ' — seu acesso não tem permissão para isso.'
-    : '');
+    : '';
+};
 
 export default function FaltasSobrasPage() {
   const { pode, demo, usuario } = useSessao();

@@ -297,7 +297,7 @@ export default function SalvosPage() {
     if (eHist) {
       setSalvando(false);
       setErro('Não registrei a alteração, então não alterei nada: ' + eHist.message +
-        (/relation|does not exist/i.test(eHist.message) ? ' — rode o SQL 12_premiacao_auditoria.sql.' : ''));
+        (/relation|does not exist|schema cache/i.test(eHist.message) ? ' — rode o SQL 12_premiacao_auditoria.sql.' : ''));
       return;
     }
 

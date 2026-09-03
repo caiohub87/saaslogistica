@@ -58,7 +58,7 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
       .from('agendamentos').select('*').eq('tipo', tipo)
       .order('data', { ascending: true }).limit(3000);
     if (error) {
-      setErro(error.message + (/relation|does not exist/i.test(error.message)
+      setErro(error.message + (/relation|does not exist|schema cache/i.test(error.message)
         ? ' — rode o SQL dos agendamentos no Supabase.' : ''));
       setItens([]);
     } else {

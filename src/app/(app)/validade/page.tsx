@@ -19,7 +19,7 @@ const ABAS: { id: Aba; nome: string; Icone: typeof ClipboardList }[] = [
   { id: 'visao', nome: 'Visão', Icone: CalendarClock },
 ];
 
-const dica = (msg: string) => (/relation|does not exist|column/i.test(msg)
+const dica = (msg: string) => (/relation|does not exist|column|schema cache/i.test(msg)
   ? ' — rode o SQL 16_validade.sql no Supabase.'
   : /permission|policy|row-level/i.test(msg)
     ? ' — seu acesso não tem permissão para isso.'
