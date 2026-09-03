@@ -5,6 +5,7 @@ import {
 } from 'react';
 
 import { demoLigado } from '@/lib/demo';
+import { VERSAO_BASE } from '@/lib/relatorio';
 import {
   CONFIG_PADRAO, montarCargas, PREMIO_PADRAO,
   type Carga, type ConfigProdutividade, type TabelaPremio,
@@ -27,6 +28,12 @@ interface RelatorioCtx {
   config: ConfigProdutividade;
   premio: TabelaPremio;
   carregando: boolean;
+  /**
+   * A base veio do navegador num formato anterior ao de hoje. Os pedidos
+   * servem para tudo que já funcionava; o que falta são os campos criados
+   * depois dela — e só reimportar o arquivo resolve.
+   */
+  baseDesatualizada: boolean;
   definirRelatorio: (pedidos: Pedido[], meta: MetaRelatorio) => void;
   limpar: () => void;
   ajustarConfig: (c: Partial<ConfigProdutividade>) => void;
@@ -42,6 +49,7 @@ export function RelatorioProvider({ unidade, children }: { unidade: string; chil
   const [config, setConfig] = useState<ConfigProdutividade>(CONFIG_PADRAO);
   const [premio] = useState<TabelaPremio>(PREMIO_PADRAO);
   const [carregando, setCarregando] = useState(true);
+  const [baseDesatualizada, setDesatualizada] = useState(false);
 
   // restaura o que estava salvo para esta unidade
   useEffect(() => {
@@ -62,6 +70,8 @@ export function RelatorioProvider({ unidade, children }: { unidade: string; chil
           const j = JSON.parse(bruto);
           setPedidos(j.pedidos ?? []);
           setMeta(j.meta ?? null);
+          // base sem `versao` é anterior à checagem: conta como a versão 1
+          setDesatualizada((j.meta?.versao ?? 1) !== VERSAO_BASE);
         }
         const cfg = localStorage.getItem(chave(unidade, 'config'));
         if (cfg && vivo) setConfig({ ...CONFIG_PADRAO, ...JSON.parse(cfg) });
@@ -74,11 +84,13 @@ export function RelatorioProvider({ unidade, children }: { unidade: string; chil
   const definirRelatorio = useCallback((p: Pedido[], m: MetaRelatorio) => {
     setPedidos(p);
     setMeta(m);
+    setDesatualizada(false);   // acabou de ser lida pelo parser de hoje
     try { localStorage.setItem(chave(unidade, 'base'), JSON.stringify({ pedidos: p, meta: m })); } catch { /* cota cheia */ }
   }, [unidade]);
 
   const limpar = useCallback(() => {
     setPedidos([]); setMeta(null);
+    setDesatualizada(false);
     try { localStorage.removeItem(chave(unidade, 'base')); } catch { /* ignora */ }
   }, [unidade]);
 
@@ -93,9 +105,10 @@ export function RelatorioProvider({ unidade, children }: { unidade: string; chil
   const cargas = useMemo(() => montarCargas(pedidos, config), [pedidos, config]);
 
   const valor = useMemo<RelatorioCtx>(() => ({
-    pedidos, meta, cargas, config, premio, carregando,
+    pedidos, meta, cargas, config, premio, carregando, baseDesatualizada,
     definirRelatorio, limpar, ajustarConfig,
-  }), [pedidos, meta, cargas, config, premio, carregando, definirRelatorio, limpar, ajustarConfig]);
+  }), [pedidos, meta, cargas, config, premio, carregando, baseDesatualizada,
+    definirRelatorio, limpar, ajustarConfig]);
 
   return <Ctx.Provider value={valor}>{children}</Ctx.Provider>;
 }

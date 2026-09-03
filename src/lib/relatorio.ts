@@ -91,6 +91,18 @@ function mapear(cabecalho: unknown[]) {
   return idx;
 }
 
+/**
+ * Formato dos pedidos que este arquivo produz.
+ *
+ * SUBIR ESTE NÚMERO ao acrescentar campo no Pedido. A base guardada no
+ * navegador volta como foi lida, então sem isto o campo novo aparece vazio e a
+ * tela não tem como saber que o motivo é a base ser velha.
+ *
+ *   1  formato original
+ *   2  ganhou notaFiscal
+ */
+export const VERSAO_BASE = 2;
+
 export interface RelatorioLido {
   pedidos: Pedido[];
   meta: MetaRelatorio;
@@ -151,6 +163,12 @@ export async function lerRelatorio(file: File): Promise<RelatorioLido> {
 
   return {
     pedidos,
-    meta: { arquivo: file.name, carregadoEm: new Date().toISOString(), pedidos: pedidos.length },
+    meta: {
+      arquivo: file.name,
+      carregadoEm: new Date().toISOString(),
+      pedidos: pedidos.length,
+      versao: VERSAO_BASE,
+      temNotaFiscal: cm.notaFiscal >= 0,
+    },
   };
 }

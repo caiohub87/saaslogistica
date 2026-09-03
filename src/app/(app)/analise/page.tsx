@@ -31,7 +31,7 @@ interface Linha { c: Carga; fp: Pedido[]; a: AgregadoPedidos }
 
 export default function AnalisePage() {
   const { pode } = useSessao();
-  const { cargas, meta, carregando, definirRelatorio, limpar } = useRelatorio();
+  const { cargas, meta, carregando, baseDesatualizada, definirRelatorio, limpar } = useRelatorio();
   const podeImportar = pode('analise', 'importar');
 
   const [busca, setBusca] = useState('');
@@ -215,6 +215,26 @@ export default function AnalisePage() {
       </header>
 
       {erro && <p role="alert" className="mb-4 rounded-xl bg-erro-500/10 px-4 py-3 text-sm font-semibold text-erro-600">{erro}</p>}
+
+      {/*
+        Por que a coluna de nota fiscal pode estar vazia. São dois motivos com
+        soluções diferentes, e sem dizer qual é a pessoa fica achando que a
+        tela quebrou.
+      */}
+      {meta && baseDesatualizada ? (
+        <p className="mb-4 rounded-xl bg-ouro-100 px-4 py-3 text-[13px] text-ouro-700">
+          Esta base foi carregada por uma versão anterior desta tela, então não tem a{' '}
+          <b>nota fiscal</b> dos pedidos. Os números continuam certos —{' '}
+          {podeImportar
+            ? 'importe o relatório de novo para a coluna NF preencher.'
+            : 'peça a quem importa para subir o relatório de novo.'}
+        </p>
+      ) : meta && meta.temNotaFiscal === false ? (
+        <p className="mb-4 rounded-xl bg-ouro-100 px-4 py-3 text-[13px] text-ouro-700">
+          O relatório <b>{meta.arquivo}</b> não trouxe coluna de nota fiscal, então a coluna NF
+          fica vazia. Ao exportar do Fusion, inclua a coluna da nota fiscal.
+        </p>
+      ) : null}
 
       {carregando ? (
         <div className="flex justify-center py-16"><Loader2 aria-hidden className="size-6 animate-spin text-marinho-500" /></div>

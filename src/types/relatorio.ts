@@ -36,4 +36,19 @@ export interface MetaRelatorio {
   arquivo: string;
   carregadoEm: string;
   pedidos: number;
+  /**
+   * Formato dos pedidos gravados. A base fica no localStorage e volta como foi
+   * lida, então campo acrescentado ao Pedido depois fica vazio numa base velha
+   * — sem nada na tela explicando o porquê. Comparar isto com VERSAO_BASE é o
+   * que permite avisar em vez de mostrar coluna vazia.
+   *
+   * Ausente nas bases gravadas antes desta checagem: tratar como versão 1.
+   */
+  versao?: number;
+  /**
+   * O arquivo importado tinha coluna de nota fiscal? Separa "sua base é
+   * velha, reimporte" de "esta exportação não traz NF" — que se resolvem de
+   * formas diferentes.
+   */
+  temNotaFiscal?: boolean;
 }
