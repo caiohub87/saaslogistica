@@ -258,6 +258,9 @@ export function pedidosDemo() {
   const perfis = [0, 0, 0, 1, 1, 2, 3, 5];
   const pedidos: Pedido[] = [];
   let nCarga = 94800;
+  // NF sequencial e única no relatório inteiro, como sai do ERP — é o que
+  // permite conferir a busca por nota na Análise
+  let nNota = 480117;
 
   dias.forEach((data, di) => {
     for (let c = 0; c < 6; c++) {
@@ -283,7 +286,8 @@ export function pedidosDemo() {
           rota,
           cliente: clienteUnico ? 'REDE COMPRE BEM' : CLI[(i + c) % CLI.length],
           codcli: clienteUnico ? '2050' : String(1000 + ((i * 7 + c) % 400)),
-          pedido: `${carga}-${i + 1}`, cidade: 'SAO LUIS', regiao: 'MA',
+          pedido: `${carga}-${i + 1}`, notaFiscal: String(nNota++),
+          cidade: 'SAO LUIS', regiao: 'MA',
           placa: agreg ? 'AGREG' : ['OEY1A23', 'NQB4C56', 'NQC7D89', 'OGD2E34', 'MYY5F67'][c % 5],
           peso: 180 + ((i * 37 + c * 13) % 520),
           valor: 900 + ((i * 211 + c * 97) % 4200),

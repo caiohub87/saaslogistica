@@ -12,6 +12,12 @@ export interface Pedido {
   cliente: string;
   codcli: string;
   pedido: string;
+  /**
+   * Número da nota fiscal do pedido. Fica '' quando o relatório exportado não
+   * trouxe a coluna — o Fusion permite montar a exportação sem ela, então a
+   * tela precisa saber mostrar o pedido mesmo sem NF.
+   */
+  notaFiscal: string;
   cidade: string;
   regiao: string;
   placa: string;

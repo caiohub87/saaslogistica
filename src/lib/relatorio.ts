@@ -32,6 +32,11 @@ const COLUNAS: Record<string, string[]> = {
   cliente: ['razao social'],
   fantasia: ['nome fantasia'],
   codcli: ['cod erp cliente', 'codigo erp cliente'],
+  notaFiscal: [
+    'nota fiscal', 'numero nota fiscal', 'numero da nota fiscal', 'nro nota fiscal',
+    'num nota fiscal', 'nota fiscal erp', 'numero nota fiscal erp',
+    'nf', 'nfe', 'nf-e', 'numero nf', 'numero da nf', 'nro nf', 'num nf',
+  ],
   cidade: ['cidade'],
   rota: ['rota'],
   peso: ['peso'],
@@ -48,6 +53,25 @@ const COLUNAS: Record<string, string[]> = {
   regiao: ['regiao'],
 };
 
+/**
+ * A nota fiscal por aproximação, quando nenhum nome exato bateu.
+ *
+ * As outras colunas têm uma grafia só; a NF não — muda de "Nota Fiscal" para
+ * "Número NF" ou "NF-e" conforme quem montou a exportação. Como errar aqui
+ * deixa a coluna vazia SEM AVISO NENHUM (o relatório continua lendo normal), a
+ * lista exata acima ganha esta rede de segurança.
+ *
+ * A ordem vai da forma mais específica para a mais solta, e a última é
+ * ancorada de propósito: sem a âncora, `nf` casaria com "Peso NF" ou "Valor
+ * NF", que são valores e não o número da nota.
+ */
+const NF_APROX: RegExp[] = [
+  /n(?:umero|ro|um)?\.?\s*(?:d[ae]\s*)?nota\s*fiscal/i,
+  /^nota\s*fiscal/i,
+  /n(?:umero|ro|um)\.?\s*nf-?e?\b/i,
+  /^nf-?e?$/i,
+];
+
 function mapear(cabecalho: unknown[]) {
   const lh = (cabecalho ?? []).map(low);
   const idx: Record<string, number> = {};
@@ -56,6 +80,12 @@ function mapear(cabecalho: unknown[]) {
     for (const nome of COLUNAS[k]) {
       const i = lh.indexOf(nome);
       if (i >= 0) { idx[k] = i; break; }
+    }
+  }
+  if (idx.notaFiscal < 0) {
+    for (const re of NF_APROX) {
+      const i = lh.findIndex((h) => re.test(h));
+      if (i >= 0) { idx.notaFiscal = i; break; }
     }
   }
   return idx;
@@ -101,6 +131,7 @@ export async function lerRelatorio(file: File): Promise<RelatorioLido> {
       cliente: norm(g('cliente')) || norm(g('fantasia')),
       codcli: norm(g('codcli')),
       pedido: norm(g('pedido')),
+      notaFiscal: norm(g('notaFiscal')),
       cidade: norm(g('cidade')),
       regiao: norm(g('regiao')),
       placa: norm(g('placa')),

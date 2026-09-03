@@ -51,14 +51,37 @@ export default function AnalisePage() {
     () => [...new Set(cargas.map((c) => c.rota).filter(Boolean))].sort(), [cargas],
   );
 
+  /** A carga leva esta nota fiscal? Usado na busca e para abrir a linha certa. */
+  const temNF = (c: Carga, q: string) =>
+    Boolean(q) && c.peds.some((p) => p.notaFiscal.toLowerCase().includes(q));
+
   /** Cargas dentro dos filtros de busca/motorista/rota — o escopo dos contadores. */
   const escopo = useMemo(() => {
     const q = busca.trim().toLowerCase();
     return cargas
       .filter((c) => !motorista || c.motorista === motorista)
       .filter((c) => !rota || c.rota === rota)
-      .filter((c) => !q || [c.id, c.motorista, c.rota].some((x) => (x ?? '').toLowerCase().includes(q)));
+      .filter((c) => !q
+        || [c.id, c.motorista, c.rota].some((x) => (x ?? '').toLowerCase().includes(q))
+        || temNF(c, q));
   }, [cargas, busca, motorista, rota]);
+
+  /**
+   * Cargas abertas na tela: as que a pessoa clicou, MAIS as que só entraram no
+   * resultado por causa da nota buscada.
+   *
+   * Sem isto, procurar uma NF devolve a linha da carga com o pedido escondido
+   * dentro dela — a pessoa teria de abrir na mão justamente o que pediu para
+   * ver. Só a busca por NF abre sozinha: buscar um motorista abriria todas as
+   * cargas dele de uma vez, o que não ajuda ninguém.
+   */
+  const abertasEfetivas = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    if (!q) return abertas;
+    const n = new Set(abertas);
+    escopo.forEach((c) => { if (temNF(c, q)) n.add(c.id); });
+    return n;
+  }, [abertas, escopo, busca]);
 
   /** Contadores de status refletem o escopo atual, como no sistema antigo. */
   const statusNoEscopo = useMemo(() => {
@@ -221,7 +244,7 @@ export default function AnalisePage() {
                 <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 txt-fraco" />
                 <input
                   value={busca} onChange={(e) => setBusca(e.target.value)}
-                  placeholder="Buscar carga, motorista, rota…"
+                  placeholder="Buscar carga, nota fiscal, motorista, rota…"
                   className="painel-2 w-full rounded-lg border borda py-1.5 pl-8 pr-2.5 text-[12.5px] outline-none focus:border-marinho-500"
                 />
               </div>
@@ -285,7 +308,7 @@ export default function AnalisePage() {
                       Nenhuma carga com os status selecionados.
                     </td></tr>
                   ) : linhas.map(({ c, fp, a }) => {
-                    const aberta = abertas.has(c.id);
+                    const aberta = abertasEfetivas.has(c.id);
                     return (
                       <Fragmento key={c.id}>
                         <tr
@@ -348,7 +371,7 @@ function Detalhe({ peds }: { peds: Pedido[] }) {
       <table className="w-full border-collapse text-[12.5px]">
         <thead>
           <tr className="text-left">
-            {['Pedido', 'Cód. Cliente', 'Cliente', 'Cidade', 'Rota', 'Status', 'Motivo'].map((h) => (
+            {['Pedido', 'Nota fiscal', 'Cód. Cliente', 'Cliente', 'Cidade', 'Rota', 'Status', 'Motivo'].map((h) => (
               <th key={h} className="px-2 py-1.5 text-[10.5px] font-bold uppercase tracking-wide txt-fraco">{h}</th>
             ))}
             <th className="px-2 py-1.5 text-right text-[10.5px] font-bold uppercase tracking-wide txt-fraco">Peso</th>
@@ -359,6 +382,10 @@ function Detalhe({ peds }: { peds: Pedido[] }) {
           {peds.map((p, i) => (
             <tr key={p.pedido + i} className="border-t borda">
               <td className="px-2 py-1.5 txt-fraco">{p.pedido || '—'}</td>
+              {/* NF em tabular-nums: a coluna é de números que se comparam a olho */}
+              <td className="whitespace-nowrap px-2 py-1.5 font-semibold tabular-nums">
+                {p.notaFiscal || <span className="font-normal txt-fraco">—</span>}
+              </td>
               <td className="px-2 py-1.5 txt-fraco">{p.codcli || '—'}</td>
               <td className="px-2 py-1.5">{p.cliente || '—'}</td>
               <td className="px-2 py-1.5 txt-fraco">{p.cidade || '—'}</td>
