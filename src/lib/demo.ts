@@ -270,10 +270,21 @@ export function reentregasDemo(): Reentrega[] {
     mk({ lote: '96705', data: dia(-1), carga: '94812', n: 3, lote_a_parte: true,
       rota: 'DELMIRO GOUVEIA',
       foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-1) }),
-    // aprovada, no depósito
+    // no depósito, com data à frente
     mk({ lote: '96698', data: dia(-3), carga: '94799', n: 6, paletes: 3,
+      rota: 'ARAPIRACA — SEXTA-FEIRA', data_prevista: dia(3),
       foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-3),
       aprovado_por: 'Gerência (demo)', aprovado_em: quando(-2) }),
+    // no depósito e ATRASADA: passou do dia e continua lá
+    mk({ lote: '96693', data: dia(-8), carga: '94790', n: 2,
+      rota: 'PALMEIRA DOS ÍNDIOS', data_prevista: dia(-2),
+      foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-8),
+      aprovado_por: 'Gerência (demo)', aprovado_em: quando(-7) }),
+    // no depósito SEM previsão: o palete sem margem de retorno
+    mk({ lote: '96687', data: dia(-12), carga: '94776', n: 3, lote_a_parte: true,
+      rota: 'SANTANA DO IPANEMA',
+      foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-12),
+      aprovado_por: 'Gerência (demo)', aprovado_em: quando(-11) }),
     // finalizadas: uma de cada desfecho
     mk({ lote: '96690', data: dia(-6), carga: '94781', n: 2,
       foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-6),

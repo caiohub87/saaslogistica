@@ -161,6 +161,10 @@ export function Acompanhamento({
                   )}
                   <span className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold', sel.cor)}>{sel.rotulo}</span>
 
+                  {/* enquanto está no depósito, quando sai é a pergunta do dia —
+                      inclusive quando a resposta é "não tem data" */}
+                  {s === 'deposito' && <Saida quando={r.data_prevista} />}
+
                   <span className="text-[12px] txt-fraco">
                     {fmtData(r.data)} · {r.clientes} cliente(s) · {r.paletes} palete(s) · {fmtPeso(r.peso)} kg
                   </span>
@@ -308,6 +312,44 @@ export function Acompanhamento({
         </ul>
       )}
     </section>
+  );
+}
+
+/**
+ * Quando o palete sai do depósito.
+ *
+ * Sem data é informação, não ausência: é o palete que ficou sem margem de
+ * retorno. Por isso "sem previsão" aparece escrito, em vez de o selo sumir —
+ * some, ninguém repara; escrito, alguém decide o que fazer com ele.
+ *
+ * Data vencida fica em vermelho: passou do dia e continua no depósito.
+ */
+function Saida({ quando }: { quando: string | null }) {
+  if (!quando) {
+    return (
+      <span className="rounded-md painel-2 px-2 py-0.5 text-[11px] font-bold txt-fraco">
+        sem previsão
+      </span>
+    );
+  }
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  const alvo = new Date(quando.slice(0, 10) + 'T00:00:00');
+  const dias = Math.round((alvo.getTime() - hoje.getTime()) / 86_400_000);
+
+  return (
+    <span
+      className={cn(
+        'rounded-md px-2 py-0.5 text-[11px] font-bold',
+        dias < 0 ? 'bg-erro-500/15 text-erro-600'
+          : dias <= 2 ? 'bg-ouro-100 text-ouro-700'
+            : 'painel-2 txt-fraco',
+      )}
+      title={dias < 0 ? `Deveria ter saído há ${Math.abs(dias)} dia(s)` : undefined}
+    >
+      sai em {fmtData(quando)}
+      {dias < 0 && ` · atrasada ${Math.abs(dias)}d`}
+    </span>
   );
 }
 
