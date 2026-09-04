@@ -260,6 +260,13 @@ export interface Reentrega {
   pedidos: PedidoReentrega[];
   /** dia em que a mercadoria voltou ao depósito */
   data: string;
+  /** praça/cliente de destino — o bloco grande do cartaz do palete */
+  rota: string | null;
+  /**
+   * Quando se pretende reenviar. Null de propósito quando não há previsão:
+   * há palete que fica no depósito sem margem de retorno.
+   */
+  data_prevista: string | null;
   obs: string | null;
   /** a foto do palete, embutida como data:image/jpeg;base64 */
   foto: string | null;

@@ -250,7 +250,8 @@ export function reentregasDemo(): Reentrega[] {
       clientes: new Set(lista.map((p) => p.codcli)).size,
       peso: lista.reduce((a, p) => a + p.peso, 0),
       motorista: 'ANTONIO CARLOS', ajudantes: ['EDVAN SOUSA'],
-      pedidos: lista, obs: null, foto: null, desfecho: null,
+      pedidos: lista, rota: null, data_prevista: null,
+      obs: null, foto: null, desfecho: null,
       registrado_por: 'Demonstração', registrado_por_id: null,
       foto_por: null, foto_por_id: null, foto_em: null,
       aprovado_por: null, aprovado_por_id: null, aprovado_em: null,
@@ -261,10 +262,13 @@ export function reentregasDemo(): Reentrega[] {
   };
 
   return [
-    // aguardando a foto do palete
-    mk({ lote: '96712', data: dia(0), carga: '94806', n: 4, paletes: 2 }),
-    // fotografada, esperando aprovação — foto vazia de propósito (ver acima)
+    // aguardando a foto do palete — com previsão de saída
+    mk({ lote: '96712', data: dia(0), carga: '94806', n: 4, paletes: 2,
+      rota: 'ABREU/IGARASSU — QUARTA-FEIRA', data_prevista: dia(4) }),
+    // fotografada, esperando aprovação — foto vazia de propósito (ver acima).
+    // Sem previsão: é o caso do palete que fica sem margem de retorno
     mk({ lote: '96705', data: dia(-1), carga: '94812', n: 3, lote_a_parte: true,
+      rota: 'DELMIRO GOUVEIA',
       foto: FOTO_DEMO, foto_por: 'Depósito (demo)', foto_em: quando(-1) }),
     // aprovada, no depósito
     mk({ lote: '96698', data: dia(-3), carga: '94799', n: 6, paletes: 3,

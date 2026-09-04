@@ -56,6 +56,10 @@ export const TELAS: Tela[] = [
     acoes: ['ver', 'lancar', 'fotografar', 'aprovar', 'finalizar', 'excluir', 'imprimir'],
     descricao: 'O palete que voltou para o depósito: solicitação, foto, aprovação e o fecho '
       + 'como reenviado ou devolvido.', migrada: true },
+  { chave: 'reentregafoto', nome: 'Foto do palete', grupo: 'Estoque', rota: '/reentregas/foto',
+    acoes: ['ver', 'fotografar'],
+    descricao: 'Só a fila de paletes esperando foto. Para a conta que apenas fotografa: '
+      + 'dá esta e não dê "Reentregas", e ela não enxerga o acompanhamento.', migrada: true },
   { chave: 'validade', nome: 'Validade', grupo: 'Estoque', rota: '/validade', acoes: ['ver', 'lancar', 'excluir'],
     descricao: 'Sobe o relatório de validade do WMS e organiza o que escoar em 30, 60, 90 ou 120 dias.', migrada: true },
   { chave: 'ocorrencias', nome: 'Faltas e sobras', grupo: 'Estoque', rota: '/faltas-sobras', acoes: ['ver', 'lancar', 'aprovar', 'excluir'],
@@ -160,6 +164,16 @@ export const PERFIS: Perfil[] = [
       // quem está no depósito fotografa o palete; aprovar é de quem confere
       reentregas: ['ver', 'fotografar'],
       desempenho: ['ver'],
+    },
+  },
+  {
+    id: 'foto',
+    nome: 'Só foto do palete',
+    descricao: 'A conta que apenas fotografa a reentrega, sem ver o acompanhamento.',
+    permissoes: {
+      // de propósito NÃO tem 'reentregas': é isso que fecha o acompanhamento.
+      // A tela da foto lê a mesma tabela por uma permissão própria.
+      reentregafoto: ['ver', 'fotografar'],
     },
   },
   {

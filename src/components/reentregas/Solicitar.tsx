@@ -34,9 +34,12 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
   const [busca, setBusca] = useState('');
   const [cargaFiltro, setCargaFiltro] = useState('');
   const [lote, setLote] = useState('');
+  const [rota, setRota] = useState('');
   const [paletes, setPaletes] = useState('1');
   const [loteAParte, setLoteAParte] = useState(false);
   const [data, setData] = useState(hojeISO);
+  /** vazio quando não há previsão — vira null no banco, não uma data inventada */
+  const [prevista, setPrevista] = useState('');
   const [obs, setObs] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
@@ -103,13 +106,18 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
       ajudantes: resumo.ajudantes,
       pedidos: selecionados.map(paraReentrega),
       data,
+      rota: rota.trim() || null,
+      // campo vazio vira null, não '': é a diferença entre "sem previsão" e
+      // uma data em branco que o banco recusaria
+      data_prevista: prevista || null,
       obs: obs.trim() || null,
     });
 
     // limpa só o que é da solicitação; os filtros ficam como estavam, porque
     // normalmente se monta um palete atrás do outro do mesmo relatório
     setMarcados(new Set());
-    setLote(''); setPaletes('1'); setLoteAParte(false); setObs('');
+    setLote(''); setRota(''); setPaletes('1'); setLoteAParte(false);
+    setPrevista(''); setObs('');
   }
 
   if (carregando) {
@@ -254,6 +262,15 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
           className="painel-2 mb-3 w-full rounded-xl border borda px-3 py-2 text-sm outline-none focus:border-marinho-500"
         />
 
+        <label htmlFor="rota" className="mb-1 block text-[12.5px] font-semibold">
+          Rota <span className="font-normal txt-fraco">— a praça ou cliente que aparece grande no cartaz</span>
+        </label>
+        <input
+          id="rota" value={rota} onChange={(e) => setRota(e.target.value)}
+          placeholder="ex.: ABREU/IGARASSU — QUARTA-FEIRA"
+          className="painel-2 mb-3 w-full rounded-xl border borda px-3 py-2 text-sm outline-none focus:border-marinho-500"
+        />
+
         <div className="mb-3 grid grid-cols-2 gap-2">
           <div>
             <label htmlFor="paletes" className="mb-1 block text-[12.5px] font-semibold">Paletes</label>
@@ -271,6 +288,18 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
             />
           </div>
         </div>
+
+        <label htmlFor="prevista" className="mb-1 block text-[12.5px] font-semibold">
+          Previsão de saída <span className="font-normal txt-fraco">— opcional</span>
+        </label>
+        <input
+          id="prevista" type="date" value={prevista} onChange={(e) => setPrevista(e.target.value)}
+          className="painel-2 w-full rounded-xl border borda px-3 py-2 text-sm outline-none focus:border-marinho-500"
+        />
+        <p className="mb-3 mt-1 text-[11.5px] txt-fraco">
+          Deixe em branco quando o palete fica no depósito sem margem de retorno — o cartaz
+          simplesmente não mostra esse bloco.
+        </p>
 
         <label className="mb-3 flex cursor-pointer items-start gap-2 rounded-xl border borda px-3 py-2">
           <input

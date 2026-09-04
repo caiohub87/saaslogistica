@@ -1,135 +1,121 @@
 'use client';
 
 /**
- * O documento que vai grudado no palete.
+ * O cartaz que vai grudado no palete.
  *
  * Janela separada em vez de @media print na própria tela, pela mesma razão da
  * agenda: o CSS do app (tema escuro, sticky, grid) atrapalha a folha.
  *
- * A4 em pé, uma folha. O que precisa ser lido de longe — LOTE e o aviso de
- * LOTE À PARTE — vem grande no topo, porque este papel é lido no corredor do
- * depósito, não na mesa.
+ * O desenho segue a "PLACA DE REENTREGAS" que o depósito já usa: rótulo miúdo
+ * em cima, valor gigante embaixo, blocos empilhados ocupando a folha inteira.
+ * É papel lido de longe, no corredor, por quem passa empurrando o palete — não
+ * documento de mesa. Por isso não há tabela de pedidos aqui: o detalhamento
+ * fica na tela, onde dá para ler sentado.
+ *
+ * A folha é dividida por proporção (flex), não por altura fixa: assim o cartaz
+ * enche a página com ou sem os blocos opcionais, sem sobrar branco no pé nem
+ * empurrar para uma segunda folha.
  */
 
-import { fmtBRL, fmtData, fmtPeso } from './reentregas';
+import { fmtData, fmtPeso } from './reentregas';
 import type { Reentrega } from '@/types/database';
 
 const esc = (s: unknown) =>
   String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
 
+/** Um bloco do cartaz. `peso` é quanto da folha ele ocupa, em partes. */
+interface Bloco {
+  rotulo: string;
+  valor: string;
+  /** proporção da altura da folha */
+  peso: number;
+  /** valores curtos (data, número) aguentam corpo maior que uma frase */
+  fonte: number;
+}
+
 export function imprimirReentrega(r: Reentrega, unidade: string) {
-  const linhas = (r.pedidos ?? []).map((p) => `
-    <tr>
-      <td>${esc(p.pedido)}</td>
-      <td>${esc(p.codcli)}</td>
-      <td class="cli">${esc(p.cliente)}</td>
-      <td>${esc(p.carga)}</td>
-      <td class="n">${esc(fmtPeso(p.peso))}</td>
-      <td class="n">${esc(fmtBRL(p.valor))}</td>
-      <td class="mot">${esc(p.motivo)}</td>
-    </tr>`).join('');
+  const blocos: Bloco[] = [
+    { rotulo: 'Praça / cliente', valor: r.rota || '—', peso: 3, fonte: 46 },
+    { rotulo: 'Carregamento', valor: r.lote, peso: 4, fonte: 96 },
+    { rotulo: 'Peso (kg)', valor: fmtPeso(r.peso), peso: 2, fonte: 60 },
+    { rotulo: 'Data de conferência', valor: fmtData(r.data), peso: 2, fonte: 58 },
+  ];
+
+  // só entra quando existe: reentrega sem margem de retorno fica sem previsão,
+  // e um bloco vazio no cartaz faria parecer que alguém esqueceu de preencher
+  if (r.data_prevista) {
+    blocos.push({
+      rotulo: 'Previsão de saída', valor: fmtData(r.data_prevista), peso: 2, fonte: 58,
+    });
+  }
+
+  const corpo = blocos.map((b) => `
+    <div class="bl" style="flex:${b.peso}">
+      <span class="rot">${esc(b.rotulo)}</span>
+      <strong class="val" style="font-size:${b.fonte}px">${esc(b.valor)}</strong>
+    </div>`).join('');
 
   const html = `<!doctype html><html lang="pt-BR"><head><meta charset="utf-8">
 <title>Reentrega — lote ${esc(r.lote)}</title>
 <style>
- @page{size:A4 portrait;margin:10mm}
- *{box-sizing:border-box}
- body{font-family:"Segoe UI",Arial,sans-serif;color:#0d2038;margin:0;font-size:12px}
- .ph{display:flex;align-items:center;gap:14px;border-bottom:3px solid #005da8;padding-bottom:8px;margin-bottom:10px}
- .ph img{height:42px}
- .tt{flex:1}
- .tt small{color:#5b6b80;font-size:9px;letter-spacing:1.5px;text-transform:uppercase}
- .tt h2{margin:0;font-size:17px;color:#005da8;text-transform:uppercase;letter-spacing:.5px}
- /* o bloco que se le de longe */
- .lote{display:flex;align-items:stretch;gap:10px;margin-bottom:10px}
- .lote .cx{flex:1;border:2px solid #0d2038;border-radius:8px;padding:8px 12px}
- .lote .cx small{display:block;font-size:9px;letter-spacing:1.5px;text-transform:uppercase;color:#5b6b80}
- .lote .cx b{display:block;font-size:30px;line-height:1.1;letter-spacing:1px}
- .parte{background:#111;color:#fff;border-color:#111;display:flex;flex-direction:column;justify-content:center;text-align:center;padding:8px 16px}
- .parte b{font-size:17px;letter-spacing:1px}
- .parte small{color:#cfd8e3}
- .grade{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:10px}
- .g{border:1px solid #c3cede;border-radius:6px;padding:6px 8px}
- .g small{display:block;font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:#5b6b80}
- .g b{font-size:15px}
- .eq{border:1px solid #c3cede;border-radius:6px;padding:6px 8px;margin-bottom:10px}
- .eq small{font-size:8.5px;letter-spacing:1px;text-transform:uppercase;color:#5b6b80}
- table{width:100%;border-collapse:collapse;font-size:10.5px}
- th{background:#eef3fa;text-align:left;padding:4px 6px;font-size:8.5px;letter-spacing:.5px;text-transform:uppercase;color:#41556e;border-bottom:1px solid #c3cede}
- td{padding:4px 6px;border-bottom:1px solid #e4eaf3}
- td.n{text-align:right;white-space:nowrap}
- td.cli{max-width:150px}
- td.mot{color:#5b6b80;font-size:9.5px}
- tfoot td{font-weight:bold;border-top:2px solid #0d2038;border-bottom:none}
- .ass{display:flex;gap:24px;margin-top:22px}
- .ass div{flex:1;border-top:1px solid #0d2038;padding-top:4px;font-size:9px;color:#5b6b80;text-align:center}
- .rod{margin-top:10px;font-size:8.5px;color:#5b6b80;display:flex;justify-content:space-between}
- @media print{.no{display:none}}
+ @page{size:A4 portrait;margin:8mm}
+ *{box-sizing:border-box;margin:0;padding:0}
+ html,body{height:100%}
+ body{font-family:"Segoe UI",Arial,Helvetica,sans-serif;color:#000;
+      display:flex;flex-direction:column;border:4px solid #000}
+
+ .topo{display:flex;align-items:center;gap:10px;padding:6px 12px;
+       border-bottom:4px solid #000;flex:none}
+ .topo img{height:34px}
+ .topo h1{font-size:34px;letter-spacing:4px;text-transform:uppercase;flex:1;text-align:center}
+ .topo .num{font-size:13px;text-align:right;line-height:1.3}
+ .topo .num b{font-size:20px;display:block}
+
+ /* paletes e o aviso de lote à parte dividem a mesma faixa */
+ .faixa{display:flex;border-bottom:4px solid #000;flex:none}
+ .faixa .pal{flex:1;text-align:center;padding:8px 12px}
+ .faixa .pal span{font-size:12px;letter-spacing:3px;text-transform:uppercase}
+ .faixa .pal b{display:block;font-size:52px;line-height:1}
+ .faixa .parte{background:#000;color:#fff;display:flex;flex-direction:column;
+               justify-content:center;text-align:center;padding:8px 22px;min-width:34%}
+ .faixa .parte b{font-size:26px;letter-spacing:2px;line-height:1.1}
+ .faixa .parte span{font-size:11px;letter-spacing:1px}
+
+ .blocos{flex:1;display:flex;flex-direction:column}
+ .bl{display:flex;flex-direction:column;align-items:center;justify-content:center;
+     text-align:center;padding:4px 10px;border-bottom:2px solid #000;overflow:hidden}
+ .bl:last-child{border-bottom:none}
+ .rot{font-size:13px;letter-spacing:3px;text-transform:uppercase;flex:none}
+ .val{line-height:1.05;word-break:break-word;font-weight:700}
+
+ .rod{flex:none;border-top:4px solid #000;padding:5px 12px;font-size:10px;
+      display:flex;justify-content:space-between;gap:12px}
+ .rod .obs{flex:1;text-align:left}
 </style></head><body>
 
-<div class="ph">
+<div class="topo">
   <img src="/dilnor-logo.png" alt="">
-  <div class="tt">
-    <small>${esc(unidade)} · Solicitação de reentrega</small>
-    <h2>Reentrega para o depósito</h2>
-  </div>
-  <div style="text-align:right">
-    <small style="font-size:9px;color:#5b6b80;text-transform:uppercase;letter-spacing:1px">Solicitação</small>
-    <div style="font-size:19px;font-weight:bold">Nº ${esc(r.id)}</div>
-  </div>
+  <h1>Reentregas</h1>
+  <div class="num">${esc(unidade)}<b>Nº ${esc(r.id)}</b></div>
 </div>
 
-<div class="lote">
-  <div class="cx">
-    <small>Lote destinado</small>
-    <b>${esc(r.lote)}</b>
+<div class="faixa">
+  <div class="pal">
+    <span>Paletes</span>
+    <b>${esc(r.paletes)}</b>
   </div>
-  ${r.lote_a_parte ? `<div class="cx parte">
+  ${r.lote_a_parte ? `<div class="parte">
     <b>LOTE À PARTE</b>
-    <small>fica no depósito para sair noutro dia</small>
+    <span>fica no depósito para sair noutro dia</span>
   </div>` : ''}
 </div>
 
-<div class="grade">
-  <div class="g"><small>Clientes</small><b>${esc(r.clientes)}</b></div>
-  <div class="g"><small>Paletes</small><b>${esc(r.paletes)}</b></div>
-  <div class="g"><small>Peso (kg)</small><b>${esc(fmtPeso(r.peso))}</b></div>
-  <div class="g"><small>Voltou em</small><b>${esc(fmtData(r.data))}</b></div>
-</div>
-
-<div class="eq">
-  <small>Motorista</small> <b>${esc(r.motorista || '—')}</b>
-  &nbsp;·&nbsp; <small>Ajudante(s)</small> ${esc((r.ajudantes ?? []).join(', ') || '—')}
-</div>
-
-<table>
-  <thead>
-    <tr>
-      <th>Pedido</th><th>Cód.</th><th>Cliente</th><th>Carga</th>
-      <th style="text-align:right">Peso</th><th style="text-align:right">Valor</th><th>Motivo</th>
-    </tr>
-  </thead>
-  <tbody>${linhas || '<tr><td colspan="7">Nenhum pedido.</td></tr>'}</tbody>
-  <tfoot>
-    <tr>
-      <td colspan="4">${esc((r.pedidos ?? []).length)} pedido(s)</td>
-      <td class="n">${esc(fmtPeso(r.peso))}</td>
-      <td class="n">${esc(fmtBRL((r.pedidos ?? []).reduce((a, p) => a + (p.valor || 0), 0)))}</td>
-      <td></td>
-    </tr>
-  </tfoot>
-</table>
-
-${r.obs ? `<p style="margin-top:8px;font-size:10.5px"><b>Observação:</b> ${esc(r.obs)}</p>` : ''}
-
-<div class="ass">
-  <div>Conferido no depósito</div>
-  <div>Aprovado por</div>
-</div>
+<div class="blocos">${corpo}</div>
 
 <div class="rod">
-  <span>Solicitado por ${esc(r.registrado_por || '—')}</span>
-  <span>Impresso em ${esc(new Date().toLocaleString('pt-BR'))}</span>
+  <span class="obs">${r.obs ? '<b>Obs.:</b> ' + esc(r.obs) : ''}</span>
+  <span>${esc(r.motorista || '—')}</span>
+  <span>${esc(new Date().toLocaleDateString('pt-BR'))}</span>
 </div>
 
 <script>window.onload=function(){window.print()}</script>
