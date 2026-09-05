@@ -72,7 +72,24 @@ export function Acompanhamento({
       })
       .filter((r) => !q || [r.lote, r.motorista, String(r.id)].some((x) => (x ?? '').toLowerCase().includes(q))
         || (r.pedidos ?? []).some((p) => [p.pedido, p.cliente, p.carga].some((x) => (x ?? '').toLowerCase().includes(q))))
-      .sort((a, b) => (a.data === b.data ? b.id - a.id : (a.data < b.data ? 1 : -1)));
+      /**
+       * Pela saída mais próxima. Crescente resolve os dois casos de uma vez: a
+       * atrasada tem a data mais antiga e sobe para o topo, que é onde ela
+       * precisa estar.
+       *
+       * Sem previsão vai para o fim — não é que seja menos importante, é que
+       * não há dia a cobrar, e no meio da fila ela empurraria para baixo quem
+       * tem prazo correndo. Entre as sem data vale a ordem de antes: a que
+       * voltou mais recente primeiro.
+       */
+      .sort((a, b) => {
+        if (a.data_prevista !== b.data_prevista) {
+          if (!a.data_prevista) return 1;
+          if (!b.data_prevista) return -1;
+          return a.data_prevista < b.data_prevista ? -1 : 1;
+        }
+        return a.data === b.data ? b.id - a.id : (a.data < b.data ? 1 : -1);
+      });
   }, [itens, filtro, busca]);
 
   const contar = (f: Filtro) => itens.filter((r) => {
