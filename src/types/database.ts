@@ -286,6 +286,18 @@ export interface Reentrega {
   criado_em: string;
 }
 
+/** Um produto dentro de uma falta ou sobra. */
+export interface ProdutoOcorrencia {
+  /** o código como a pessoa digitou */
+  produto: string;
+  embalagem: string | null;
+  /**
+   * Nome no momento do registro — achado nos inventários e no catálogo do ERP
+   * pelo código, ou digitado à mão quando ninguém conhece.
+   */
+  descricao: string | null;
+}
+
 export interface Ocorrencia {
   id: number;
   unidade: string;
@@ -297,12 +309,18 @@ export interface Ocorrencia {
    * Na falta vem no registro; na sobra só aparece na validação — é o que
    * identifica o que voltou.
    */
+  /**
+   * Os produtos da ocorrência. Uma falta costuma trazer vários, e antes disso
+   * cada um virava um registro à parte, repetindo lote, motorista e equipe.
+   */
+  produtos: ProdutoOcorrencia[];
+  /**
+   * @deprecated Sobreviventes de quando a ocorrência tinha um produto só.
+   * Ficaram porque em registro antigo são a única cópia do dado; `produtos` é
+   * quem manda hoje, e a tela não escreve mais aqui.
+   */
   produto: string | null;
   embalagem: string | null;
-  /**
-   * Nome do produto no momento do registro — achado nos inventários pelo código
-   * ou digitado à mão. Null nos registros anteriores a esta coluna.
-   */
   descricao: string | null;
   /** só sobra: quanto voltou */
   quantidade: number | null;

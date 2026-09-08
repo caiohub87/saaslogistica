@@ -8,7 +8,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import {
   acharProduto, catalogoDeInventarios, CONFIG, comprimirFoto, conferida, fmtData, fmtQtd,
-  hojeISO, MAX_AJUDANTES, normNome, normPlaca, parseQtd, produtoTexto, variantesDeCodigo,
+  hojeISO, MAX_AJUDANTES, normNome, normPlaca, parseQtd, produtosDe, produtoTexto,
+  variantesDeCodigo,
   type ProdutoConhecido,
 } from '@/lib/ocorrencias';
 import { getSupabase } from '@/lib/supabase';
@@ -20,11 +21,19 @@ import { cn } from '@/utils/cn';
 
 type Aba = TipoOcorrencia | 'equipe';
 
-interface Form {
-  data: string; lote: string; produto: string; embalagem: string; quantidade: string;
-  motorista: string; ajudantes: string[]; placa: string; foto: string | null; obs: string;
-  /** só usado quando o código não está em inventário nenhum */
+/** Uma linha da lista de produtos do formulário. */
+interface LinhaProduto {
+  produto: string;
+  embalagem: string;
+  /** só usado quando o código não está em inventário nem no catálogo do ERP */
   descricao: string;
+}
+const linhaVazia = (): LinhaProduto => ({ produto: '', embalagem: '', descricao: '' });
+
+interface Form {
+  data: string; lote: string; quantidade: string;
+  motorista: string; ajudantes: string[]; placa: string; foto: string | null; obs: string;
+  produtos: LinhaProduto[];
 }
 /** O cadastro da aba Equipe guarda três coisas na mesma lista. */
 type TipoCadastro = FuncaoEquipe | 'veiculo';
@@ -40,8 +49,9 @@ interface LinhaCadastro {
 }
 
 const formVazio = (): Form => ({
-  data: hojeISO(), lote: '', produto: '', embalagem: '', quantidade: '',
-  motorista: '', ajudantes: [''], placa: '', foto: null, obs: '', descricao: '',
+  data: hojeISO(), lote: '', quantidade: '',
+  motorista: '', ajudantes: [''], placa: '', foto: null, obs: '',
+  produtos: [linhaVazia()],
 });
 
 /** De qual arquivo SQL vem cada tabela desta tela — faltando uma, rodar a outra não resolve. */
@@ -91,10 +101,12 @@ export default function FaltasSobrasPage() {
 
   const [itens, setItens] = useState<Ocorrencia[]>([]);
   const [equipe, setEquipe] = useState<PessoaEquipe[]>([]);
-  /** código do produto -> nome, vindo dos inventários já lançados */
+  /**
+   * Código do produto -> nome. Começa nos inventários lançados e recebe também
+   * o que o catálogo do ERP responde: com a busca por linha, ter um lugar só
+   * evita um "achado" por campo do formulário.
+   */
   const [catalogo, setCatalogo] = useState<Record<string, ProdutoConhecido>>({});
-  /** o que o catálogo do ERP respondeu sobre o código digitado agora */
-  const [doCadastro, setDoCadastro] = useState<ProdutoConhecido | null>(null);
   const [buscandoProduto, setBuscandoProduto] = useState(false);
   /** códigos que já foram perguntados ao ERP — evita repetir o que não existe */
   const jaConsultados = useRef<Set<string>>(new Set());
@@ -108,7 +120,7 @@ export default function FaltasSobrasPage() {
   const [ocupado, setOcupado] = useState<number | null>(null);
   const [fotoAberta, setFotoAberta] = useState<number | null>(null);
   const [validando, setValidando] = useState<number | null>(null);
-  const [formValida, setFormValida] = useState({ produto: '', embalagem: '' });
+  const [formValida, setFormValida] = useState<LinhaProduto[]>([linhaVazia()]);
   const [busca, setBusca] = useState('');
   const [situacao, setSituacao] = useState<'todos' | 'pendentes' | 'ok'>('todos');
   const [ini, setIni] = useState('');
@@ -189,12 +201,13 @@ export default function FaltasSobrasPage() {
    * no 4G do depósito, então a consulta é pelo código que está sendo digitado.
    * Espera meio segundo depois da última tecla para não consultar letra a letra.
    */
+  const codigosDigitados = form.produtos.map((p) => p.produto.trim()).filter(Boolean).join('|');
+
   useEffect(() => {
-    const codigo = form.produto.trim();
-    if (!codigo || acharProduto(codigo, catalogo)) {
-      setDoCadastro(null); setBuscandoProduto(false); return;
-    }
     if (demo) { setBuscandoProduto(false); return; }
+    const pendentes = [...new Set(codigosDigitados.split('|').filter(Boolean))]
+      .filter((c) => !acharProduto(c, catalogo) && !jaConsultados.current.has(c));
+    if (!pendentes.length) { setBuscandoProduto(false); return; }
 
     let vivo = true;
     // marca "procurando" já: sem isso a tela diz "não encontrado" no meio da
@@ -203,34 +216,48 @@ export default function FaltasSobrasPage() {
     const t = setTimeout(async () => {
       const sb = getSupabase();
       if (!sb) { setBuscandoProduto(false); return; }
+      // uma consulta para todas as linhas: com cinco produtos no formulário,
+      // cinco idas ao banco a cada tecla seria desperdício no 4G do depósito
       const { data } = await sb.from('produtos')
         .select('codigo, descricao, embalagem')
-        .in('codigo', variantesDeCodigo(codigo)).limit(1);
-      const p = (data ?? [])[0] as { codigo: string; descricao: string; embalagem: string | null } | undefined;
-      if (vivo) {
-        setDoCadastro(p
-          ? { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' }
-          : null);
-        setBuscandoProduto(false);
+        .in('codigo', pendentes.flatMap(variantesDeCodigo)).limit(200);
+      if (!vivo) return;
+      pendentes.forEach((c) => jaConsultados.current.add(c));
+      const achados = (data ?? []) as { codigo: string; descricao: string; embalagem: string | null }[];
+      if (achados.length) {
+        // entra no mesmo catálogo do inventário: daí para frente toda a tela
+        // — formulário, lista, busca — enxerga por um caminho só
+        setCatalogo((atual) => {
+          const novo = { ...atual };
+          achados.forEach((p) => {
+            novo[p.codigo] ??= { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' };
+          });
+          return novo;
+        });
       }
+      setBuscandoProduto(false);
     }, 500);
 
     return () => { vivo = false; clearTimeout(t); };
-  }, [form.produto, catalogo, demo]);
+  }, [codigosDigitados, catalogo, demo]);
 
   /**
-   * O que se sabe sobre o código digitado agora.
+   * O que se sabe do código de uma linha.
    *
    * O inventário vem primeiro porque traz a embalagem que foi realmente contada;
-   * o catálogo do ERP entra para o produto que nunca passou por um inventário.
+   * o catálogo do ERP entra para o produto que nunca passou por um inventário —
+   * e, quando responde, é fundido no mesmo catálogo, então aqui há só uma busca.
    */
-  const produtoAchado = useMemo(
-    () => acharProduto(form.produto, catalogo) ?? doCadastro,
-    [form.produto, catalogo, doCadastro],
-  );
-  /** digitou um código que nem o inventário nem o ERP conhecem: nome na mão */
-  const produtoDesconhecido =
-    Boolean(form.produto.trim()) && !produtoAchado && !buscandoProduto;
+  const infoProduto = (codigo: string) => {
+    const c = codigo.trim();
+    const achado = c ? acharProduto(c, catalogo) : null;
+    return {
+      achado,
+      procurando: Boolean(c) && !achado && buscandoProduto,
+      /** nem o inventário nem o ERP conhecem: o nome vai na mão */
+      desconhecido: Boolean(c) && !achado && !buscandoProduto,
+    };
+  };
 
   /**
    * Registros antigos, gravados antes de existir a coluna do nome, mostram só o
@@ -241,8 +268,9 @@ export default function FaltasSobrasPage() {
   useEffect(() => {
     if (demo) return;
     const faltando = [...new Set(itens
-      .filter((o) => o.produto && !o.descricao)
-      .map((o) => o.produto as string))]
+      .flatMap(produtosDe)
+      .filter((p) => p.produto && !p.descricao)
+      .map((p) => p.produto))]
       .filter((c) => !acharProduto(c, catalogo) && !jaConsultados.current.has(c));
     if (!faltando.length) return;
 
@@ -300,13 +328,53 @@ export default function FaltasSobrasPage() {
   const maisUmAjudante = () =>
     setForm((f) => (f.ajudantes.length >= MAX_AJUDANTES ? f : { ...f, ajudantes: [...f.ajudantes, ''] }));
 
+  // ---------- produtos ----------
+  // mesmo desenho dos ajudantes: um campo na tela e o botão que dá o próximo.
+  // Sem teto, ao contrário deles: a rota leva no máximo 3 pessoas, mas não há
+  // número máximo de produtos que podem faltar numa carga.
+  const mudarProduto = (i: number, campo: keyof LinhaProduto, valor: string) =>
+    setForm((f) => ({
+      ...f,
+      produtos: f.produtos.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)),
+    }));
+  const tirarProduto = (i: number) =>
+    setForm((f) => {
+      const resto = f.produtos.filter((_, j) => j !== i);
+      return { ...f, produtos: resto.length ? resto : [linhaVazia()] };
+    });
+  const maisUmProduto = () =>
+    setForm((f) => ({ ...f, produtos: [...f.produtos, linhaVazia()] }));
+
   // ---------- registrar ----------
   async function registrar() {
     if (!tipoAtivo) return;
     setMsg(null); setErro(null);
     if (!form.lote.trim()) { setErro('Informe o lote.'); return; }
     if (!form.motorista.trim()) { setErro('Escolha o motorista.'); return; }
-    if (cfg.temProduto && !form.produto.trim()) { setErro('Informe o código do produto.'); return; }
+
+    // linha em branco não é erro: é o campo vazio que sempre sobra embaixo
+    // depois de clicar em "mais um produto" e desistir
+    const produtos = form.produtos
+      .filter((p) => p.produto.trim())
+      .map((p) => {
+        const achado = infoProduto(p.produto).achado;
+        return {
+          produto: p.produto.trim(),
+          embalagem: p.embalagem.trim() || achado?.embalagem || null,
+          // o nome achado fica GRAVADO junto, e não é lido do inventário toda
+          // vez: o registro é a foto do momento, igual ao motorista desta tabela
+          descricao: achado?.descricao || p.descricao.trim() || null,
+        };
+      });
+    if (cfg.temProduto && !produtos.length) {
+      setErro('Informe ao menos um código de produto.');
+      return;
+    }
+    const repetido = produtos.find((p, i) => produtos.findIndex((q) => q.produto === p.produto) !== i);
+    if (repetido) {
+      setErro(`O produto ${repetido.produto} está repetido na lista.`);
+      return;
+    }
 
     const qtd = cfg.temQuantidade ? parseQtd(form.quantidade) : null;
     if (cfg.temQuantidade && qtd == null) { setErro('Informe quanto sobrou (quantidade maior que zero).'); return; }
@@ -324,14 +392,9 @@ export default function FaltasSobrasPage() {
       tipo: tipoAtivo,
       data: form.data,
       lote: form.lote.trim(),
-      // na sobra o produto entra só na validação — aqui ninguém sabe ainda qual é
-      produto: cfg.temProduto ? form.produto.trim() : null,
-      embalagem: cfg.temProduto
-        ? (form.embalagem.trim() || produtoAchado?.embalagem || null) : null,
-      // o nome achado no inventário fica GRAVADO junto, e não é lido de lá toda
-      // vez: o registro é a foto do momento, igual ao motorista desta tabela
-      descricao: cfg.temProduto
-        ? (produtoAchado?.descricao || form.descricao.trim() || null) : null,
+      // na sobra os produtos entram só na validação — aqui ninguém sabe ainda
+      // quais são
+      produtos: cfg.temProduto ? produtos : [],
       quantidade: qtd,
       motorista: form.motorista,
       ajudantes: cfg.temAjudantes ? equipe : [],
@@ -404,36 +467,68 @@ export default function FaltasSobrasPage() {
 
   function abrirValidacao(o: Ocorrencia) {
     setValidando(o.id);
-    setFormValida({ produto: o.produto ?? '', embalagem: o.embalagem ?? '' });
+    const jaTem = produtosDe(o);
+    setFormValida(jaTem.length
+      ? jaTem.map((p) => ({ produto: p.produto, embalagem: p.embalagem ?? '', descricao: '' }))
+      : [linhaVazia()]);
     setMsg(null); setErro(null);
   }
 
+  const mudarValida = (i: number, campo: keyof LinhaProduto, valor: string) =>
+    setFormValida((l) => l.map((p, j) => (j === i ? { ...p, [campo]: valor } : p)));
+  const tirarValida = (i: number) =>
+    setFormValida((l) => {
+      const resto = l.filter((_, j) => j !== i);
+      return resto.length ? resto : [linhaVazia()];
+    });
+
+  /**
+   * A sobra volta sem etiqueta e alguém diz depois o que era. Aceita vários
+   * produtos pela mesma razão da falta: uma carroceria raramente volta com um
+   * item só, e antes cada um exigiria uma sobra separada — com a mesma foto.
+   */
   async function validarSobra(o: Ocorrencia) {
-    const codigo = formValida.produto.trim();
-    if (!codigo) { setErro('Informe o código do produto para validar a sobra.'); return; }
+    const digitados = formValida.filter((p) => p.produto.trim());
+    if (!digitados.length) {
+      setErro('Informe ao menos um código de produto para validar a sobra.');
+      return;
+    }
 
     // mesma busca da falta: identificar a sobra é dizer que produto é aquele.
     // O inventário primeiro (traz a embalagem contada), o catálogo do ERP depois.
-    let achado = acharProduto(codigo, catalogo);
-    if (!achado && !demo) {
+    const semNome = digitados
+      .map((p) => p.produto.trim())
+      .filter((c) => !acharProduto(c, catalogo));
+    const doErp: Record<string, ProdutoConhecido> = {};
+    if (semNome.length && !demo) {
       const sb = getSupabase();
       const { data } = await (sb?.from('produtos')
         .select('codigo, descricao, embalagem')
-        .in('codigo', variantesDeCodigo(codigo)).limit(1) ?? Promise.resolve({ data: null }));
-      const p = (data ?? [])[0] as { codigo: string; descricao: string; embalagem: string | null } | undefined;
-      if (p) achado = { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' };
+        .in('codigo', semNome.flatMap(variantesDeCodigo)).limit(200)
+        ?? Promise.resolve({ data: null }));
+      (data ?? []).forEach((p: { codigo: string; descricao: string; embalagem: string | null }) => {
+        doErp[p.codigo] = { id: p.codigo, descricao: p.descricao, embalagem: p.embalagem ?? '' };
+      });
     }
+
+    const produtos = digitados.map((p) => {
+      const codigo = p.produto.trim();
+      const achado = acharProduto(codigo, catalogo) ?? acharProduto(codigo, doErp);
+      return {
+        produto: codigo,
+        embalagem: p.embalagem.trim() || achado?.embalagem || null,
+        descricao: achado?.descricao || p.descricao.trim() || null,
+      };
+    });
 
     void conferir(
       o,
       {
-        produto: codigo,
-        embalagem: formValida.embalagem.trim() || achado?.embalagem || null,
-        descricao: achado?.descricao || null,
+        produtos,
         validado_por: usuario!.nome,
         validado_em: new Date().toISOString(),
       },
-      `Sobra do lote ${o.lote} validada como ${produtoTexto(codigo, formValida.embalagem.trim() || null)}.`,
+      `Sobra do lote ${o.lote} validada como ${produtos.map((p) => produtoTexto(p.produto, p.embalagem)).join(', ')}.`,
     );
   }
 
@@ -576,8 +671,11 @@ export default function FaltasSobrasPage() {
     return itens
       .filter((o) => (!ini || o.data >= ini) && (!fim || o.data <= fim))
       .filter((o) => situacao === 'todos' || (situacao === 'ok' ? conferida(o) : !conferida(o)))
-      .filter((o) => !q || [o.lote, o.motorista, o.placa, o.produto, o.embalagem, o.descricao,
-        o.obs, ...(o.ajudantes ?? [])]
+      // busca em TODOS os produtos do registro: procurar por um código tem de
+      // achar a falta mesmo quando ele é o terceiro da lista
+      .filter((o) => !q || [o.lote, o.motorista, o.placa, o.obs,
+        ...(o.ajudantes ?? []),
+        ...produtosDe(o).flatMap((p) => [p.produto, p.embalagem, p.descricao])]
         .some((x) => (x ?? '').toLowerCase().includes(q)));
   }, [itens, busca, ini, fim, situacao]);
 
@@ -763,58 +861,87 @@ export default function FaltasSobrasPage() {
             </div>
 
             {cfg.temProduto && (
-              <>
-                <div>
-                  <label htmlFor="oc-prod" className="mb-1 block text-[12.5px] font-semibold">Código do produto</label>
-                  <input
-                    id="oc-prod" inputMode="numeric" placeholder="65696" autoComplete="off"
-                    list="oc-catalogo"
-                    value={form.produto} onChange={(e) => setForm({ ...form, produto: e.target.value })}
-                    className={ENTRADA}
-                    aria-describedby="oc-prod-achado"
-                  />
-                  <datalist id="oc-catalogo">
-                    {Object.values(catalogo).slice(0, 1000).map((p) => (
-                      <option key={p.id} value={p.id}>{p.descricao}</option>
-                    ))}
-                  </datalist>
-                  <p id="oc-prod-achado" className="mt-1 text-[12px] leading-snug">
-                    {produtoAchado ? (
-                      <span className="font-semibold text-ok-600">{produtoAchado.descricao || 'Produto encontrado'}</span>
-                    ) : buscandoProduto ? (
-                      <span className="txt-fraco">Procurando…</span>
-                    ) : produtoDesconhecido ? (
-                      <span className="txt-fraco">
-                        Código não encontrado — escreva o nome abaixo.
-                      </span>
-                    ) : (
-                      <span className="txt-fraco">O nome aparece sozinho a partir do código.</span>
-                    )}
-                  </p>
-                </div>
-                <div>
-                  <label htmlFor="oc-emb" className="mb-1 block text-[12.5px] font-semibold">Unidade / embalagem</label>
-                  <input
-                    id="oc-emb" placeholder={produtoAchado?.embalagem || '48UNID'} autoComplete="off"
-                    value={form.embalagem} onChange={(e) => setForm({ ...form, embalagem: e.target.value })}
-                    className={ENTRADA}
-                  />
+              <div className="sm:col-span-2 lg:col-span-3">
+                <span className="mb-1 block text-[12.5px] font-semibold">
+                  Produtos <span className="txt-fraco">(um por linha)</span>
+                </span>
+                <datalist id="oc-catalogo">
+                  {Object.values(catalogo).slice(0, 1000).map((p) => (
+                    <option key={p.id} value={p.id}>{p.descricao}</option>
+                  ))}
+                </datalist>
+
+                <div className="flex flex-col gap-2">
+                  {form.produtos.map((linha, i) => {
+                    const info = infoProduto(linha.produto);
+                    return (
+                      <div key={`prod-${i}`} className="rounded-xl border borda p-2">
+                        <div className="flex items-start gap-1.5">
+                          <div className="flex-1">
+                            <input
+                              inputMode="numeric" placeholder="65696" autoComplete="off"
+                              list="oc-catalogo" aria-label={`Código do produto ${i + 1}`}
+                              value={linha.produto}
+                              onChange={(e) => mudarProduto(i, 'produto', e.target.value)}
+                              className={ENTRADA}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <input
+                              placeholder={info.achado?.embalagem || '48UNID'} autoComplete="off"
+                              aria-label={`Embalagem do produto ${i + 1}`}
+                              value={linha.embalagem}
+                              onChange={(e) => mudarProduto(i, 'embalagem', e.target.value)}
+                              className={ENTRADA}
+                            />
+                          </div>
+                          {form.produtos.length > 1 && (
+                            <button
+                              type="button" onClick={() => tirarProduto(i)}
+                              aria-label={`Tirar o produto ${i + 1}`}
+                              className="rounded-lg border borda p-2 txt-fraco hover:bg-erro-500/10 hover:text-erro-600"
+                            >
+                              <X aria-hidden className="size-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <p className="mt-1 text-[12px] leading-snug">
+                          {info.achado ? (
+                            <span className="font-semibold text-ok-600">
+                              {info.achado.descricao || 'Produto encontrado'}
+                            </span>
+                          ) : info.procurando ? (
+                            <span className="txt-fraco">Procurando…</span>
+                          ) : info.desconhecido ? (
+                            <span className="txt-fraco">Código não encontrado — escreva o nome abaixo.</span>
+                          ) : (
+                            <span className="txt-fraco">O nome aparece sozinho a partir do código.</span>
+                          )}
+                        </p>
+
+                        {/* só quando ninguém conhece o código: o nome vai na mão */}
+                        {info.desconhecido && (
+                          <input
+                            placeholder="BISC MARILAN RECH 80G CHOCOLATE" autoComplete="off"
+                            aria-label={`Nome do produto ${i + 1}`}
+                            value={linha.descricao}
+                            onChange={(e) => mudarProduto(i, 'descricao', e.target.value)}
+                            className={cn(ENTRADA, 'mt-1')}
+                          />
+                        )}
+                      </div>
+                    );
+                  })}
                 </div>
 
-                {/* só quando nenhum inventário conhece o código: o nome vai na mão */}
-                {produtoDesconhecido && (
-                  <div className="sm:col-span-2">
-                    <label htmlFor="oc-desc" className="mb-1 block text-[12.5px] font-semibold">
-                      Nome do produto
-                    </label>
-                    <input
-                      id="oc-desc" placeholder="BISC MARILAN RECH 80G CHOCOLATE" autoComplete="off"
-                      value={form.descricao} onChange={(e) => setForm({ ...form, descricao: e.target.value })}
-                      className={ENTRADA}
-                    />
-                  </div>
-                )}
-              </>
+                <button
+                  type="button" onClick={maisUmProduto}
+                  className="mt-1.5 flex items-center gap-1 rounded-lg border borda px-2.5 py-1 text-[11.5px] font-semibold txt-fraco"
+                >
+                  <Plus aria-hidden className="size-3.5" /> Mais um produto
+                </button>
+              </div>
             )}
 
             {cfg.temQuantidade && (
@@ -1042,18 +1169,20 @@ export default function FaltasSobrasPage() {
                         {o.tipo}
                       </span>
                       <span className="text-[14px] font-bold">Lote {o.lote}</span>
-                      {o.produto && (
-                        <span className="rounded-md painel-2 px-2 py-0.5 text-[12px] font-semibold">
-                          {produtoTexto(o.produto, o.embalagem)}
-                          {/* registro antigo não tem o nome gravado; aí vale o
-                              que os inventários souberem hoje sobre o código */}
-                          {(o.descricao || acharProduto(o.produto, catalogo)?.descricao) && (
-                            <span className="ml-1.5 font-normal txt-fraco">
-                              {o.descricao || acharProduto(o.produto, catalogo)?.descricao}
-                            </span>
-                          )}
-                        </span>
-                      )}
+                      {produtosDe(o).map((p, i) => {
+                        // registro antigo não tem o nome gravado; aí vale o que
+                        // os inventários souberem hoje sobre o código
+                        const nome = p.descricao || acharProduto(p.produto, catalogo)?.descricao;
+                        return (
+                          <span
+                            key={`${p.produto}-${i}`}
+                            className="rounded-md painel-2 px-2 py-0.5 text-[12px] font-semibold"
+                          >
+                            {produtoTexto(p.produto, p.embalagem)}
+                            {nome && <span className="ml-1.5 font-normal txt-fraco">{nome}</span>}
+                          </span>
+                        );
+                      })}
                       {o.quantidade != null && (
                         <span className="text-[12.5px] font-semibold">{fmtQtd(o.quantidade)} un</span>
                       )}
@@ -1134,25 +1263,47 @@ export default function FaltasSobrasPage() {
                         <p className="mb-2 text-[12px] font-semibold">
                           De que produto é esta sobra? A foto e o lote ajudam a identificar.
                         </p>
+                        <div className="mb-2 flex flex-col gap-1.5">
+                          {formValida.map((linha, i) => (
+                            <div key={`val-${i}`} className="flex items-center gap-1.5">
+                              <input
+                                autoFocus={i === 0} inputMode="numeric" placeholder="65696"
+                                autoComplete="off" aria-label={`Código do produto ${i + 1}`}
+                                value={linha.produto}
+                                onChange={(e) => mudarValida(i, 'produto', e.target.value)}
+                                className="painel w-full rounded-lg border borda px-2.5 py-1.5 text-[13px] font-semibold outline-none focus:border-marinho-500 sm:w-36"
+                              />
+                              <input
+                                placeholder="48UNID" autoComplete="off"
+                                aria-label={`Embalagem do produto ${i + 1}`}
+                                value={linha.embalagem}
+                                onChange={(e) => mudarValida(i, 'embalagem', e.target.value)}
+                                className="painel w-full rounded-lg border borda px-2.5 py-1.5 text-[13px] outline-none focus:border-marinho-500 sm:w-36"
+                              />
+                              <span className="text-[11.5px] txt-fraco">
+                                {acharProduto(linha.produto, catalogo)?.descricao}
+                              </span>
+                              {formValida.length > 1 && (
+                                <button
+                                  type="button" onClick={() => tirarValida(i)}
+                                  aria-label={`Tirar o produto ${i + 1}`}
+                                  className="rounded-lg border borda p-1.5 txt-fraco hover:bg-erro-500/10 hover:text-erro-600"
+                                >
+                                  <X aria-hidden className="size-3" />
+                                </button>
+                              )}
+                            </div>
+                          ))}
+                          <button
+                            type="button"
+                            onClick={() => setFormValida((l) => [...l, linhaVazia()])}
+                            className="flex w-fit items-center gap-1 rounded-lg border borda px-2.5 py-1 text-[11.5px] font-semibold txt-fraco"
+                          >
+                            <Plus aria-hidden className="size-3.5" /> Mais um produto
+                          </button>
+                        </div>
+
                         <div className="flex flex-wrap items-end gap-2">
-                          <label className="grow sm:grow-0">
-                            <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">Código do produto</span>
-                            <input
-                              autoFocus inputMode="numeric" placeholder="65696" autoComplete="off"
-                              value={formValida.produto}
-                              onChange={(e) => setFormValida({ ...formValida, produto: e.target.value })}
-                              className="painel w-full rounded-lg border borda px-2.5 py-1.5 text-[13px] font-semibold outline-none focus:border-marinho-500 sm:w-36"
-                            />
-                          </label>
-                          <label className="grow sm:grow-0">
-                            <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">Unidade / embalagem</span>
-                            <input
-                              placeholder="48UNID" autoComplete="off"
-                              value={formValida.embalagem}
-                              onChange={(e) => setFormValida({ ...formValida, embalagem: e.target.value })}
-                              className="painel w-full rounded-lg border borda px-2.5 py-1.5 text-[13px] outline-none focus:border-marinho-500 sm:w-36"
-                            />
-                          </label>
                           <button
                             type="button" onClick={() => void validarSobra(o)} disabled={ocupado === o.id}
                             className="flex items-center gap-1.5 rounded-lg bg-marinho-800 px-3 py-1.5 text-[12.5px] font-semibold text-white disabled:opacity-60"

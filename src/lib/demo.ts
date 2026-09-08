@@ -159,7 +159,11 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
     o: Partial<Ocorrencia> & { data: string; lote: string; motorista: string },
   ): Ocorrencia => ({
     id: seq++, unidade: 'Dilnor', tipo,
-    produto: null, embalagem: null, descricao: null, quantidade: null, ajudantes: [],
+    produtos: [],
+    // as três colunas soltas são o formato antigo; ficam nulas por padrão e só
+    // aparecem no registro que existe de propósito para exercitar esse caso
+    produto: null, embalagem: null, descricao: null,
+    quantidade: null, ajudantes: [],
     placa: null, foto: null, obs: null,
     registrado_por: 'Demonstração', registrado_por_id: null,
     aprovado_por: null, aprovado_em: null,
@@ -170,15 +174,22 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
 
   return tipo === 'falta'
     ? [
-      // codigo que EXISTE no inventario de demonstracao: o nome vem sozinho
+      // vários produtos no mesmo registro: o caso que a lista veio resolver.
+      // O 100003 existe no inventário de demonstração, então o nome vem sozinho
       mk({ data: dia(0), lote: '96661', motorista: 'ANTONIO CARLOS', placa: 'OEY 8503',
-        produto: '100003', embalagem: 'UN/24', descricao: 'PRODUTO DE EXEMPLO 4',
+        produtos: [
+          { produto: '100003', embalagem: 'UN/24', descricao: 'PRODUTO DE EXEMPLO 4' },
+          { produto: '100007', embalagem: 'UN/24', descricao: 'PRODUTO DE EXEMPLO 8' },
+          { produto: '70112', embalagem: '12UNID', descricao: null },
+        ],
         ajudantes: ['EDVAN SOUSA', 'CLEITON ALVES'] }),
       mk({ data: dia(-1), lote: '96540', motorista: 'JOSE RIBAMAR', placa: 'NQB 4C56',
-        produto: '70112', embalagem: '12UNID', ajudantes: ['WELLINGTON DIAS'],
-        obs: 'cliente recusou o volume' }),
+        produtos: [{ produto: '70112', embalagem: '12UNID', descricao: null }],
+        ajudantes: ['WELLINGTON DIAS'], obs: 'cliente recusou o volume' }),
+      // registro no formato ANTIGO, sem a lista: prova que a tela ainda o lê
       mk({ data: dia(-3), lote: '96488', motorista: 'PAULO SERGIO', placa: 'OGD 2E34',
-        produto: '65210', embalagem: '24UNID', ajudantes: ['ROBSON LIMA', 'GILVAN COSTA', 'VALDENIO ANTONIO'],
+        produto: '65210', embalagem: '24UNID',
+        ajudantes: ['ROBSON LIMA', 'GILVAN COSTA', 'VALDENIO ANTONIO'],
         aprovado_por: 'Gerência (demo)', aprovado_em: quando(-2) }),
     ]
     : [

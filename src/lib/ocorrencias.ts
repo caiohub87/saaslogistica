@@ -16,7 +16,7 @@
 
 import { PackageMinus, PackagePlus, type LucideIcon } from 'lucide-react';
 
-import type { Inventario, TipoOcorrencia } from '@/types/database';
+import type { Inventario, ProdutoOcorrencia, TipoOcorrencia } from '@/types/database';
 
 export interface ConfigOcorrencia {
   tipo: TipoOcorrencia;
@@ -94,6 +94,30 @@ export const hojeISO = () => {
 /** '65696' + '48UNID' -> '65696/48UNID', como a operação escreve. */
 export const produtoTexto = (produto: string | null, embalagem: string | null) =>
   [produto, embalagem].filter(Boolean).join('/');
+
+/**
+ * Os produtos de uma ocorrência, venha ela de antes ou depois da lista existir.
+ *
+ * Registro gravado antes da coluna `produtos` guarda o item nas três colunas
+ * soltas. Em vez de espalhar esse "se" por toda tela — lista, busca, impressão
+ * — ele mora aqui, e o resto do código enxerga sempre uma lista.
+ */
+export function produtosDe(o: {
+  produtos?: ProdutoOcorrencia[] | null;
+  produto?: string | null;
+  embalagem?: string | null;
+  descricao?: string | null;
+}): ProdutoOcorrencia[] {
+  if (o.produtos?.length) return o.produtos;
+  if (o.produto) {
+    return [{
+      produto: o.produto,
+      embalagem: o.embalagem ?? null,
+      descricao: o.descricao ?? null,
+    }];
+  }
+  return [];
+}
 
 // ---------------------------------------------------------------- catalogo de produtos
 
