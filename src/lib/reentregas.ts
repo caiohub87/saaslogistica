@@ -15,7 +15,6 @@
  * Mesma razão de `ocorrencias.motorista` ser texto.
  */
 
-import type { Carga } from '@/lib/produtividade';
 import type { DesfechoReentrega, PedidoReentrega, Reentrega } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
 
@@ -70,9 +69,6 @@ export function selo(r: Reentrega): { rotulo: string; cor: string } {
 }
 
 // ---------------------------------------------------------------- do relatório
-
-/** Só as linhas em reentrega — cobre "Reentrega" e "Entrega não realizada". */
-export const soReentregas = (peds: Pedido[]) => peds.filter((p) => p.cat === 'reentrega');
 
 /** Chave de um pedido na tela de seleção: carga + número, que é o par único. */
 export const chaveDe = (p: Pedido) => `${p.carga}|${p.pedido}`;
@@ -132,10 +128,6 @@ export function resumir(peds: Pedido[]): ResumoSelecao {
     cargas: [...cargas].sort(),
   };
 }
-
-/** As cargas do relatório que têm alguma reentrega — o filtro da tela. */
-export const cargasComReentrega = (cargas: Carga[]) =>
-  cargas.filter((c) => c.peds.some((p) => p.cat === 'reentrega'));
 
 // ---------------------------------------------------------------- formato
 

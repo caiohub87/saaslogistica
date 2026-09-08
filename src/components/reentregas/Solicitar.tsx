@@ -3,20 +3,33 @@
 import { AlertTriangle, FileText, Loader2, PackageCheck, Search } from 'lucide-react';
 import { useMemo, useState } from 'react';
 
+import type { Categoria } from '@/lib/produtividade';
 import {
-  chaveDe, fmtBRL, fmtPeso, hojeISO, paraReentrega, resumir, soReentregas,
+  chaveDe, fmtBRL, fmtPeso, hojeISO, paraReentrega, resumir,
 } from '@/lib/reentregas';
 import { useRelatorio } from '@/providers/RelatorioProvider';
 import type { Reentrega } from '@/types/database';
 import { cn } from '@/utils/cn';
 
+/** Cor do selo de situação — a mesma leitura da lista de ocorrências. */
+const CAT_COR: Record<Categoria, string> = {
+  reentrega: 'bg-ouro-100 text-ouro-700',
+  devolvido: 'bg-erro-500/15 text-erro-600',
+  pendente: 'painel-2 txt-fraco',
+  entregue: 'bg-ok-500/15 text-ok-600',
+};
+
 /**
  * 1º passo — monta a solicitação a partir do relatório de entregas.
  *
- * A pessoa marca as linhas em REENTREGA que foram para o mesmo palete. O que
- * dá para contar (clientes, peso, motorista, ajudantes) sai do relatório; o
- * que só quem está no depósito sabe (o lote destinado, quantos paletes, se é
- * lote à parte) é digitado.
+ * A tela mostra o relatório INTEIRO, não só o que o ERP classificou como
+ * reentrega: o status nem sempre bate com o que desceu do caminhão, e quem
+ * monta o palete olha a mercadoria. As reentregas vêm primeiro na lista e há
+ * filtro por situação, para o caso comum continuar sendo o mais rápido.
+ *
+ * O que dá para contar (clientes, peso, motorista, ajudantes) sai do
+ * relatório; o que só quem está no depósito sabe (o lote destinado, quantos
+ * paletes, se é lote à parte) é digitado.
  *
  * A base é a MESMA da Análise de Entregas — carregada uma vez, usada pelas
  * duas telas. Por isso aqui não há importação própria: seria uma segunda base
@@ -33,6 +46,7 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
   const [marcados, setMarcados] = useState<Set<string>>(new Set());
   const [busca, setBusca] = useState('');
   const [cargaFiltro, setCargaFiltro] = useState('');
+  const [catFiltro, setCatFiltro] = useState<Categoria | 'todas'>('todas');
   const [lote, setLote] = useState('');
   const [rota, setRota] = useState('');
   const [paletes, setPaletes] = useState('1');
@@ -43,13 +57,18 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
   const [obs, setObs] = useState('');
   const [erro, setErro] = useState<string | null>(null);
 
-  /** Todas as linhas em reentrega do relatório, de todas as cargas. */
-  const disponiveis = useMemo(
-    () => cargas.flatMap((c) => soReentregas(c.peds)),
-    [cargas],
-  );
+  /**
+   * TODAS as linhas do relatório, não só as classificadas como reentrega.
+   *
+   * O status vem do ERP e nem sempre bate com o que desceu do caminhão: um
+   * pedido marcado "devolvido" pode voltar para o depósito à espera de nova
+   * tentativa, e antes ele simplesmente não existia nesta tela. Quem monta o
+   * palete olha a mercadoria, não o status — então a tela mostra tudo e deixa
+   * a escolha com quem está vendo.
+   */
+  const disponiveis = useMemo(() => cargas.flatMap((c) => c.peds), [cargas]);
 
-  const cargasComReent = useMemo(
+  const cargasDoRelatorio = useMemo(
     () => [...new Set(disponiveis.map((p) => p.carga))].sort(),
     [disponiveis],
   );
@@ -58,9 +77,16 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
     const q = busca.trim().toLowerCase();
     return disponiveis
       .filter((p) => !cargaFiltro || p.carga === cargaFiltro)
+      .filter((p) => catFiltro === 'todas' || p.cat === catFiltro)
       .filter((p) => !q || [p.pedido, p.cliente, p.codcli, p.carga, p.motorista]
-        .some((x) => (x ?? '').toLowerCase().includes(q)));
-  }, [disponiveis, busca, cargaFiltro]);
+        .some((x) => (x ?? '').toLowerCase().includes(q)))
+      // reentrega primeiro: continua sendo o caso comum, e com o relatório
+      // inteiro na tela ela se perderia no meio dos entregues
+      .sort((a, b) => {
+        const ra = a.cat === 'reentrega', rb = b.cat === 'reentrega';
+        return ra === rb ? 0 : ra ? -1 : 1;
+      });
+  }, [disponiveis, busca, cargaFiltro, catFiltro]);
 
   const selecionados = useMemo(
     () => disponiveis.filter((p) => marcados.has(chaveDe(p))),
@@ -147,7 +173,7 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
       {/* ---------------- os pedidos em reentrega ---------------- */}
       <section className="painel sombra rounded-2xl p-4">
         <div className="mb-3 flex flex-wrap items-center gap-2">
-          <h2 className="text-[15px] font-bold">Pedidos em reentrega</h2>
+          <h2 className="text-[15px] font-bold">Pedidos do relatório</h2>
           <div className="relative min-w-44 flex-1">
             <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 txt-fraco" />
             <input
@@ -157,11 +183,23 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
             />
           </div>
           <select
+            value={catFiltro} onChange={(e) => setCatFiltro(e.target.value as typeof catFiltro)}
+            aria-label="Situação no relatório"
+            className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
+          >
+            <option value="todas">Todas as situações</option>
+            <option value="reentrega">Reentrega</option>
+            <option value="devolvido">Devolvido</option>
+            <option value="pendente">Pendente</option>
+            <option value="entregue">Entregue</option>
+          </select>
+          <select
             value={cargaFiltro} onChange={(e) => setCargaFiltro(e.target.value)}
+            aria-label="Carga"
             className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
           >
             <option value="">Todas as cargas</option>
-            {cargasComReent.map((c) => <option key={c} value={c}>Carga {c}</option>)}
+            {cargasDoRelatorio.map((c) => <option key={c} value={c}>Carga {c}</option>)}
           </select>
           <span className="text-[12px] txt-fraco">{lista.length} de {disponiveis.length}</span>
         </div>
@@ -177,7 +215,7 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
                     className="size-3.5 accent-marinho-800"
                   />
                 </th>
-                {['Pedido', 'Cliente', 'Carga', 'Motivo'].map((h) => (
+                {['Pedido', 'Cliente', 'Situação', 'Carga', 'Motivo'].map((h) => (
                   <th key={h} className="px-2 py-2 text-[10.5px] font-bold uppercase tracking-wide txt-fraco">{h}</th>
                 ))}
                 <th className="px-2 py-2 text-right text-[10.5px] font-bold uppercase tracking-wide txt-fraco">Peso</th>
@@ -186,7 +224,7 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
             </thead>
             <tbody>
               {lista.length === 0 ? (
-                <tr><td colSpan={7} className="px-3 py-8 text-center text-sm txt-fraco">Nada neste filtro.</td></tr>
+                <tr><td colSpan={8} className="px-3 py-8 text-center text-sm txt-fraco">Nada neste filtro.</td></tr>
               ) : lista.map((p) => {
                 const k = chaveDe(p);
                 const on = marcados.has(k);
@@ -207,6 +245,15 @@ export function Solicitar({ podeLancar, salvando, aoSalvar }: {
                     <td className="px-2 py-1.5">
                       {p.cliente || '—'}
                       <span className="ml-1.5 text-[11px] txt-fraco">{p.codcli}</span>
+                    </td>
+                    <td className="px-2 py-1.5">
+                      {/* o que o ERP disse — quem marca decide se concorda */}
+                      <span className={cn(
+                        'whitespace-nowrap rounded-md px-1.5 py-0.5 text-[10.5px] font-bold uppercase',
+                        CAT_COR[p.cat],
+                      )}>
+                        {p.cat}
+                      </span>
                     </td>
                     <td className="whitespace-nowrap px-2 py-1.5 txt-fraco">{p.carga}</td>
                     <td className="px-2 py-1.5 text-[11.5px] txt-fraco">{p.motivo || '—'}</td>
