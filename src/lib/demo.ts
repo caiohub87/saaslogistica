@@ -519,6 +519,8 @@ export const VALIDADE_DEMO: {
   itens: ItemValidade[];
   registros: RegistroValidade[];
   fornecedores: Record<string, string>;
+  /** SKU que acabaram no depósito */
+  zerados: string[];
 } = {
   itens: [
     itemVal(1, '105702', 'CREME D COLG TOTAL 90G CLEAN MINT*', '60.29.00.301', 48, 54, 2592, '2026-12-01', 97),
@@ -552,4 +554,6 @@ export const VALIDADE_DEMO: {
     110450: 'BOLD',
     // 107921 fica de fora de proposito: cai em SEM FORNECEDOR
   },
+  // um produto ja zerado, para o selo e o filtro terem o que mostrar
+  zerados: ['110531'],
 };

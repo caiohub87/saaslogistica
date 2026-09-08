@@ -30,7 +30,7 @@ const low = (s: unknown) =>
  */
 export function Lancar({
   itens, registros, fornecedores, podeLancar, podeExcluir, demo, unidade, nomeUsuario,
-  aoSubirPdf, aoRegistrar, aoExcluirRegistro, aoDefinirFornecedor,
+  aoSubirPdf, aoRegistrar, aoExcluirRegistro, aoDefinirFornecedor, zerados, aoAlternarZerado,
 }: {
   itens: ItemValidade[];
   registros: RegistroValidade[];
@@ -44,13 +44,17 @@ export function Lancar({
   aoRegistrar: (r: Omit<RegistroValidade, 'id' | 'criado_em'>) => Promise<string | null>;
   aoExcluirRegistro: (id: number) => Promise<string | null>;
   aoDefinirFornecedor: (produtoId: string, fornecedor: string) => Promise<string | null>;
+  /** os SKU que acabaram no depósito */
+  zerados: Set<string>;
+  aoAlternarZerado: (produtoId: string, zerar: boolean) => Promise<string | null>;
 }) {
   const inputArquivo = useRef<HTMLInputElement>(null);
   const [lendo, setLendo] = useState('');
   const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro' | 'info'; texto: string } | null>(null);
 
   const [busca, setBusca] = useState('');
-  const [filtro, setFiltro] = useState<'todos' | 'sem_registro' | 'com_registro' | 'vencidos'>('todos');
+  const [filtro, setFiltro] =
+    useState<'todos' | 'sem_registro' | 'com_registro' | 'vencidos' | 'zerados'>('todos');
   const [fornFiltro, setFornFiltro] = useState('__todos');
 
   /** o que a pessoa digitou em cada linha, antes de escolher o prazo */
@@ -78,7 +82,11 @@ export function Lancar({
     return skus
       .filter((s) => {
         const temReg = (porSku[s.produto_id]?.length ?? 0) > 0;
-        if (filtro === 'sem_registro' && temReg) return false;
+        const zerado = zerados.has(s.produto_id);
+        if (filtro === 'zerados') return zerado;
+        // quem zerou já está resolvido — não é pendência de registro, e no
+        // meio dessa lista só faria procurar o que não existe mais
+        if (filtro === 'sem_registro' && (temReg || zerado)) return false;
         if (filtro === 'com_registro' && !temReg) return false;
         if (filtro === 'vencidos' && (diasAte(s.validade) ?? 0) >= 0) return false;
         return true;
@@ -87,9 +95,15 @@ export function Lancar({
         || (fornecedores[s.produto_id] ?? SEM_FORNECEDOR) === fornFiltro)
       .filter((s) => !q || low(s.produto_id).includes(q) || low(s.descricao).includes(q)
         || s.enderecos.some((e) => low(e).includes(q)))
-      .sort((a, b) => (a.validade < b.validade ? -1 : a.validade > b.validade ? 1
-        : a.descricao.localeCompare(b.descricao, 'pt-BR')));
-  }, [skus, porSku, busca, filtro, fornFiltro, fornecedores]);
+      // zerado vai para o fim: continua visível, mas não disputa a atenção com
+      // o que ainda tem mercadoria no depósito
+      .sort((a, b) => {
+        const za = zerados.has(a.produto_id), zb = zerados.has(b.produto_id);
+        if (za !== zb) return za ? 1 : -1;
+        return a.validade < b.validade ? -1 : a.validade > b.validade ? 1
+          : a.descricao.localeCompare(b.descricao, 'pt-BR');
+      });
+  }, [skus, porSku, busca, filtro, fornFiltro, fornecedores, zerados]);
 
   const semFornecedor = useMemo(
     () => skus.filter((s) => !fornecedores[s.produto_id]).length,
@@ -109,6 +123,20 @@ export function Lancar({
     } finally {
       setLendo('');
     }
+  }
+
+  async function alternarZerado(produtoId: string, zerar: boolean) {
+    setAviso(null);
+    setOcupado(produtoId);
+    const erro = await aoAlternarZerado(produtoId, zerar);
+    setOcupado(null);
+    if (erro) { setAviso({ tipo: 'erro', texto: erro }); return; }
+    setAviso({
+      tipo: 'ok',
+      texto: zerar
+        ? `${produtoId} marcado como zerado no estoque.`
+        : `${produtoId} não está mais zerado.`,
+    });
   }
 
   async function registrar(s: SkuValidade, periodo: Periodo) {
@@ -225,6 +253,7 @@ export function Lancar({
             <option value="sem_registro">Ainda sem registro</option>
             <option value="com_registro">Já registrados</option>
             <option value="vencidos">Já vencidos</option>
+            <option value="zerados">Zerados no estoque</option>
           </select>
 
           <select
@@ -260,10 +289,16 @@ export function Lancar({
                 ) : filtrados.map((s) => {
                   const meus = porSku[s.produto_id] ?? [];
                   const restantes = diasAte(s.validade);
+                  const zerado = zerados.has(s.produto_id);
                   return (
-                    <tr key={s.produto_id} className="border-b borda align-top">
+                    <tr key={s.produto_id} className={cn('border-b borda align-top', zerado && 'opacity-60')}>
                       <td className="px-3 py-2">
                         <span className="font-mono text-[12px] txt-fraco">{s.produto_id}</span>
+                        {zerado && (
+                          <span className="ml-1.5 rounded-md bg-marinho-900 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white">
+                            zerado
+                          </span>
+                        )}
                         <span className="block max-w-72 text-[12.5px] font-semibold">{s.descricao}</span>
                         <span className="block font-mono text-[10.5px] txt-fraco">
                           {s.enderecos.join(' · ')}
@@ -320,7 +355,7 @@ export function Lancar({
                                 className="painel-2 rounded-lg border borda px-2 py-1 text-[12.5px] outline-none focus:border-marinho-500"
                               />
                             </div>
-                            <div className="flex gap-1">
+                            <div className="flex flex-wrap items-center gap-1">
                               {PERIODOS.map((p) => (
                                 <button
                                   key={p} type="button" disabled={ocupado === s.produto_id}
@@ -331,6 +366,23 @@ export function Lancar({
                                   {p}
                                 </button>
                               ))}
+                              {/* acabou no depósito: não há prazo a cumprir,
+                                  mas o produto fica na lista, com o selo */}
+                              <button
+                                type="button" disabled={ocupado === s.produto_id}
+                                onClick={() => void alternarZerado(s.produto_id, !zerado)}
+                                title={zerado
+                                  ? 'Este produto voltou a ter estoque'
+                                  : 'Marcar que este produto acabou no depósito'}
+                                className={cn(
+                                  'rounded-md border px-2 py-1 text-[11px] font-bold transition-colors disabled:opacity-50',
+                                  zerado
+                                    ? 'border-marinho-900 bg-marinho-900 text-white'
+                                    : 'borda txt-fraco hover:border-marinho-500 hover:bg-marinho-50 hover:text-marinho-800',
+                                )}
+                              >
+                                {zerado ? 'zerado ✓' : 'zerado'}
+                              </button>
                             </div>
                           </div>
                         ) : <span className="text-[12px] txt-fraco">—</span>}

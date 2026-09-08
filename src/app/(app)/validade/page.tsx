@@ -36,6 +36,8 @@ export default function ValidadePage() {
   const [registros, setRegistros] = useState<RegistroValidade[]>([]);
   /** produto_id -> fornecedor, já com o manual sobrepondo o deduzido */
   const [fornecedores, setFornecedores] = useState<Record<string, string>>({});
+  /** os SKU que acabaram no depósito */
+  const [zerados, setZerados] = useState<Set<string>>(new Set());
   const [carregando, setCarregando] = useState(true);
   const [erro, setErro] = useState<string | null>(null);
 
@@ -46,17 +48,23 @@ export default function ValidadePage() {
       setItens(VALIDADE_DEMO.itens);
       setRegistros(VALIDADE_DEMO.registros);
       setFornecedores(VALIDADE_DEMO.fornecedores);
+      setZerados(new Set(VALIDADE_DEMO.zerados));
       setErro(null); setCarregando(false);
       return;
     }
     const sb = getSupabase();
     if (!sb) { setErro('Banco não configurado.'); setCarregando(false); return; }
 
-    const [i, r, f] = await Promise.all([
+    const [i, r, f, z] = await Promise.all([
       sb.from('validade_itens').select('*').order('validade').limit(5000),
       sb.from('validade_registros').select('*').limit(5000),
       sb.from('produto_fornecedor').select('*').limit(20000),
+      sb.from('validade_zerados').select('produto_id').limit(20000),
     ]);
+
+    // zerados é acessório: se a tabela ainda não existe, a tela abre igual e
+    // só o selo fica de fora — não é motivo para não mostrar a validade
+    setZerados(new Set(((z.data ?? []) as { produto_id: string }[]).map((p) => p.produto_id)));
 
     const falha = i.error ?? r.error ?? f.error;
     if (falha) {
@@ -174,6 +182,40 @@ export default function ValidadePage() {
     return null;
   }, [demo, carregar]);
 
+  /**
+   * Marca ou desmarca que o produto acabou.
+   *
+   * A linha existir É a marca — desmarcar apaga, em vez de guardar um booleano
+   * falso. Menos estado para manter e o histórico de quem zerou não some.
+   */
+  const alternarZerado = useCallback(async (
+    produtoId: string, zerar: boolean,
+  ): Promise<string | null> => {
+    if (demo) return 'Modo de demonstração não grava no banco.';
+    const sb = getSupabase();
+    if (!sb) return 'Banco não configurado.';
+
+    const { error } = zerar
+      ? await sb.from('validade_zerados').upsert({
+        unidade, produto_id: produtoId,
+        zerado_por: usuario?.nome ?? null, zerado_por_id: usuario?.id ?? null,
+        zerado_em: new Date().toISOString(),
+      }, { onConflict: 'unidade,produto_id' })
+      : await sb.from('validade_zerados').delete()
+        .eq('unidade', unidade).eq('produto_id', produtoId);
+
+    if (error) {
+      return error.message + (/schema cache|does not exist|relation/i.test(error.message)
+        ? ' — rode supabase/24_validade_zerado.sql no Supabase.' : '');
+    }
+    setZerados((s) => {
+      const n = new Set(s);
+      if (zerar) n.add(produtoId); else n.delete(produtoId);
+      return n;
+    });
+    return null;
+  }, [demo, unidade, usuario]);
+
   /** Escolha manual: origem='manual' para nenhum upload futuro sobrescrever. */
   const definirFornecedor = useCallback(async (
     produtoId: string, fornecedor: string,
@@ -249,6 +291,8 @@ export default function ValidadePage() {
           aoRegistrar={registrar}
           aoExcluirRegistro={excluirRegistro}
           aoDefinirFornecedor={definirFornecedor}
+          zerados={zerados}
+          aoAlternarZerado={alternarZerado}
         />
       ) : (
         <Visao itens={itens} registros={registros} fornecedores={fornecedores} />
