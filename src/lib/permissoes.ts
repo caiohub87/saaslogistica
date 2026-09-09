@@ -69,6 +69,10 @@ export const TELAS: Tela[] = [
     descricao: 'Tabela de premiação e tipo de operação de cada pessoa.' },
   { chave: 'config', nome: 'Configurações', grupo: 'Administração', rota: '/configuracoes', acoes: ['ver', 'editar'],
     descricao: 'Metas, horário de corte e regras de apuração.' },
+  { chave: 'toners', nome: 'Toners', grupo: 'Administração', rota: '/toners',
+    acoes: ['ver', 'lancar', 'editar', 'excluir'],
+    descricao: 'Para onde vai cada toner e quanto tempo ele dura, por sala e por impressora.',
+    migrada: true },
   { chave: 'usuarios', nome: 'Usuários e acessos', grupo: 'Administração', rota: '/usuarios', acoes: ['ver', 'editar'],
     descricao: 'Cadastra pessoas e define o que cada uma enxerga.', migrada: true },
 

@@ -342,3 +342,50 @@ export interface Ocorrencia {
   validado_em: string | null;
   criado_em: string;
 }
+
+// ---------- toners ----------
+
+/** Uma sala que tem impressora. Desativar tira das opções sem perder o histórico. */
+export interface Sala {
+  id: number;
+  unidade: string;
+  nome: string;
+  /** onde fica, para achar a sala em prédio com andares */
+  local: string | null;
+  ativo: boolean;
+  criado_em: string;
+}
+
+/** Uma impressora, sempre dentro de uma sala. */
+export interface Impressora {
+  id: number;
+  unidade: string;
+  sala_id: number;
+  /** como a sala chama ela: 'Balcão', 'Fundo' */
+  nome: string;
+  modelo: string | null;
+  patrimonio: string | null;
+  /** preenche o formulário de troca sozinho; não impede registrar outro */
+  toner_padrao: string | null;
+  ativo: boolean;
+  criado_em: string;
+}
+
+/**
+ * Um toner colocado numa impressora.
+ *
+ * Quanto ele durou NÃO está aqui: é a distância até a troca seguinte da mesma
+ * impressora, calculada na leitura por comDuracao() em lib/toners.ts.
+ */
+export interface TrocaToner {
+  id: number;
+  unidade: string;
+  impressora_id: number;
+  /** qual toner foi destinado — texto, foto do momento */
+  toner: string;
+  data: string;
+  obs: string | null;
+  registrado_por: string | null;
+  registrado_por_id: string | null;
+  criado_em: string;
+}

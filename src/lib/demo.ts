@@ -2,9 +2,9 @@
 
 import { paraISO } from '@/lib/produtividade';
 import type {
-  Agendamento, FuncaoEquipe, Inventario, ItemValidade, Ocorrencia, PedidoReentrega, PessoaEquipe,
-  ProdutoInventario, Reentrega, RegistroValidade, StatusAgendamento, TipoAgendamento, TipoOcorrencia,
-  Usuario, Veiculo,
+  Agendamento, FuncaoEquipe, Impressora, Inventario, ItemValidade, Ocorrencia, PedidoReentrega,
+  PessoaEquipe, ProdutoInventario, Reentrega, RegistroValidade, Sala, StatusAgendamento,
+  TipoAgendamento, TipoOcorrencia, TrocaToner, Usuario, Veiculo,
 } from '@/types/database';
 import type { Pedido } from '@/types/relatorio';
 
@@ -557,3 +557,63 @@ export const VALIDADE_DEMO: {
   // um produto ja zerado, para o selo e o filtro terem o que mostrar
   zerados: ['110531'],
 };
+
+/**
+ * Toners de exemplo — três salas, cinco máquinas e um ano de trocas.
+ *
+ * Os intervalos são propositalmente diferentes entre as máquinas (uma gasta a
+ * cada ~30 dias, outra a cada ~90) porque é exatamente isso que a aba Consumo
+ * existe para mostrar. Uma impressora fica sem nenhuma troca, para a tela
+ * provar que sabe exibir "sem média" em vez de zero.
+ */
+export function tonersDemo(): { salas: Sala[]; impressoras: Impressora[]; trocas: TrocaToner[] } {
+  const agora = new Date();
+  const diasAtras = (n: number) => {
+    const d = new Date(agora);
+    d.setDate(d.getDate() - n);
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
+  const salas: Sala[] = [
+    { id: 9600, unidade: 'Dilnor', nome: 'Faturamento', local: '2º andar', ativo: true, criado_em: agora.toISOString() },
+    { id: 9601, unidade: 'Dilnor', nome: 'Expedição', local: 'Térreo', ativo: true, criado_em: agora.toISOString() },
+    { id: 9602, unidade: 'Dilnor', nome: 'Financeiro', local: '2º andar', ativo: true, criado_em: agora.toISOString() },
+  ];
+
+  const impressoras: Impressora[] = [
+    { id: 9650, unidade: 'Dilnor', sala_id: 9600, nome: 'Balcão', modelo: 'HP LaserJet M404',
+      patrimonio: '004512', toner_padrao: 'CF259A', ativo: true, criado_em: agora.toISOString() },
+    { id: 9651, unidade: 'Dilnor', sala_id: 9600, nome: 'Fundo', modelo: 'HP LaserJet M130',
+      patrimonio: '004518', toner_padrao: 'CF217A', ativo: true, criado_em: agora.toISOString() },
+    { id: 9652, unidade: 'Dilnor', sala_id: 9601, nome: 'Doca', modelo: 'Brother HL-L2360',
+      patrimonio: '004530', toner_padrao: 'TN-2370', ativo: true, criado_em: agora.toISOString() },
+    { id: 9653, unidade: 'Dilnor', sala_id: 9602, nome: 'Mesa 1', modelo: 'HP LaserJet M404',
+      patrimonio: '004541', toner_padrao: 'CF259A', ativo: true, criado_em: agora.toISOString() },
+    // sem troca nenhuma de propósito: a tela precisa saber dizer "sem média"
+    { id: 9654, unidade: 'Dilnor', sala_id: 9602, nome: 'Reserva', modelo: 'HP LaserJet M130',
+      patrimonio: null, toner_padrao: 'CF217A', ativo: true, criado_em: agora.toISOString() },
+  ];
+
+  let seq = 9700;
+  const trocas: TrocaToner[] = [];
+  /** Uma máquina que troca a cada `passo` dias, `n` vezes. */
+  const serie = (impressora_id: number, toner: string, passo: number, n: number, desvio = 0) => {
+    for (let i = 0; i < n; i++) {
+      // o desvio faz os intervalos não saírem idênticos, como na vida real
+      const dias = i * passo + (i % 2 ? desvio : 0);
+      trocas.push({
+        id: seq++, unidade: 'Dilnor', impressora_id, toner,
+        data: diasAtras(dias), obs: null,
+        registrado_por: 'Demonstração', registrado_por_id: null,
+        criado_em: agora.toISOString(),
+      });
+    }
+  };
+
+  serie(9650, 'CF259A', 31, 8, 4);     // a que mais gasta
+  serie(9651, 'CF217A', 74, 4, -6);
+  serie(9652, 'TN-2370', 45, 6, 5);
+  serie(9653, 'CF259A', 96, 3, 8);     // a que menos gasta
+
+  return { salas, impressoras, trocas };
+}
