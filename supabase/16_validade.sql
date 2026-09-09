@@ -117,6 +117,10 @@ create policy "escrita validade_itens" on validade_itens for all to authenticate
 alter table validade_registros enable row level security;
 drop policy if exists "leitura validade_registros" on validade_registros;
 drop policy if exists "escrita validade_registros" on validade_registros;
+-- criada logo abaixo e esquecida nesta lista ate agora: sem o drop, rodar o
+-- arquivo uma segunda vez abortava em "policy already exists", apesar do
+-- cabecalho prometer que ele e reexecutavel
+drop policy if exists "atualizacao validade_registros" on validade_registros;
 drop policy if exists "exclusao validade_registros" on validade_registros;
 create policy "leitura validade_registros" on validade_registros for select to authenticated
   using ( unidade = minha_unidade() and pode('validade','ver') );

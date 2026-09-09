@@ -37,6 +37,15 @@ interface Pendente {
   valor_estoque: number;
   produtos: ProdutoInventario[];
   substitui: boolean;
+  /**
+   * O lançamento que vai ser substituído já estava aprovado.
+   *
+   * Trocar a contagem derruba a aprovação — o banco faz isso sozinho, pelo
+   * gatilho de 26_inventario_aprovar.sql, porque a assinatura valia para os
+   * números antigos. Guardamos aqui só para a tela poder AVISAR: a aprovação
+   * sumindo sem explicação pareceria defeito.
+   */
+  derrubaAprovacao: boolean;
 }
 
 export default function InventarioPage() {
@@ -109,12 +118,14 @@ export default function InventarioPage() {
     setAviso({ tipo: 'info', texto: `Lendo ${file.name}…` });
     try {
       const produtos = montarProdutos(await lerArquivo(file));
+      // so o inventario normal do mesmo dia e substituido; o corte tem vida propria
+      const anterior = lancamentos.find((l) => l.fornecedor === forn
+        && l.data_inventario === data
+        && (l.tipo ?? 'normal') === 'normal');
       setPendente({
         fornecedor: forn, data_inventario: data, valor_estoque: est, produtos,
-        // so o inventario normal do mesmo dia e substituido; o corte tem vida propria
-        substitui: lancamentos.some((l) => l.fornecedor === forn
-          && l.data_inventario === data
-          && (l.tipo ?? 'normal') === 'normal'),
+        substitui: Boolean(anterior),
+        derrubaAprovacao: Boolean(anterior?.aprovado_em),
       });
       setAviso({ tipo: 'info', texto: 'Arquivo lido. Confira os números e clique em Salvar inventário.' });
     } catch (e) {
@@ -156,10 +167,16 @@ export default function InventarioPage() {
       });
       return;
     }
-    const { fornecedor: f, data_inventario: d, produtos } = pendente;
+    const { fornecedor: f, data_inventario: d, produtos, derrubaAprovacao } = pendente;
     setPendente(null);
     setValor('');
-    setAviso({ tipo: 'ok', texto: `${f} de ${fmtData(d)} salvo (${produtos.length} produtos).` });
+    setAviso({
+      tipo: 'ok',
+      texto: `${f} de ${fmtData(d)} salvo (${produtos.length} produtos).`
+        + (derrubaAprovacao
+          ? ' A aprovação anterior caiu: ela valia para a contagem antiga, e precisa ser refeita.'
+          : ''),
+    });
     setFornAtivo(f);
     setLancAtivo(null);
     await carregar();
@@ -519,6 +536,18 @@ function Preview({ p, salvando, onSalvar, onCancelar }: {
         Valor do estoque: <b>{fmtBRL(p.valor_estoque)}</b>
         {pct != null && <> · a diferença representa <b>{fmtPct(pct)}</b> do estoque</>}
       </p>
+
+      {/* avisa ANTES de gravar: a aprovação some sozinha ao salvar, e descobrir
+          isso depois pareceria defeito da tela */}
+      {p.derrubaAprovacao && (
+        <p className="mt-2 flex gap-2 rounded-lg bg-ouro-100 px-3 py-2 text-[12.5px] text-ouro-700">
+          <AlertTriangle aria-hidden className="mt-0.5 size-3.5 shrink-0" />
+          <span>
+            O lançamento que será substituído está <b>aprovado</b>. Salvar derruba a aprovação —
+            ela valia para a contagem antiga, e alguém com permissão precisa aprovar de novo.
+          </span>
+        </p>
+      )}
       <div className="mt-3 flex items-center gap-2">
         <button
           type="button" onClick={onSalvar} disabled={salvando}
