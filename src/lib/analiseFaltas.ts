@@ -11,6 +11,9 @@
 import { conferida, produtosDe } from '@/lib/ocorrencias';
 import type { Ocorrencia, TipoOcorrencia } from '@/types/database';
 
+/** As dimensões que dá para recortar clicando numa barra do ranking. */
+export type Dimensao = 'motorista' | 'placa' | 'produto' | 'ajudante';
+
 export interface Filtro {
   tipo: TipoOcorrencia;
   /** 'aaaa-mm-dd' ou '' para sem limite */
@@ -18,17 +21,110 @@ export interface Filtro {
   fim: string;
   motorista: string;
   placa: string;
+  /** código do produto, não a descrição — é ele que identifica */
+  produto: string;
+  ajudante: string;
 }
 
 export const filtroVazio = (tipo: TipoOcorrencia = 'falta'): Filtro =>
-  ({ tipo, ini: '', fim: '', motorista: '', placa: '' });
+  ({ tipo, ini: '', fim: '', motorista: '', placa: '', produto: '', ajudante: '' });
 
 export function aplicar(itens: Ocorrencia[], f: Filtro): Ocorrencia[] {
   return itens.filter((o) => o.tipo === f.tipo
     && (!f.ini || o.data >= f.ini)
     && (!f.fim || o.data <= f.fim)
     && (!f.motorista || o.motorista === f.motorista)
-    && (!f.placa || (o.placa ?? '') === f.placa));
+    && (!f.placa || (o.placa ?? '') === f.placa)
+    && (!f.produto || produtosDe(o).some((p) => p.produto === f.produto))
+    && (!f.ajudante || (o.ajudantes ?? []).includes(f.ajudante)));
+}
+
+/** Os recortes ativos, para a tela mostrar e deixar desfazer um a um. */
+export function recortes(f: Filtro): { dim: Dimensao; valor: string }[] {
+  const saida: { dim: Dimensao; valor: string }[] = [];
+  (['motorista', 'placa', 'produto', 'ajudante'] as const).forEach((d) => {
+    if (f[d]) saida.push({ dim: d, valor: f[d] });
+  });
+  return saida;
+}
+
+// ---------------------------------------------------------------- período anterior
+
+/**
+ * A janela imediatamente anterior, do MESMO tamanho.
+ *
+ * Só existe quando há período escolhido: sem início e fim não há "tamanho" a
+ * espelhar, e comparar o histórico inteiro com um vazio não diz nada.
+ *
+ * O tamanho conta os dois extremos (1 a 31 de janeiro são 31 dias), e a janela
+ * anterior termina na véspera do início — sem sobreposição de um dia, que
+ * contaria a mesma ocorrência dos dois lados.
+ */
+export function janelaAnterior(f: Filtro): { ini: string; fim: string } | null {
+  if (!f.ini || !f.fim) return null;
+  const d = (s: string) => {
+    const [a, m, dd] = s.split('-').map(Number);
+    return new Date(a, m - 1, dd);
+  };
+  const iso = (x: Date) =>
+    `${x.getFullYear()}-${String(x.getMonth() + 1).padStart(2, '0')}-${String(x.getDate()).padStart(2, '0')}`;
+
+  const ini = d(f.ini), fim = d(f.fim);
+  if (fim < ini) return null;
+  const dias = Math.round((fim.getTime() - ini.getTime()) / 86400000) + 1;
+
+  const fimAnt = new Date(ini); fimAnt.setDate(fimAnt.getDate() - 1);
+  const iniAnt = new Date(fimAnt); iniAnt.setDate(iniAnt.getDate() - (dias - 1));
+  return { ini: iso(iniAnt), fim: iso(fimAnt) };
+}
+
+/**
+ * Variação percentual de agora contra antes.
+ *
+ * Null quando antes era zero: sair de 0 para 5 não é "500% pior", é aparecer —
+ * e uma seta com número nesse caso mente sobre a escala do que mudou.
+ */
+export function variacao(agora: number, antes: number): number | null {
+  if (!antes) return null;
+  return ((agora - antes) / antes) * 100;
+}
+
+// ---------------------------------------------------------------- cruzamento
+
+export interface Cruzamento {
+  linhas: string[];
+  colunas: string[];
+  /** contagem em [linha][coluna] */
+  celulas: Record<string, Record<string, number>>;
+  maior: number;
+}
+
+/**
+ * Motorista × veículo: onde costuma morar a causa.
+ *
+ * Um motorista que só dá falta num carro específico aponta para o carro (ou
+ * para a dupla), não para a pessoa — e é isso que dois rankings separados não
+ * conseguem mostrar, por mais que se olhe um ao lado do outro.
+ *
+ * Limitado aos N maiores de cada lado: a grade completa seria ilegível, e a
+ * cauda é onde estão os pares de uma ocorrência só, que não formam padrão.
+ */
+export function cruzar(itens: Ocorrencia[], n = 6): Cruzamento {
+  const linhas = porMotorista(itens).slice(0, n).map((f) => f.chave);
+  const colunas = porPlaca(itens).slice(0, n).map((f) => f.chave);
+  const setL = new Set(linhas), setC = new Set(colunas);
+
+  const celulas: Record<string, Record<string, number>> = {};
+  linhas.forEach((l) => { celulas[l] = Object.fromEntries(colunas.map((c) => [c, 0])); });
+
+  let maior = 0;
+  itens.forEach((o) => {
+    const l = o.motorista, c = o.placa ?? '';
+    if (!setL.has(l) || !setC.has(c)) return;
+    const v = (celulas[l][c] += 1);
+    if (v > maior) maior = v;
+  });
+  return { linhas, colunas, celulas, maior };
 }
 
 // ---------------------------------------------------------------- contagens

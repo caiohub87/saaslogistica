@@ -62,6 +62,15 @@
   --serie: #2b5c9e;
   /* trilho da barra: um passo fora da superfície, recessivo */
   --grade: #e8eef7;
+
+  /* Rampa sequencial da grade motorista × veículo — 4 passos, uma hue só.
+     Validada: L monótona, degrau >= 0.06 e a ponta clara em 2,61:1 sobre o
+     painel. Com 5 ou 7 passos reprovava: o mais claro encostava na
+     superfície e a célula de valor baixo sumia. */
+  --seq-1: #7ba3d5;
+  --seq-2: #4b7cbe;
+  --seq-3: #2b5c9e;
+  --seq-4: #163665;
 }
 .escuro {
   --fundo: #0a1526;
@@ -73,6 +82,13 @@
 
   --serie: #4b7cbe;
   --grade: #1d2f4a;
+
+  /* passos próprios do tema escuro, não os claros invertidos:
+     a ponta clara mede 2,49:1 sobre o painel escuro */
+  --seq-1: #2b5c9e;
+  --seq-2: #4b7cbe;
+  --seq-3: #7ba3d5;
+  --seq-4: #adc6e6;
 }
 
 /* ---------------------------------------------------------------- movimento

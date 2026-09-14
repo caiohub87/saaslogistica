@@ -2,21 +2,28 @@
 
 import {
   CalendarRange, Check, ChartColumnBig, Clock, Download, Loader2, PackageMinus, PackagePlus,
-  RotateCcw, Truck, User, Users,
+  RotateCcw, Truck, TrendingDown, TrendingUp, User, Users, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
+import { Cruzamento } from '@/components/faltas/Cruzamento';
 import { Ranking } from '@/components/faltas/Ranking';
 import { GraficoArea, type PontoArea } from '@/components/layout/GraficoArea';
 import {
-  aplicar, comOutros, filtroVazio, fmtNum, fmtPct, pct, porAjudante, porLote, porMes,
-  porMotorista, porPlaca, porProduto, resumir, type Filtro,
+  aplicar, comOutros, cruzar, filtroVazio, fmtNum, fmtPct, janelaAnterior, pct, porAjudante,
+  porLote, porMes, porMotorista, porPlaca, porProduto, recortes, resumir, variacao,
+  type Dimensao, type Filtro,
 } from '@/lib/analiseFaltas';
 import { conferida, fmtData, produtosDe, produtoTexto } from '@/lib/ocorrencias';
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
 import type { Ocorrencia, TipoOcorrencia } from '@/types/database';
 import { cn } from '@/utils/cn';
+
+/** Como cada recorte se chama no chip. */
+const DIM_ROTULO: Record<Dimensao, string> = {
+  motorista: 'Motorista', placa: 'Veículo', produto: 'Produto', ajudante: 'Ajudante',
+};
 
 /** Quantas fatias cabem num card antes de a cauda virar "Outros". */
 const TOPO = 8;
@@ -109,9 +116,30 @@ export default function AnaliseFaltasPage() {
     [filtrados],
   );
 
+  const cruz = useMemo(() => cruzar(filtrados), [filtrados]);
+
+  /**
+   * O mesmo recorte na janela anterior de igual tamanho.
+   *
+   * Só existe com período escolhido — sem início e fim não há tamanho a
+   * espelhar. Os demais recortes (motorista, placa…) são mantidos: a comparação
+   * tem de ser do MESMO conjunto, senão compara coisas diferentes.
+   */
+  const anterior = useMemo(() => {
+    const j = janelaAnterior(f);
+    if (!j) return null;
+    return resumir(aplicar(itens, { ...f, ini: j.ini, fim: j.fim }));
+  }, [itens, f]);
+
   const eFalta = f.tipo === 'falta';
   const nome = eFalta ? 'falta' : 'sobra';
   const rotuloConferida = eFalta ? 'Aprovadas' : 'Validadas';
+
+  /** Recorta por uma dimensão; clicar de novo no mesmo valor desfaz. */
+  const recortar = (dim: Dimensao) => (valor: string) =>
+    setF((x) => ({ ...x, [dim]: x[dim] === valor ? '' : valor }));
+
+  const ativos = recortes(f);
 
   function periodo(dias: number) {
     const ate = new Date();
@@ -158,7 +186,7 @@ export default function AnaliseFaltasPage() {
     );
   }
 
-  const semFiltro = !f.ini && !f.fim && !f.motorista && !f.placa;
+  const semFiltro = !f.ini && !f.fim && !ativos.length;
 
   return (
     <div className="motion-safe:animate-entrada">
@@ -257,6 +285,28 @@ export default function AnaliseFaltasPage() {
             {fmtNum(filtrados.length)} de {fmtNum(doTipo.length)} {nome}(s)
           </span>
         </div>
+
+        {/*
+          Os recortes vindos de clique aparecem aqui, cada um com o seu X.
+          Sem isto, clicar numa barra mudaria a página inteira sem deixar
+          pista visível do porquê — e o "Limpar" tiraria tudo de uma vez,
+          quando normalmente se quer soltar só um.
+        */}
+        {ativos.length > 0 && (
+          <div className="mt-2 flex flex-wrap items-center gap-1.5 border-t borda pt-2">
+            <span className="text-[11px] font-bold uppercase tracking-wide txt-fraco">Recorte</span>
+            {ativos.map(({ dim, valor }) => (
+              <button
+                key={dim} type="button" onClick={() => setF((x) => ({ ...x, [dim]: '' }))}
+                className="flex items-center gap-1.5 rounded-lg bg-marinho-50 px-2 py-1 text-[12px] font-semibold text-marinho-800 hover:bg-marinho-100"
+                aria-label={`Tirar o recorte de ${DIM_ROTULO[dim]} ${valor}`}
+              >
+                <span className="txt-fraco">{DIM_ROTULO[dim]}:</span> {valor}
+                <X aria-hidden className="size-3" />
+              </button>
+            ))}
+          </div>
+        )}
       </section>
 
       {erro && <p role="alert" className="mb-4 rounded-xl bg-erro-500/10 px-4 py-3 text-sm font-semibold text-erro-600">{erro}</p>}
@@ -277,8 +327,12 @@ export default function AnaliseFaltasPage() {
         <>
           {/* ---------------- os números de topo ---------------- */}
           <div className="mb-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            <Tile rotulo={`${nome}s no período`} valor={fmtNum(r.itens)} destaque
-              nota={r.porMesMedia != null ? `${fmtNum(r.porMesMedia)} por mês` : undefined} />
+            <Tile
+              rotulo={`${nome}s no período`} valor={fmtNum(r.itens)} destaque
+              nota={r.porMesMedia != null ? `${fmtNum(r.porMesMedia)} por mês` : undefined}
+              variacao={anterior ? variacao(r.itens, anterior.itens) : undefined}
+              antes={anterior?.itens}
+            />
             <Tile rotulo="Produtos envolvidos" valor={fmtNum(r.produtos)} Icone={PackageMinus} />
             <Tile rotulo="Motoristas" valor={fmtNum(r.motoristas)} Icone={User} />
             <Tile rotulo="Veículos" valor={fmtNum(r.placas)} Icone={Truck} />
@@ -305,22 +359,22 @@ export default function AnaliseFaltasPage() {
           <div className="grid gap-4 lg:grid-cols-2">
             <Ranking
               titulo="Por motorista" subtitulo={`quem mais aparece em ${nome}s`}
-              fatias={rkMotorista} total={r.itens}
+              fatias={rkMotorista} total={r.itens} onEscolher={recortar('motorista')}
               vazio="Nenhum motorista informado nos registros do período."
             />
             <Ranking
               titulo="Por veículo" subtitulo="pela placa gravada no registro"
-              fatias={rkPlaca} total={r.itens}
+              fatias={rkPlaca} total={r.itens} onEscolher={recortar('placa')}
               vazio="Nenhuma placa informada nos registros do período."
             />
             <Ranking
               titulo="Por produto" subtitulo="em quantas ocorrências o item apareceu"
-              fatias={rkProduto} total={r.itens}
+              fatias={rkProduto} total={r.itens} onEscolher={recortar('produto')}
               vazio="Nenhum produto informado nos registros do período."
             />
             <Ranking
               titulo="Por ajudante" subtitulo="a mesma ocorrência conta para cada ajudante da rota"
-              fatias={rkAjudante} total={r.itens}
+              fatias={rkAjudante} total={r.itens} onEscolher={recortar('ajudante')}
               vazio="Nenhum ajudante informado nos registros do período."
             />
             <Ranking
@@ -328,6 +382,14 @@ export default function AnaliseFaltasPage() {
               fatias={rkLote} total={r.itens}
               vazio={`Nenhum lote repetiu no período — cada carregamento deu no máximo uma ${nome}. `
                 + 'É o esperado; o alerta seria o contrário.'}
+            />
+          </div>
+
+          {/* ---------------- onde o par se repete ---------------- */}
+          <div className="mt-4">
+            <Cruzamento
+              dados={cruz} total={r.itens}
+              onEscolher={(motorista, placa) => setF((x) => ({ ...x, motorista, placa }))}
             />
           </div>
 
@@ -387,11 +449,22 @@ export default function AnaliseFaltasPage() {
  * O valor grande NÃO usa tabular-nums: em corpo grande, dígitos de largura
  * igual abrem buracos em volta do 1.
  */
-function Tile({ rotulo, valor, nota, Icone, destaque, estado }: {
+function Tile({ rotulo, valor, nota, Icone, destaque, estado, variacao: v, antes }: {
   rotulo: string; valor: string; nota?: string;
   Icone?: typeof Users; destaque?: boolean;
   estado?: 'ok' | 'pendente';
+  /** variação contra a janela anterior; null = antes era zero, undefined = sem período */
+  variacao?: number | null;
+  antes?: number;
 }) {
+  /**
+   * Menos falta é melhor, então a seta para BAIXO é a boa notícia — o oposto
+   * do que um painel de vendas faria. Por isso a cor vem do sinal invertido, e
+   * nunca sozinha: vem sempre com seta e com o número do período anterior.
+   */
+  const melhorou = v != null && v < 0;
+  const piorou = v != null && v > 0;
+
   return (
     <div className="painel sombra rounded-2xl px-3.5 py-3">
       <p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wide txt-fraco">
@@ -404,6 +477,19 @@ function Tile({ rotulo, valor, nota, Icone, destaque, estado }: {
         destaque && !estado && 'text-marinho-500')}>
         {valor}
       </p>
+
+      {v !== undefined && (
+        <p className={cn('mt-1 flex items-center gap-1 text-[11.5px] font-semibold',
+          melhorou && 'text-ok-600', piorou && 'text-erro-600', !melhorou && !piorou && 'txt-fraco')}>
+          {melhorou && <TrendingDown aria-hidden className="size-3" />}
+          {piorou && <TrendingUp aria-hidden className="size-3" />}
+          {v == null
+            // antes era zero: "+∞%" não diz nada, o que diz é que começou agora
+            ? <span className="txt-fraco">nada no período anterior</span>
+            : <>{v > 0 ? '+' : ''}{fmtPct(v)} <span className="txt-fraco">vs. {antes} antes</span></>}
+        </p>
+      )}
+
       {nota && <p className="mt-1 text-[11.5px] txt-fraco">{nota}</p>}
     </div>
   );

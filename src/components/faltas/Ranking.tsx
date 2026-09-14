@@ -20,7 +20,7 @@ import { cn } from '@/utils/cn';
  * O valor fica escrito ao lado da barra, sempre. O tooltip acrescenta o
  * detalhe, mas nunca é o único jeito de ler o número.
  */
-export function Ranking({ titulo, subtitulo, fatias, total, vazio, unidade = 'ocorrência' }: {
+export function Ranking({ titulo, subtitulo, fatias, total, vazio, unidade = 'ocorrência', onEscolher }: {
   titulo: string;
   subtitulo?: string;
   fatias: Fatia[];
@@ -28,6 +28,8 @@ export function Ranking({ titulo, subtitulo, fatias, total, vazio, unidade = 'oc
   total: number;
   vazio: string;
   unidade?: string;
+  /** clicar na fatia recorta a página por ela; ausente = ranking só de leitura */
+  onEscolher?: (chave: string) => void;
 }) {
   const [tabela, setTabela] = useState(false);
   /**
@@ -88,12 +90,26 @@ export function Ranking({ titulo, subtitulo, fatias, total, vazio, unidade = 'oc
           {fatias.map((f) => {
             const larg = maior ? (f.itens / maior) * 100 : 0;
             const outros = f.chave === '__outros';
-            return (
+              // "Outros" não é uma fatia: recortar por ele não quer dizer nada
+              const clicavel = Boolean(onEscolher) && !outros;
+              return (
               <li
                 key={f.chave}
-                // alvo de hover maior que a marca: a barra tem 10px, a linha 28
-                className="group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded-lg px-1 py-1 hover:bg-marinho-50/60"
-                title={`${f.rotulo}: ${f.itens} ${unidade}(s) · ${f.produtos} produto(s) · ${fmtPct(pct(f.itens, total))} do total`}
+                // alvo de clique/hover maior que a marca: a barra tem 10px, a linha 28
+                className={cn(
+                  'group grid grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 rounded-lg px-1 py-1',
+                  clicavel && 'cursor-pointer hover:bg-marinho-50/60',
+                  !clicavel && 'hover:bg-marinho-50/60',
+                )}
+                onClick={clicavel ? () => onEscolher!(f.chave) : undefined}
+                role={clicavel ? 'button' : undefined}
+                tabIndex={clicavel ? 0 : undefined}
+                onKeyDown={clicavel
+                  ? (e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onEscolher!(f.chave); } }
+                  : undefined}
+                title={clicavel
+                  ? `${f.rotulo}: ${f.itens} ${unidade}(s) · ${f.produtos} produto(s) · ${fmtPct(pct(f.itens, total))} do total — clique para recortar`
+                  : `${f.rotulo}: ${f.itens} ${unidade}(s) · ${f.produtos} produto(s) · ${fmtPct(pct(f.itens, total))} do total`}
               >
                 <span className="min-w-0">
                   <span className={cn('block truncate text-[12.5px]', outros && 'italic txt-fraco')}>
