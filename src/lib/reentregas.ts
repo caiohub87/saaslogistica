@@ -26,9 +26,19 @@ import type { Pedido } from '@/types/relatorio';
  */
 export type SituacaoReentrega = 'foto' | 'aprovacao' | 'deposito' | 'fechada';
 
+/**
+ * Repare que a situação olha `foto_em`, e não `foto`.
+ *
+ * A foto é um data:image de até 900 KB, e a listagem não a carrega — seriam
+ * dezenas de MB para desenhar uma lista em que a imagem só aparece se alguém
+ * clicar. O carimbo diz que ela existe; a imagem vem sob demanda.
+ *
+ * Os dois são gravados juntos pela função reentrega_foto, e apagados juntos:
+ * nunca há carimbo sem foto nem foto sem carimbo.
+ */
 export function situacaoDe(r: Reentrega): SituacaoReentrega {
   if (r.finalizado_em) return 'fechada';
-  if (!r.foto) return 'foto';
+  if (!r.foto_em) return 'foto';
   if (!r.aprovado_em) return 'aprovacao';
   return 'deposito';
 }

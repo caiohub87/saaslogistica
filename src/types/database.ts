@@ -329,8 +329,19 @@ export interface Ocorrencia {
   /** só falta: até 3, conforme a rota do dia */
   ajudantes: string[];
   placa: string | null;
-  /** só sobra: a foto embutida como data:image/jpeg;base64 */
+  /**
+   * Só sobra: a foto embutida como data:image/jpeg;base64.
+   *
+   * A LISTAGEM NÃO TRAZ ESTE CAMPO — são até 900 KB por linha para uma imagem
+   * que só aparece se alguém clicar. Use `tem_foto` para saber se existe, e
+   * busque esta coluna sob demanda.
+   */
   foto: string | null;
+  /**
+   * Calculada no banco (`foto is not null`), em 28_ocorrencia_tem_foto.sql.
+   * Nunca fica dessincronizada: o Postgres recusa escrevê-la à mão.
+   */
+  tem_foto: boolean;
   obs: string | null;
   registrado_por: string | null;
   registrado_por_id: string | null;

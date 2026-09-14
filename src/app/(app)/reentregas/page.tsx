@@ -42,6 +42,8 @@ export default function ReentregasPage() {
   const [carregando, setCarregando] = useState(true);
   const [salvando, setSalvando] = useState(false);
   const [ocupado, setOcupado] = useState<number | null>(null);
+  /** fotos ja buscadas, por id — a listagem nao as traz */
+  const [fotos, setFotos] = useState<Record<number, string>>({});
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
 
@@ -55,7 +57,15 @@ export default function ReentregasPage() {
     }
     const sb = getSupabase();
     if (!sb) { setErro('Banco não configurado.'); setCarregando(false); return; }
-    const { data, error } = await sb.from('reentregas').select('*')
+    // TUDO menos `foto`: ela é um data:image de até 900 KB por linha, e nesta
+    // tela só aparece se alguém clicar em "ver a foto do palete". Trazer todas
+    // para desenhar a lista são dezenas de MB no 4G do depósito. `foto_em` já
+    // diz que a foto existe; a imagem vem sob demanda em carregarFoto().
+    const { data, error } = await sb.from('reentregas')
+      .select('id,unidade,lote,paletes,lote_a_parte,clientes,peso,motorista,ajudantes,'
+        + 'pedidos,data,rota,data_prevista,obs,desfecho,registrado_por,registrado_por_id,'
+        + 'foto_por,foto_por_id,foto_em,aprovado_por,aprovado_por_id,aprovado_em,'
+        + 'finalizado_por,finalizado_por_id,finalizado_em,criado_em')
       .order('data', { ascending: false }).limit(2000);
     if (error) { setErro(error.message + dica(error.message)); setItens([]); }
     else { setItens((data ?? []) as Reentrega[]); setErro(null); }
@@ -74,10 +84,36 @@ export default function ReentregasPage() {
   /**
    * Toda transição responde a linha inteira, então dá para trocar só ela na
    * lista em vez de reconsultar tudo — o que também evita a lista "piscar".
+   *
+   * A resposta vem com a foto inclusa. Guardamos a imagem
+   * no cache e a lista fica com a linha sem ela — senão anexar uma foto
+   * devolveria para o estado da lista exatamente o peso que a consulta evita.
    */
   function trocar(r: Reentrega) {
-    setItens((l) => l.map((x) => (x.id === r.id ? r : x)));
+    const { foto, ...semFoto } = r;
+    if (foto) setFotos((m) => ({ ...m, [r.id]: foto }));
+    setItens((l) => l.map((x) => (x.id === r.id ? { ...semFoto, foto: null } : x)));
   }
+
+  /**
+   * Busca a foto de uma solicitação quando alguém pede para vê-la, e guarda.
+   * Segunda abertura da mesma não volta ao banco.
+   */
+  const carregarFoto = useCallback(async (id: number): Promise<string | null> => {
+    if (fotos[id]) return fotos[id];
+    if (demo) {
+      const { reentregasDemo } = await import('@/lib/demo');
+      const f = reentregasDemo().find((x) => x.id === id)?.foto ?? null;
+      if (f) setFotos((m) => ({ ...m, [id]: f }));
+      return f;
+    }
+    const sb = getSupabase();
+    if (!sb) return null;
+    const { data, error } = await sb.from('reentregas').select('foto').eq('id', id).single();
+    if (error || !data?.foto) return null;
+    setFotos((m) => ({ ...m, [id]: data.foto as string }));
+    return data.foto as string;
+  }, [fotos, demo]);
 
   async function chamar(
     r: Reentrega, fn: string, args: Record<string, unknown>, sucesso: string,
@@ -242,6 +278,8 @@ export default function ReentregasPage() {
           podeFinalizar={podeFinalizar}
           podeExcluir={podeExcluir}
           podeImprimir={podeImprimir}
+          fotos={fotos}
+          aoCarregarFoto={carregarFoto}
           aoFotografar={anexarFoto}
           aoAprovar={aprovar}
           aoDesaprovar={desaprovar}

@@ -170,6 +170,9 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
     validado_por: null, validado_em: null,
     criado_em: new Date().toISOString(),
     ...o,
+    // DEPOIS do spread: espelha a coluna gerada do banco, que sai da foto e
+    // nunca é escrita à mão. Antes dele, um `foto` vindo em `o` não contaria.
+    tem_foto: Boolean(o.foto),
   });
 
   /**
@@ -253,7 +256,9 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
         quantidade: 3 }),
       mk({ data: dia(-2), lote: '96501', motorista: 'RAIMUNDO NONATO', placa: 'MYY 5F67',
         quantidade: 12, produto: '65696', embalagem: '48UNID',
-        validado_por: 'Conferente (demo)', validado_em: quando(-1), obs: 'voltou sem etiqueta' }),
+        validado_por: 'Conferente (demo)', validado_em: quando(-1), obs: 'voltou sem etiqueta',
+        // a unica com foto: e o que permite exercitar o carregamento sob demanda
+        foto: FOTO_DEMO }),
       ...historico(),
     ];
 }

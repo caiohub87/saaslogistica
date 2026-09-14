@@ -119,6 +119,33 @@ export default function FaltasSobrasPage() {
   const [lendoFoto, setLendoFoto] = useState(false);
   const [ocupado, setOcupado] = useState<number | null>(null);
   const [fotoAberta, setFotoAberta] = useState<number | null>(null);
+  /** fotos ja buscadas, por id — a listagem nao as traz */
+  const [fotos, setFotos] = useState<Record<number, string>>({});
+  const [buscandoFoto, setBuscandoFoto] = useState<number | null>(null);
+
+  /**
+   * Busca a foto de um registro quando alguem pede para ve-la, e guarda.
+   * Reabrir a mesma nao volta ao banco.
+   */
+  async function abrirFoto(id: number) {
+    if (fotos[id]) { setFotoAberta(id); return; }
+    setBuscandoFoto(id);
+    if (demo) {
+      const { ocorrenciasDemo } = await import('@/lib/demo');
+      const f = ocorrenciasDemo(tipoAtivo ?? 'sobra').find((x) => x.id === id)?.foto ?? null;
+      if (f) setFotos((m) => ({ ...m, [id]: f }));
+      setBuscandoFoto(null);
+      if (f) setFotoAberta(id);
+      return;
+    }
+    const sb = getSupabase();
+    if (!sb) { setBuscandoFoto(null); return; }
+    const { data, error } = await sb.from('ocorrencias').select('foto').eq('id', id).single();
+    setBuscandoFoto(null);
+    if (error || !data?.foto) { setErro('Nao consegui carregar a foto deste registro.'); return; }
+    setFotos((m) => ({ ...m, [id]: data.foto as string }));
+    setFotoAberta(id);
+  }
   const [validando, setValidando] = useState<number | null>(null);
   const [formValida, setFormValida] = useState<LinhaProduto[]>([linhaVazia()]);
   const [busca, setBusca] = useState('');
@@ -144,7 +171,14 @@ export default function FaltasSobrasPage() {
     }
     const sb = getSupabase();
     if (!sb) { setErro('Banco não configurado.'); setCarregando(false); return; }
-    const { data, error } = await sb.from('ocorrencias').select('*')
+    // TUDO menos `foto`: ela é um data:image de até 900 KB por linha e só
+    // aparece se alguém clicar em "ver foto". Baixar todas para desenhar a
+    // lista são dezenas de MB no 4G do depósito. `tem_foto` é calculada no
+    // banco e diz se existe; a imagem vem sob demanda em carregarFoto().
+    const { data, error } = await sb.from('ocorrencias')
+      .select('id,unidade,tipo,data,lote,produtos,produto,embalagem,descricao,quantidade,'
+        + 'motorista,ajudantes,placa,tem_foto,obs,registrado_por,registrado_por_id,'
+        + 'aprovado_por,aprovado_em,validado_por,validado_em,criado_em')
       .eq('tipo', tipoAtivo).order('data', { ascending: false }).limit(2000);
     if (error) { setErro(error.message + dica(error.message)); setItens([]); }
     else { setItens((data ?? []) as Ocorrencia[]); setErro(null); }
@@ -1323,20 +1357,41 @@ export default function FaltasSobrasPage() {
                       </div>
                     )}
 
-                    {o.foto && (
-                      <button
-                        type="button" onClick={() => setFotoAberta(fotoAberta === o.id ? null : o.id)}
-                        className="mt-2 block"
-                        aria-label={fotoAberta === o.id ? 'Fechar a foto' : 'Ver a foto maior'}
-                      >
-                        <Image
-                          src={o.foto} alt={`Sobra do lote ${o.lote}`} unoptimized
-                          width={fotoAberta === o.id ? 1280 : 96}
-                          height={fotoAberta === o.id ? 960 : 96}
-                          className={cn('rounded-xl border borda',
-                            fotoAberta === o.id ? 'h-auto w-full max-w-xl' : 'size-24 object-cover')}
-                        />
-                      </button>
+                    {/*
+                      A foto vem sob demanda: a listagem não a traz (ver o
+                      comentário da consulta). Antes havia miniatura sempre
+                      visível, o que custava baixar até 900 KB por linha para
+                      desenhar 96 pixels — caro demais para a lista inteira.
+                    */}
+                    {o.tem_foto && (
+                      <div className="mt-2">
+                        {fotos[o.id] ? (
+                          <button
+                            type="button" onClick={() => setFotoAberta(fotoAberta === o.id ? null : o.id)}
+                            className="block"
+                            aria-label={fotoAberta === o.id ? 'Fechar a foto' : 'Ver a foto maior'}
+                          >
+                            <Image
+                              src={fotos[o.id]} alt={`Sobra do lote ${o.lote}`} unoptimized
+                              width={fotoAberta === o.id ? 1280 : 96}
+                              height={fotoAberta === o.id ? 960 : 96}
+                              className={cn('rounded-xl border borda',
+                                fotoAberta === o.id ? 'h-auto w-full max-w-xl' : 'size-24 object-cover')}
+                            />
+                          </button>
+                        ) : (
+                          <button
+                            type="button" onClick={() => void abrirFoto(o.id)}
+                            disabled={buscandoFoto === o.id}
+                            className="flex items-center gap-1.5 rounded-lg border borda px-2.5 py-1.5 text-[12px] font-semibold txt-fraco hover:bg-marinho-50 disabled:opacity-60"
+                          >
+                            {buscandoFoto === o.id
+                              ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                              : <Camera aria-hidden className="size-3.5" />}
+                            {buscandoFoto === o.id ? 'Carregando…' : 'Ver a foto'}
+                          </button>
+                        )}
+                      </div>
                     )}
                   </li>
                 );

@@ -34,13 +34,17 @@ const FILTROS: { id: Filtro; nome: string }[] = [
  * oferecer botão que vai dar erro.
  */
 export function Acompanhamento({
-  itens, unidade, ocupado, podeFotografar, podeAprovar, podeFinalizar, podeExcluir, podeImprimir,
+  itens, unidade, ocupado, fotos, aoCarregarFoto,
+  podeFotografar, podeAprovar, podeFinalizar, podeExcluir, podeImprimir,
   aoFotografar, aoAprovar, aoDesaprovar, aoFinalizar, aoReabrir, aoExcluir,
 }: {
   itens: Reentrega[];
   unidade: string;
   /** id da solicitação com uma ação em curso */
   ocupado: number | null;
+  /** fotos já buscadas, por id — a listagem não as traz */
+  fotos: Record<number, string>;
+  aoCarregarFoto: (id: number) => Promise<string | null>;
   podeFotografar: boolean;
   podeAprovar: boolean;
   podeFinalizar: boolean;
@@ -57,6 +61,19 @@ export function Acompanhamento({
   const [busca, setBusca] = useState('');
   const [abertas, setAbertas] = useState<Set<number>>(new Set());
   const [fotoAberta, setFotoAberta] = useState<number | null>(null);
+  const [buscandoFoto, setBuscandoFoto] = useState<number | null>(null);
+
+  /** Abre a foto, buscando-a se ainda não veio. Fechar não descarta o cache. */
+  async function abrirFoto(id: number) {
+    if (fotoAberta === id) { setFotoAberta(null); return; }
+    if (!fotos[id]) {
+      setBuscandoFoto(id);
+      await aoCarregarFoto(id);
+      setBuscandoFoto(null);
+    }
+    setFotoAberta(id);
+  }
+
   /** de qual solicitação é o seletor de arquivo aberto agora */
   const alvoFoto = useRef<Reentrega | null>(null);
   const inputFoto = useRef<HTMLInputElement>(null);
@@ -270,27 +287,37 @@ export function Acompanhamento({
                     </p>
                     {r.obs && <p className="mb-2 text-[12px]"><span className="txt-fraco">Obs.:</span> {r.obs}</p>}
 
-                    {!r.foto && (
+                    {!r.foto_em && (
                       <p className="mb-2 rounded-lg painel-2 px-3 py-2 text-[11.5px] txt-fraco">
                         {SITUACAO[s].passo}
                       </p>
                     )}
 
-                    {r.foto && (
+                    {/* `foto_em` diz que a foto existe; a imagem só é buscada
+                        quando alguém pede para vê-la (ver o comentário da
+                        consulta na página). */}
+                    {r.foto_em && (
                       <div className="mb-2">
                         <button
-                          type="button" onClick={() => setFotoAberta(fotoAberta === r.id ? null : r.id)}
+                          type="button" onClick={() => void abrirFoto(r.id)}
                           className="flex items-center gap-1.5 text-[12px] font-semibold text-marinho-500"
                         >
-                          <Camera aria-hidden className="size-3.5" />
+                          {buscandoFoto === r.id
+                            ? <Loader2 aria-hidden className="size-3.5 animate-spin" />
+                            : <Camera aria-hidden className="size-3.5" />}
                           {fotoAberta === r.id ? 'Esconder a foto do palete' : 'Ver a foto do palete'}
                         </button>
-                        {fotoAberta === r.id && (
+                        {fotoAberta === r.id && fotos[r.id] && (
                           <Image
-                            src={r.foto} alt={`Palete do lote ${r.lote}`}
+                            src={fotos[r.id]} alt={`Palete do lote ${r.lote}`}
                             width={640} height={480} unoptimized
                             className="mt-2 max-h-96 w-auto rounded-xl border borda object-contain"
                           />
+                        )}
+                        {fotoAberta === r.id && !fotos[r.id] && buscandoFoto !== r.id && (
+                          <p className="mt-2 text-[11.5px] text-erro-600">
+                            Não consegui carregar a foto deste palete.
+                          </p>
                         )}
                       </div>
                     )}
