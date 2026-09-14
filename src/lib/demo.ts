@@ -172,6 +172,61 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
     ...o,
   });
 
+  /**
+   * Um historico maior, gerado, atras dos registros escritos a mao acima.
+   *
+   * Os tres primeiros existem para exercitar CASOS (varios produtos, formato
+   * antigo, aprovada x pendente); estes existem para exercitar VOLUME — sem
+   * dezenas de linhas espalhadas por meses, a tela de analise mostra todo mundo
+   * empatado em 1 e nenhum grafico diz nada.
+   *
+   * As frequencias sao desiguais de proposito: um motorista e uma placa puxam
+   * bem mais que os outros, que e exatamente o que a analise deve destacar.
+   */
+  const historico = (): Ocorrencia[] => {
+    const MOT = ['ANTONIO CARLOS', 'JOSE RIBAMAR', 'PAULO SERGIO', 'RAIMUNDO NONATO', 'FRANCISCO DAS CHAGAS'];
+    const PLACA = ['OEY 8503', 'NQB 9732', 'NQC 2532', 'OEY 6673', 'KKK 6709'];
+    const AJU = ['EDVAN SOUSA', 'CLEITON ALVES', 'WELLINGTON DIAS', 'ROBSON LIMA', 'GILVAN COSTA'];
+    const PROD: [string, string][] = [
+      ['105702', 'CREME D COLG TOTAL 90G CLEAN MINT'],
+      ['109947', 'BISC MARILAN L 300G MANTEIGA'],
+      ['108545', 'PR LIMP AJAX DESENG COZINHA 500ML'],
+      ['108996', 'FARINHA DE TRIGO BOA SORTE 1 KG'],
+      ['110531', 'BISC MARILAN COOKIE 60G CHOCOLATE'],
+    ];
+    // peso de cada motorista/placa no sorteio: o indice 0 aparece muito mais
+    const puxa = [0, 0, 0, 0, 1, 1, 1, 2, 2, 3, 4];
+    const qtd = tipo === 'falta' ? 46 : 18;
+    return Array.from({ length: qtd }, (_, i) => {
+      const d = -7 - Math.floor((i * 233) % 250);          // espalha por ~8 meses
+      const m = puxa[(i * 7) % puxa.length];
+      const pl = puxa[(i * 5 + 2) % puxa.length];
+      const nProd = tipo === 'falta' ? 1 + ((i * 3) % 3) : 0;
+      return mk({
+        data: dia(d),
+        // poucos lotes para muitos registros: e assim que alguns REPETEM, que
+        // e o unico caso em que o ranking de lote tem o que mostrar
+        lote: String(96400 + ((i * 13) % 20)),
+        motorista: MOT[m],
+        placa: PLACA[pl],
+        ajudantes: tipo === 'falta'
+          ? [AJU[(i * 2) % AJU.length], ...(i % 3 === 0 ? [AJU[(i + 1) % AJU.length]] : [])]
+          : [],
+        produtos: Array.from({ length: nProd }, (_, k) => {
+          const [produto, descricao] = PROD[(i + k * 2) % PROD.length];
+          return { produto, embalagem: '24UNID', descricao };
+        }),
+        quantidade: tipo === 'sobra' ? 1 + ((i * 5) % 20) : null,
+        // dois tercos ja conferidos: sobra pendencia para o cartao de situacao
+        ...(i % 3
+          ? tipo === 'falta'
+            ? { aprovado_por: 'Gerência (demo)', aprovado_em: quando(d + 1) }
+            : { validado_por: 'Conferente (demo)', validado_em: quando(d + 1) }
+          : {}),
+      });
+    });
+  };
+
   return tipo === 'falta'
     ? [
       // vários produtos no mesmo registro: o caso que a lista veio resolver.
@@ -191,6 +246,7 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
         produto: '65210', embalagem: '24UNID',
         ajudantes: ['ROBSON LIMA', 'GILVAN COSTA', 'VALDENIO ANTONIO'],
         aprovado_por: 'Gerência (demo)', aprovado_em: quando(-2) }),
+      ...historico(),
     ]
     : [
       mk({ data: dia(0), lote: '96526', motorista: 'FRANCISCO DAS CHAGAS', placa: 'NQC 2532',
@@ -198,6 +254,7 @@ export function ocorrenciasDemo(tipo: TipoOcorrencia): Ocorrencia[] {
       mk({ data: dia(-2), lote: '96501', motorista: 'RAIMUNDO NONATO', placa: 'MYY 5F67',
         quantidade: 12, produto: '65696', embalagem: '48UNID',
         validado_por: 'Conferente (demo)', validado_em: quando(-1), obs: 'voltou sem etiqueta' }),
+      ...historico(),
     ];
 }
 

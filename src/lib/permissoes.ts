@@ -52,6 +52,11 @@ export const TELAS: Tela[] = [
   { chave: 'inventario', nome: 'Inventário', grupo: 'Estoque', rota: '/inventario', acoes: ['ver', 'lancar', 'excluir', 'aprovar', 'exportar'],
     descricao: 'Conferência por fornecedor, inventário de corte e posição atual item a item. '
       + '"Aprovar" era a senha do gerente (79513).', migrada: true },
+  { chave: 'faltasanalise', nome: 'Análise de faltas', grupo: 'Estoque', rota: '/faltas-analise',
+    acoes: ['ver', 'exportar'],
+    descricao: 'Quem e o quê aparecem mais em faltas e sobras — por motorista, veículo, '
+      + 'produto e ajudante. Só leitura; lê os mesmos registros de Faltas e sobras, '
+      + 'então também depende do "Ver" de lá.', migrada: true },
   { chave: 'reentregas', nome: 'Reentregas', grupo: 'Estoque', rota: '/reentregas',
     acoes: ['ver', 'lancar', 'fotografar', 'aprovar', 'finalizar', 'excluir', 'imprimir'],
     descricao: 'O palete que voltou para o depósito: solicitação, foto, aprovação e o fecho '
@@ -165,6 +170,7 @@ export const PERFIS: Perfil[] = [
       inventario: ['ver', 'lancar', 'exportar'],
       validade: ['ver', 'lancar'],
       ocorrencias: ['ver', 'lancar'],
+      faltasanalise: ['ver'],
       // quem está no depósito fotografa o palete; aprovar é de quem confere
       reentregas: ['ver', 'fotografar'],
       desempenho: ['ver'],
@@ -198,6 +204,7 @@ export const PERFIS: Perfil[] = [
       inventario: ['ver', 'lancar', 'aprovar', 'exportar'],
       validade: ['ver', 'lancar', 'excluir'],
       ocorrencias: ['ver', 'lancar', 'aprovar', 'excluir'],
+      faltasanalise: ['ver', 'exportar'],
       reentregas: ['ver', 'lancar', 'aprovar', 'finalizar', 'imprimir'],
       cadastros: ['ver', 'editar'],
       config: ['ver'],

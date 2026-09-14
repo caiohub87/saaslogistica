@@ -50,6 +50,18 @@
   --borda: rgb(15 45 80 / 0.13);
   --texto: #132c4c;
   --texto-fraco: #5d7089;
+
+  /* ---- marca de dados dos gráficos ----
+     Uma cor só: ranking de motorista/placa/produto é categoria nominal, e o
+     comprimento da barra já mostra a magnitude — pintar por valor repetiria
+     isso gastando o canal de cor.
+     O passo escuro é ESCOLHIDO, não o mesmo invertido: medido, o marinho-500
+     dá 2,49:1 sobre o painel escuro e reprovaria. O marinho-400 dá 3,92:1.
+       claro   marinho-500 sobre #ffffff  6,72:1
+       escuro  marinho-400 sobre #111e33  3,92:1  */
+  --serie: #2b5c9e;
+  /* trilho da barra: um passo fora da superfície, recessivo */
+  --grade: #e8eef7;
 }
 .escuro {
   --fundo: #0a1526;
@@ -58,6 +70,9 @@
   --borda: rgb(160 180 205 / 0.20);
   --texto: #edf5ff;
   --texto-fraco: #9fb1c8;
+
+  --serie: #4b7cbe;
+  --grade: #1d2f4a;
 }
 
 /* ---------------------------------------------------------------- movimento
