@@ -30,7 +30,7 @@ const low = (s: unknown) =>
  */
 export function Lancar({
   itens, registros, fornecedores, podeLancar, podeExcluir, demo, unidade, nomeUsuario,
-  aoSubirPdf, aoRegistrar, aoExcluirRegistro, aoDefinirFornecedor, zerados, aoAlternarZerado,
+  aoSubirPdf, aoApagarUltimoPdf, aoRegistrar, aoExcluirRegistro, aoDefinirFornecedor, zerados, aoAlternarZerado,
 }: {
   itens: ItemValidade[];
   registros: RegistroValidade[];
@@ -41,6 +41,7 @@ export function Lancar({
   unidade: string;
   nomeUsuario: string;
   aoSubirPdf: (linhas: Awaited<ReturnType<typeof lerPdfValidade>>) => Promise<string>;
+  aoApagarUltimoPdf: () => Promise<string>;
   aoRegistrar: (r: Omit<RegistroValidade, 'id' | 'criado_em'>) => Promise<string | null>;
   aoExcluirRegistro: (id: number) => Promise<string | null>;
   aoDefinirFornecedor: (produtoId: string, fornecedor: string) => Promise<string | null>;
@@ -50,6 +51,7 @@ export function Lancar({
 }) {
   const inputArquivo = useRef<HTMLInputElement>(null);
   const [lendo, setLendo] = useState('');
+  const [apagando, setApagando] = useState(false);
   const [aviso, setAviso] = useState<{ tipo: 'ok' | 'erro' | 'info'; texto: string } | null>(null);
 
   const [busca, setBusca] = useState('');
@@ -125,6 +127,20 @@ export function Lancar({
     }
   }
 
+  async function refazerUpload() {
+    if (!confirm('Apagar o último PDF e refazer? Os registros que você lançou continuam salvos.')) return;
+    setApagando(true);
+    setAviso(null);
+    try {
+      const msg = await aoApagarUltimoPdf();
+      setAviso({ tipo: 'ok', texto: msg });
+    } catch (e) {
+      setAviso({ tipo: 'erro', texto: (e as Error).message });
+    } finally {
+      setApagando(false);
+    }
+  }
+
   async function alternarZerado(produtoId: string, zerar: boolean) {
     setAviso(null);
     setOcupado(produtoId);
@@ -178,7 +194,19 @@ export function Lancar({
       {/* ---------------- upload ---------------- */}
       {podeLancar && (
         <section className="painel sombra rounded-2xl p-4">
-          <h2 className="text-[15px] font-bold">Subir a relação de validade</h2>
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-[15px] font-bold">Subir a relação de validade</h2>
+            {itens.length > 0 && (
+              <button
+                type="button" onClick={() => void refazerUpload()} disabled={apagando}
+                className="flex items-center gap-1.5 rounded-lg border borda px-2.5 py-1 text-[12px] font-semibold txt-fraco transition-colors hover:border-erro-500 hover:text-erro-600 disabled:opacity-60"
+                title="Apagar o último PDF e subir de novo"
+              >
+                {apagando ? <Loader2 aria-hidden className="size-3.5 animate-spin" /> : <X aria-hidden className="size-3.5" />}
+                {apagando ? 'Apagando…' : 'Refazer upload'}
+              </button>
+            )}
+          </div>
           <p className="mb-3 mt-1 text-[12.5px] txt-fraco">
             O PDF que o WMS gera. Ele traz o mesmo produto uma vez por endereço; aqui cada produto
             vira <b>uma linha só</b>, com o estoque somado. Subir de novo <b>atualiza</b> os números

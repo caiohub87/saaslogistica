@@ -187,6 +187,8 @@ export default function ProdutividadePage() {
    * antigas motorista/aj1/aj2 continuam preenchidas para o sistema antigo
    * seguir lendo enquanto os dois convivem. Regravar a mesma carga/data
    * substitui, em vez de duplicar.
+   *
+   * Também registra realocações quando um ajudante foi substituído por atestado.
    */
   async function salvarPremiacao() {
     if (!selecionadas.size) return;
@@ -209,6 +211,9 @@ export default function ProdutividadePage() {
         .map((p) => ({
           chave: p.chave, nome: p.display.trim(), tipo: p.tipo, cargo: p.cargo,
           valor: premioDaPessoa(premio, p.cargo, c.faixa.tier, cf.ganha),
+          nomeOriginal: p.nomeOriginal,
+          realocadoPara: p.realocadoPara,
+          realocadoEm: p.realocadoEm,
         }));
       const mot = equipe.find((p) => p.tipo === 'mot');
       const ajus = equipe.filter((p) => p.tipo === 'aju');
@@ -232,8 +237,9 @@ export default function ProdutividadePage() {
       };
     });
 
-    const { error } = await sb.from('premiacoes')
-      .upsert(linhas, { onConflict: 'unidade,data_saida,carga' });
+    const { data: premiacoesSalvas, error } = await sb.from('premiacoes')
+      .upsert(linhas, { onConflict: 'unidade,data_saida,carga' })
+      .select('id');
     setSalvando(false);
 
     if (error) {
@@ -244,6 +250,37 @@ export default function ProdutividadePage() {
             ? ' — falta a coluna equipe: rode o SQL 12_premiacao_auditoria.sql.' : ''));
       return;
     }
+
+    // registrar realocações de ajudantes na tabela premiacao_realocacoes
+    if (premiacoesSalvas && premiacoesSalvas.length > 0) {
+      const realocacoes: any[] = [];
+      [...selecionadas].forEach((id, idx) => {
+        const c = cargas.find((x) => x.id === id)!;
+        const cf = conf(c);
+        const premiacao = premiacoesSalvas[idx];
+
+        Object.values(cf.pessoas).forEach((p) => {
+          if (p.realocadoPara && p.nomeOriginal && p.realocadoEm) {
+            realocacoes.push({
+              premiacao_id: premiacao.id,
+              carga: c.id,
+              nome_original: p.nomeOriginal,
+              nome_realocado: p.realocadoPara,
+              tipo: p.tipo,
+              motivo: 'atestado/realocação',
+              realocado_por: usuario?.nome ?? 'Sistema',
+              realocado_por_id: usuario?.id,
+              realocado_em: new Date().toISOString(),
+            });
+          }
+        });
+      });
+
+      if (realocacoes.length > 0) {
+        await sb.from('premiacao_realocacoes').insert(realocacoes);
+      }
+    }
+
     setSalvo(`${linhas.length} carga(s) de ${diaAtivo.nome} salva(s). Veja em Premiações salvas.`);
     setSelecionadas(new Set());
     await buscarDiasSalvos();
@@ -497,15 +534,19 @@ export default function ProdutividadePage() {
                                   {isAgregado(p.cargo) && (
                                     <span className="rounded bg-ouro-100 px-1.5 py-0.5 text-[10px] font-bold text-ouro-700">AGREG</span>
                                   )}
-                                  {p.chave.startsWith('extra:') && (
-                                    <button
-                                      type="button" onClick={() => removerPessoa(c, p.chave)}
-                                      aria-label="Remover ajudante"
-                                      className="rounded p-0.5 text-erro-600 hover:bg-erro-500/10"
-                                    >
-                                      <X aria-hidden className="size-3.5" />
-                                    </button>
+                                  {p.realocadoPara && (
+                                    <span className="rounded bg-marinho-200 px-1.5 py-0.5 text-[10px] font-bold text-marinho-700" title={`Realocado de ${p.nomeOriginal} em ${new Date(p.realocadoEm || '').toLocaleString('pt-BR')}`}>
+                                      🔄 REALOCADO
+                                    </span>
                                   )}
+                                  <button
+                                    type="button" onClick={() => removerPessoa(c, p.chave)}
+                                    aria-label={`Remover ${p.display || p.chave}`}
+                                    className="rounded p-0.5 text-erro-600 hover:bg-erro-500/10"
+                                    title={p.nomeOriginal ? `Remove ${p.nomeOriginal} desta carga` : 'Remove este ajudante'}
+                                  >
+                                    <X aria-hidden className="size-3.5" />
+                                  </button>
                                   <span className="ml-auto text-[13px] font-bold">
                                     {cf.ganha ? fmtBRL(premioDaPessoa(premio, p.cargo, c.faixa.tier, cf.ganha)) : '—'}
                                   </span>
@@ -513,12 +554,58 @@ export default function ProdutividadePage() {
                                 <input
                                   value={p.display}
                                   placeholder={p.chave.startsWith('extra:') ? 'Nome do ajudante' : undefined}
-                                  onChange={(e) => mexer(c, (x) => ({
-                                    ...x,
-                                    pessoas: { ...x.pessoas, [p.chave]: { ...p, display: e.target.value } },
-                                  }))}
+                                  onChange={(e) => {
+                                    const novoNome = e.target.value;
+                                    const foiRealocado = p.nomeOriginal && novoNome !== p.nomeOriginal;
+                                    mexer(c, (x) => ({
+                                      ...x,
+                                      pessoas: {
+                                        ...x.pessoas,
+                                        [p.chave]: {
+                                          ...p,
+                                          display: novoNome,
+                                          realocadoPara: foiRealocado ? novoNome : undefined,
+                                          realocadoEm: foiRealocado ? new Date().toISOString() : undefined,
+                                        },
+                                      },
+                                    }));
+                                  }}
                                   className="painel mt-1.5 w-full rounded-lg border borda px-2 py-1 text-[13px] font-semibold outline-none focus:border-marinho-500"
                                 />
+
+                                {/* Botão de realocação rápida para ajudantes do relatório */}
+                                {p.nomeOriginal && !p.chave.startsWith('extra:') && (
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      const novoNome = prompt(
+                                        `Realoca ${p.nomeOriginal} para qual ajudante?\n\n(deixe vazio para remover)`,
+                                        p.display,
+                                      );
+                                      if (novoNome !== null) {
+                                        if (novoNome.trim() === '') {
+                                          removerPessoa(c, p.chave);
+                                        } else if (novoNome !== p.display) {
+                                          mexer(c, (x) => ({
+                                            ...x,
+                                            pessoas: {
+                                              ...x.pessoas,
+                                              [p.chave]: {
+                                                ...p,
+                                                display: novoNome,
+                                                realocadoPara: novoNome,
+                                                realocadoEm: new Date().toISOString(),
+                                              },
+                                            },
+                                          }));
+                                        }
+                                      }
+                                    }}
+                                    className="painel-2 mt-1.5 w-full rounded-lg border border-dashed borda px-2.5 py-1.5 text-[11.5px] font-semibold text-marinho-500 transition-colors hover:border-marinho-500 hover:bg-marinho-50"
+                                  >
+                                    📌 Realoca {p.nomeOriginal}
+                                  </button>
+                                )}
                                 <select
                                   value={p.cargo}
                                   onChange={(e) => mexer(c, (x) => ({

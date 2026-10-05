@@ -119,6 +119,39 @@ export default function ValidadePage() {
   }, [unidade]);
 
   /**
+   * Apaga o último PDF subido (pelo lido_em mais recente).
+   * Usado para "refazer" quando o PDF estava errado.
+   */
+  const apagarUltimoPdf = useCallback(async (): Promise<string> => {
+    if (demo) throw new Error('Modo de demonstração não grava no banco. Entre com seu login para lançar.');
+    const sb = getSupabase();
+    if (!sb) throw new Error('Banco não configurado.');
+
+    const { data: ultimoLido, error: e1 } = await sb
+      .from('validade_itens')
+      .select('lido_em')
+      .eq('unidade', unidade)
+      .order('lido_em', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (e1 || !ultimoLido?.lido_em) {
+      throw new Error('Não encontrei nenhum PDF anterior para apagar.');
+    }
+
+    const { error: e2 } = await sb
+      .from('validade_itens')
+      .delete()
+      .eq('unidade', unidade)
+      .eq('lido_em', ultimoLido.lido_em);
+
+    if (e2) throw new Error('Não apagou: ' + e2.message + dica(e2.message));
+
+    await carregar();
+    return 'PDF anterior apagado. Pronto para subir o correto.';
+  }, [demo, unidade, carregar]);
+
+  /**
    * Grava o retrato do PDF.
    *
    * UPSERT por (unidade, produto_id, endereco): o que veio no PDF novo tem os
@@ -288,6 +321,7 @@ export default function ValidadePage() {
           unidade={unidade}
           nomeUsuario={usuario?.nome ?? ''}
           aoSubirPdf={subirPdf}
+          aoApagarUltimoPdf={apagarUltimoPdf}
           aoRegistrar={registrar}
           aoExcluirRegistro={excluirRegistro}
           aoDefinirFornecedor={definirFornecedor}

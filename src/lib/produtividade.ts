@@ -239,6 +239,10 @@ export interface PessoaNaCarga {
   cargo: string;
   /** nome que vai para o pagamento — editável, com histórico */
   display: string;
+  // realocações por atestado
+  nomeOriginal?: string;      // nome que veio do relatório
+  realocadoPara?: string;     // se foi substituído, novo nome
+  realocadoEm?: string;       // quando foi realocado (ISO datetime)
 }
 
 export interface ConfigCarga {
@@ -256,6 +260,7 @@ export function configPadraoDaCarga(c: Carga): ConfigCarga {
       chave: c.motorista, tipo: 'mot',
       cargo: agreg ? 'Motorista Agregado' : 'Motorista de Praça',
       display: c.motorista,
+      nomeOriginal: c.motorista,
     };
   }
   c.ajudantes.forEach((a) => {
@@ -263,6 +268,7 @@ export function configPadraoDaCarga(c: Carga): ConfigCarga {
       chave: a, tipo: 'aju',
       cargo: agreg ? 'Ajudante de Praça (Agregado)' : 'Ajudante de Praça',
       display: a,
+      nomeOriginal: a,
     };
   });
   return { ganha: true, pessoas };
