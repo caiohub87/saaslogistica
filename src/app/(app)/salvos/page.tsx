@@ -32,6 +32,7 @@ interface Premiacao {
   prod_final: number | null; faixa: string | null; pagar: boolean;
   valor_mot: number; valor_aj1: number; valor_aj2: number;
   equipe: MembroEquipe[] | null;
+  justificativa?: string | null;
   created_at: string;
 }
 interface Alteracao {
@@ -52,6 +53,8 @@ function segundaDa(d: string): string {
   return `${s.getFullYear()}-${String(s.getMonth() + 1).padStart(2, '0')}-${String(s.getDate()).padStart(2, '0')}`;
 }
 const fmtISO = (s: string) => (s ? fmtDataBR(s) : '—');
+const isoLocal = (d: Date) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 export default function SalvosPage() {
   const { pode, demo, usuario } = useSessao();
@@ -115,11 +118,20 @@ export default function SalvosPage() {
   }, [linhas]);
 
   const semanaAtiva = semana || semanas[0] || '';
-  const daSemana = useMemo(
-    () => linhas.filter((l) => segundaDa(l.data_saida) === semanaAtiva)
-      .sort((a, b) => (iso(a.data_saida) < iso(b.data_saida) ? -1 : 1)),
-    [linhas, semanaAtiva],
-  );
+  // com período escolhido, ele substitui a semana: um intervalo pode atravessar várias
+  const porPeriodo = !!(dataInicio || dataFim);
+  const daSemana = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+    return linhas
+      .filter((l) => {
+        const d = iso(l.data_saida);
+        if (!porPeriodo) return segundaDa(l.data_saida) === semanaAtiva;
+        return (!dataInicio || d >= dataInicio) && (!dataFim || d <= dataFim);
+      })
+      .filter((l) => !q || l.carga.toLowerCase().includes(q)
+        || equipeDe(l).some((m) => m.nome.toLowerCase().includes(q)))
+      .sort((a, b) => (iso(a.data_saida) < iso(b.data_saida) ? -1 : 1));
+  }, [linhas, semanaAtiva, porPeriodo, dataInicio, dataFim, busca]);
 
   /**
    * Produtividade da semana = MEDIA das produtividades dos dias.
@@ -193,48 +205,16 @@ export default function SalvosPage() {
     });
   }
 
-  /** Aplica atalhos de data */
-  function aplicarAtalho(dias: number) {
-    const fim = new Date();
-    const inicio = new Date();
-    inicio.setDate(fim.getDate() - dias);
-    setDataInicio(fmtDataBR(inicio.toISOString().split('T')[0]));
-    setDataFim(fmtDataBR(fim.toISOString().split('T')[0]));
+  /** Atalhos de período. O input type=date só aceita 'aaaa-mm-dd' em horário local. */
+  function aplicarAtalho(tipo: '7' | '30' | 'mes') {
+    const hoje = new Date();
+    const inicio = new Date(hoje);
+    if (tipo === 'mes') inicio.setDate(1);
+    else inicio.setDate(hoje.getDate() - Number(tipo));
+    setDataInicio(isoLocal(inicio));
+    setDataFim(isoLocal(hoje));
+    setMarcadas(new Set());
   }
-
-  /** Formata data para ISO e filtra */
-  const linhasFiltradas = useMemo(() => {
-    let resultado = linhas;
-
-    // filtro de data
-    if (dataInicio || dataFim) {
-      resultado = resultado.filter((l) => {
-        const d = l.data_saida;
-        if (dataInicio) {
-          const ini = paraISO(dataInicio);
-          if (ini && d < ini) return false;
-        }
-        if (dataFim) {
-          const fim = paraISO(dataFim);
-          if (fim && d > fim) return false;
-        }
-        return true;
-      });
-    }
-
-    // filtro de busca
-    if (busca.trim()) {
-      const q = busca.trim().toLowerCase();
-      resultado = resultado.filter((l) => {
-        const equipe = equipeDe(l);
-        return l.carga.toLowerCase().includes(q)
-          || equipe.some((m) => m.nome.toLowerCase().includes(q))
-          || (l.motorista?.toLowerCase() ?? '').includes(q);
-      });
-    }
-
-    return resultado;
-  }, [linhas, dataInicio, dataFim, busca]);
 
   /**
    * Tira do banco as cargas marcadas — conserto de quem gravou a premiação no
@@ -281,7 +261,7 @@ export default function SalvosPage() {
   function abrirEdicao(p: Premiacao) {
     setEditando(p.id);
     setRascunho(equipeDe(p).map((m) => ({ ...m, pago: (m.valor ?? 0) > 0 })));
-    setMotivo('');
+    setMotivo(''); setMotivoPredef('');
     setMsg(null); setErro(null);
   }
 
@@ -329,6 +309,17 @@ export default function SalvosPage() {
     });
 
     if (!mudancas.length) { setEditando(null); return; }
+
+    // zerar alguém mexe no bolso da pessoa: sem motivo escrito, ninguém lembra
+    // depois por que aquele valor sumiu
+    const zerados = rascunho.filter((n) => {
+      const v = antes.find((a) => a.chave === n.chave);
+      return v && (v.valor ?? 0) > 0 && (n.valor ?? 0) === 0;
+    });
+    if (zerados.length && !motivo.trim()) {
+      setErro(`Informe o motivo para zerar ${zerados.map((z) => z.nome).join(', ')}.`);
+      return;
+    }
     if (demo) { setErro('Modo de demonstração não grava no banco.'); return; }
 
     const sb = getSupabase();
@@ -363,10 +354,17 @@ export default function SalvosPage() {
       valor_mot: mot?.valor ?? 0,
       valor_aj1: ajus[0]?.valor ?? 0,
       valor_aj2: ajus[1]?.valor ?? 0,
+      ...(zerados.length ? {
+        justificativa: `${zerados.map((z) => z.nome).join(', ')}: ${motivo.trim()}`,
+      } : {}),
     }).eq('id', p.id);
     setSalvando(false);
 
-    if (error) { setErro('Não salvou: ' + error.message); return; }
+    if (error) {
+      setErro('Não salvou: ' + error.message
+        + (/justificativa/i.test(error.message) ? ' — rode o SQL 30_premiacao_justificativa.sql.' : ''));
+      return;
+    }
     setMsg(`${mudancas.length} alteração(ões) registrada(s).`);
     setEditando(null);
     setHistorico((h) => { const n = { ...h }; delete n[p.id]; return n; });
@@ -423,27 +421,22 @@ export default function SalvosPage() {
                 type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
                 className="painel-2 rounded-lg border borda px-2 py-1.5 text-[12.5px]"
               />
-              <button
-                type="button" onClick={() => { setDataInicio(''); setDataFim(''); }}
-                className="rounded-lg border borda px-2 py-1 text-[12px] txt-fraco hover:bg-marinho-50"
-              >
-                Limpar datas
-              </button>
-              <span className="ml-2 flex gap-1 text-[11px] txt-fraco">
-                Ou:
-                {[
-                  { label: 'Últimos 7 dias', dias: 7 },
-                  { label: '30 dias', dias: 30 },
-                  { label: 'Este mês', dias: new Date().getDate() - 1 },
-                ].map((a) => (
-                  <button
-                    key={a.dias} type="button" onClick={() => aplicarAtalho(a.dias)}
-                    className="rounded px-1.5 hover:bg-marinho-50"
-                  >
-                    {a.label}
-                  </button>
-                ))}
-              </span>
+              {([['7', 'Últimos 7 dias'], ['30', 'Últimos 30 dias'], ['mes', 'Este mês']] as const).map(([t, nome]) => (
+                <button
+                  key={t} type="button" onClick={() => aplicarAtalho(t)}
+                  className="rounded-lg border borda px-2 py-1 text-[12px] font-semibold txt-fraco hover:bg-marinho-50"
+                >
+                  {nome}
+                </button>
+              ))}
+              {porPeriodo && (
+                <button
+                  type="button" onClick={() => { setDataInicio(''); setDataFim(''); setMarcadas(new Set()); }}
+                  className="flex items-center gap-1 rounded-lg px-2 py-1 text-[12px] font-semibold text-erro-600 hover:bg-erro-500/10"
+                >
+                  <X aria-hidden className="size-3.5" /> Voltar à semana
+                </button>
+              )}
             </div>
 
             <div className="relative min-w-52">
@@ -458,19 +451,31 @@ export default function SalvosPage() {
 
           <section className="painel sombra mb-4 rounded-2xl p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
-              <label className="text-[12.5px] font-semibold">Semana de</label>
-              <select
-                value={semanaAtiva}
-                onChange={(e) => { setSemana(e.target.value); setAberta(null); setMarcadas(new Set()); }}
-                className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
-              >
-                {semanas.map((s) => <option key={s} value={s}>{fmtISO(s)}</option>)}
-              </select>
-              <span className="text-[12px] txt-fraco">{linhasFiltradas.length} carga(s) · {dias.length} dia(s)</span>
+              {porPeriodo ? (
+                <span className="text-[12.5px] font-semibold">
+                  Período {dataInicio ? fmtISO(dataInicio) : 'início'} a {dataFim ? fmtISO(dataFim) : 'hoje'}
+                </span>
+              ) : (
+                <>
+                  <label className="text-[12.5px] font-semibold">Semana de</label>
+                  <select
+                    value={semanaAtiva}
+                    onChange={(e) => { setSemana(e.target.value); setAberta(null); setMarcadas(new Set()); }}
+                    className="painel-2 rounded-lg border borda px-2.5 py-1.5 text-[12.5px]"
+                  >
+                    {semanas.map((s) => <option key={s} value={s}>{fmtISO(s)}</option>)}
+                  </select>
+                </>
+              )}
+              <span className="text-[12px] txt-fraco">{daSemana.length} carga(s) · {dias.length} dia(s)</span>
               {podeExportar && (
                 <button
-                  type="button" onClick={() => void gerarRelatorioCaju()} disabled={gerandoCaju}
-                  title="Excel com NOME e SALDO: o que cada pessoa juntou nesta semana"
+                  type="button" onClick={() => void gerarRelatorioCaju()}
+                  // o caju vira pagamento: exportar com busca ou período deixaria gente de fora
+                  disabled={gerandoCaju || porPeriodo || !!busca.trim()}
+                  title={porPeriodo || busca.trim()
+                    ? 'Limpe a busca e volte à semana para exportar — o caju é sempre da semana inteira'
+                    : 'Excel com NOME e SALDO: o que cada pessoa juntou nesta semana'}
                   className="ml-auto flex items-center gap-1.5 rounded-lg border borda px-3 py-1.5 text-[12.5px] font-semibold disabled:opacity-60"
                 >
                   {gerandoCaju
@@ -609,6 +614,11 @@ export default function SalvosPage() {
                           </span>
                         ))}
                         {!equipe.length && <span>Sem equipe registrada.</span>}
+                        {p.justificativa && (
+                          <span className="basis-full rounded-lg bg-ouro-100 px-2 py-1 text-[12px] font-semibold text-ouro-700">
+                            Zerado — {p.justificativa}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className="mt-3 border-t borda pt-3">
@@ -645,12 +655,12 @@ export default function SalvosPage() {
                                   <button
                                     type="button" onClick={() => alternarPagamento(p, i)}
                                     title={m.pago
-                                      ? 'Zera só esta pessoa — chegou depois das 17:30'
+                                      ? 'Zera só esta pessoa — o motivo é obrigatório'
                                       : 'Volta a pagar o valor do cargo'}
                                     className={cn('rounded-lg border px-2 py-1 text-[11.5px] font-semibold',
                                       m.pago ? 'borda text-ouro-700 hover:bg-ouro-100' : 'border-ok-500 text-ok-600 hover:bg-ok-500/10')}
                                   >
-                                    {m.pago ? 'Zerar (após 17:30)' : 'Voltar a pagar'}
+                                    {m.pago ? 'Zerar' : 'Voltar a pagar'}
                                   </button>
                                 </div>
                               </div>

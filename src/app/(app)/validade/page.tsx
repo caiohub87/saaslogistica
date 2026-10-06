@@ -165,6 +165,8 @@ export default function ValidadePage() {
     const sb = getSupabase();
     if (!sb) throw new Error('Banco não configurado.');
 
+    // um carimbo só para o upload inteiro: é por ele que "Refazer upload" acha o lote
+    const lidoEm = new Date().toISOString();
     const { error } = await sb.from('validade_itens').upsert(
       linhas.map((l) => ({
         unidade,
@@ -177,7 +179,7 @@ export default function ValidadePage() {
         validade: l.validade,
         dias: l.dias,
         observacao: l.observacao || null,
-        lido_em: new Date().toISOString(),
+        lido_em: lidoEm,
       })),
       { onConflict: 'unidade,produto_id,endereco' },
     );
