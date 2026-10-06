@@ -1,7 +1,7 @@
 'use client';
 
 import {
-  Archive, ChevronDown, ChevronRight, FileDown, History, Loader2, Pencil, Save, Trash2,
+  Archive, ChevronDown, ChevronRight, FileDown, History, Loader2, Pencil, Save, Search, Trash2,
   TrendingUp, X,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -73,7 +73,13 @@ export default function SalvosPage() {
   const [editando, setEditando] = useState<number | null>(null);
   const [rascunho, setRascunho] = useState<MembroRascunho[]>([]);
   const [motivo, setMotivo] = useState('');
+  const [motivoPredef, setMotivoPredef] = useState('');
   const [salvando, setSalvando] = useState(false);
+  // filtros de data
+  const [dataInicio, setDataInicio] = useState('');
+  const [dataFim, setDataFim] = useState('');
+  // busca
+  const [busca, setBusca] = useState('');
 
   const carregar = useCallback(async () => {
     if (demo) {
@@ -186,6 +192,49 @@ export default function SalvosPage() {
       return n;
     });
   }
+
+  /** Aplica atalhos de data */
+  function aplicarAtalho(dias: number) {
+    const fim = new Date();
+    const inicio = new Date();
+    inicio.setDate(fim.getDate() - dias);
+    setDataInicio(fmtDataBR(inicio.toISOString().split('T')[0]));
+    setDataFim(fmtDataBR(fim.toISOString().split('T')[0]));
+  }
+
+  /** Formata data para ISO e filtra */
+  const linhasFiltradas = useMemo(() => {
+    let resultado = linhas;
+
+    // filtro de data
+    if (dataInicio || dataFim) {
+      resultado = resultado.filter((l) => {
+        const d = l.data_saida;
+        if (dataInicio) {
+          const ini = paraISO(dataInicio);
+          if (ini && d < ini) return false;
+        }
+        if (dataFim) {
+          const fim = paraISO(dataFim);
+          if (fim && d > fim) return false;
+        }
+        return true;
+      });
+    }
+
+    // filtro de busca
+    if (busca.trim()) {
+      const q = busca.trim().toLowerCase();
+      resultado = resultado.filter((l) => {
+        const equipe = equipeDe(l);
+        return l.carga.toLowerCase().includes(q)
+          || equipe.some((m) => m.nome.toLowerCase().includes(q))
+          || (l.motorista?.toLowerCase() ?? '').includes(q);
+      });
+    }
+
+    return resultado;
+  }, [linhas, dataInicio, dataFim, busca]);
 
   /**
    * Tira do banco as cargas marcadas — conserto de quem gravou a premiação no
@@ -361,6 +410,52 @@ export default function SalvosPage() {
         </div>
       ) : (
         <>
+          {/* filtros de data e busca */}
+          <section className="painel sombra mb-4 rounded-2xl p-4">
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <label className="text-[12.5px] font-semibold">Período</label>
+              <input
+                type="date" value={dataInicio} onChange={(e) => setDataInicio(e.target.value)}
+                className="painel-2 rounded-lg border borda px-2 py-1.5 text-[12.5px]"
+              />
+              <span className="text-[12px] txt-fraco">até</span>
+              <input
+                type="date" value={dataFim} onChange={(e) => setDataFim(e.target.value)}
+                className="painel-2 rounded-lg border borda px-2 py-1.5 text-[12.5px]"
+              />
+              <button
+                type="button" onClick={() => { setDataInicio(''); setDataFim(''); }}
+                className="rounded-lg border borda px-2 py-1 text-[12px] txt-fraco hover:bg-marinho-50"
+              >
+                Limpar datas
+              </button>
+              <span className="ml-2 flex gap-1 text-[11px] txt-fraco">
+                Ou:
+                {[
+                  { label: 'Últimos 7 dias', dias: 7 },
+                  { label: '30 dias', dias: 30 },
+                  { label: 'Este mês', dias: new Date().getDate() - 1 },
+                ].map((a) => (
+                  <button
+                    key={a.dias} type="button" onClick={() => aplicarAtalho(a.dias)}
+                    className="rounded px-1.5 hover:bg-marinho-50"
+                  >
+                    {a.label}
+                  </button>
+                ))}
+              </span>
+            </div>
+
+            <div className="relative min-w-52">
+              <Search aria-hidden className="pointer-events-none absolute left-2.5 top-1/2 size-3.5 -translate-y-1/2 txt-fraco" />
+              <input
+                value={busca} onChange={(e) => setBusca(e.target.value)}
+                placeholder="Buscar: nome, motorista, carga..."
+                className="painel-2 w-full rounded-lg border borda py-1.5 pl-8 pr-2.5 text-[12.5px] outline-none focus:border-marinho-500"
+              />
+            </div>
+          </section>
+
           <section className="painel sombra mb-4 rounded-2xl p-4">
             <div className="mb-3 flex flex-wrap items-center gap-2">
               <label className="text-[12.5px] font-semibold">Semana de</label>
@@ -371,7 +466,7 @@ export default function SalvosPage() {
               >
                 {semanas.map((s) => <option key={s} value={s}>{fmtISO(s)}</option>)}
               </select>
-              <span className="text-[12px] txt-fraco">{daSemana.length} carga(s) · {dias.length} dia(s)</span>
+              <span className="text-[12px] txt-fraco">{linhasFiltradas.length} carga(s) · {dias.length} dia(s)</span>
               {podeExportar && (
                 <button
                   type="button" onClick={() => void gerarRelatorioCaju()} disabled={gerandoCaju}
@@ -562,16 +657,35 @@ export default function SalvosPage() {
                             );
                           })}
                         </div>
-                        <label className="mt-2 block">
-                          <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">
-                            Motivo do reajuste (opcional, entra no registro)
-                          </span>
-                          <input
-                            value={motivo} onChange={(e) => setMotivo(e.target.value)}
-                            placeholder="ex.: nome veio abreviado do ERP"
-                            className="painel-2 w-full rounded-lg border borda px-2 py-1.5 text-[12.5px] outline-none focus:border-marinho-500"
-                          />
-                        </label>
+                        <div className="mt-2 space-y-2">
+                          <div>
+                            <span className="mb-1 block text-[11.5px] font-semibold txt-fraco">
+                              Motivo do reajuste (opcional, entra no registro)
+                            </span>
+                            <select
+                              value={motivoPredef} onChange={(e) => {
+                                const val = e.target.value;
+                                setMotivoPredef(val);
+                                if (val !== 'outro') setMotivo(val);
+                              }}
+                              className="painel-2 w-full rounded-lg border borda px-2 py-1.5 text-[12.5px] outline-none focus:border-marinho-500"
+                            >
+                              <option value="">Sem motivo pré-definido</option>
+                              <option value="Canhotos não entregues">Canhotos não entregues</option>
+                              <option value="Falta documentação">Falta documentação</option>
+                              <option value="Chegou após 17:30">Chegou após 17:30</option>
+                              <option value="Problema com rota">Problema com rota</option>
+                              <option value="outro">Outro (especificar abaixo)</option>
+                            </select>
+                          </div>
+                          {motivoPredef === 'outro' && (
+                            <input
+                              value={motivo} onChange={(e) => setMotivo(e.target.value)}
+                              placeholder="Descreva o motivo..."
+                              className="painel-2 w-full rounded-lg border borda px-2 py-1.5 text-[12.5px] outline-none focus:border-marinho-500"
+                            />
+                          )}
+                        </div>
                         <div className="mt-2 flex items-center gap-2">
                           <button
                             type="button" onClick={() => void salvarEdicao(p)} disabled={salvando}
