@@ -1,10 +1,11 @@
 'use client';
 
-import { BarChart3, DoorOpen, Loader2, Package, Printer } from 'lucide-react';
+import { BarChart3, ClipboardCheck, DoorOpen, Loader2, Package, Printer } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Cadastro, type FormImpressora, type FormSala } from '@/components/toners/Cadastro';
 import { Consumo } from '@/components/toners/Consumo';
+import { PrestarContas } from '@/components/toners/PrestarContas';
 import { Trocas, type FormTroca } from '@/components/toners/Trocas';
 import { getSupabase } from '@/lib/supabase';
 import { comDuracao, dica, type TrocaComDuracao } from '@/lib/toners';
@@ -41,6 +42,7 @@ export default function TonersPage() {
   const [ocupadoCad, setOcupadoCad] = useState<string | null>(null);
   const [erro, setErro] = useState<string | null>(null);
   const [msg, setMsg] = useState<string | null>(null);
+  const [prestando, setPrestando] = useState(false);
 
   const carregar = useCallback(async () => {
     setCarregando(true);
@@ -218,15 +220,34 @@ export default function TonersPage() {
 
   return (
     <div className="motion-safe:animate-entrada">
-      <header className="mb-4">
-        <h1 className="flex items-center gap-2 text-xl font-bold">
-          <Printer aria-hidden className="size-5 text-marinho-500" />
-          Toners
-        </h1>
-        <p className="mt-1 text-sm txt-fraco">
-          Para onde vai cada toner e quanto tempo ele dura, por sala e por impressora.
-        </p>
+      <header className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="flex items-center gap-2 text-xl font-bold">
+            <Printer aria-hidden className="size-5 text-marinho-500" />
+            Toners
+          </h1>
+          <p className="mt-1 text-sm txt-fraco">
+            Para onde vai cada toner e quanto tempo ele dura, por sala e por impressora.
+          </p>
+        </div>
+        {!carregando && (
+          <button
+            type="button" onClick={() => setPrestando((v) => !v)} aria-pressed={prestando}
+            className="flex items-center gap-2 rounded-xl bg-marinho-800 px-3.5 py-2 text-[13px] font-semibold text-white"
+          >
+            <ClipboardCheck aria-hidden className="size-4" />
+            Prestar contas
+          </button>
+        )}
       </header>
+
+      {prestando && !carregando && (
+        <PrestarContas
+          trocas={comDur} salas={salas} impressoras={impressoras}
+          unidade={usuario?.unidade ?? ''} responsavel={usuario?.nome ?? ''}
+          aoFechar={() => setPrestando(false)}
+        />
+      )}
 
       <div className="mb-4 flex flex-wrap gap-1.5">
         {abas.map((a) => (
