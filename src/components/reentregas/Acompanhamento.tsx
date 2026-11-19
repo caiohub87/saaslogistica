@@ -142,7 +142,7 @@ export function Acompanhamento({
             aria-pressed={filtro === f.id}
             className={cn(
               'rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors',
-              filtro === f.id ? 'bg-marinho-800 text-white' : 'painel-2 txt-fraco hover:bg-marinho-50',
+              filtro === f.id ? 'aba aba-on' : 'aba aba-off painel-2 txt-fraco',
             )}
           >
             {f.nome} <span className="opacity-70">{contar(f.id)}</span>

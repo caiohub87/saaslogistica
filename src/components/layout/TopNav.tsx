@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
 
+import { useTema } from '@/hooks/useTema';
 import { TELAS, TELA_POR_CHAVE } from '@/lib/permissoes';
 import { useSessao } from '@/providers/SessionProvider';
 import { cn } from '@/utils/cn';
@@ -34,21 +35,8 @@ export function TopNav() {
    */
   const [posMenu, setPosMenu] = useState<{ left: number; top: number } | null>(null);
   const [menuUsuario, setMenuUsuario] = useState(false);
-  const [escuro, setEscuro] = useState(false);
+  const { escuro, alternar: alternarTema } = useTema();
   const navRef = useRef<HTMLElement>(null);
-
-  // tema: lembra a escolha entre visitas
-  useEffect(() => {
-    const salvo = localStorage.getItem('gl:tema') === 'escuro';
-    setEscuro(salvo);
-    document.documentElement.classList.toggle('escuro', salvo);
-  }, []);
-  function alternarTema() {
-    const novo = !escuro;
-    setEscuro(novo);
-    document.documentElement.classList.toggle('escuro', novo);
-    localStorage.setItem('gl:tema', novo ? 'escuro' : 'claro');
-  }
 
   // fecha os menus ao clicar fora ou apertar Esc
   useEffect(() => {
@@ -91,18 +79,18 @@ export function TopNav() {
     ?? visiveis.filter((t) => t.rota !== '/' && caminho.startsWith(t.rota)).sort((a, b) => b.rota.length - a.rota.length)[0];
 
   return (
-    <header ref={navRef} className="sticky top-0 z-40 painel border-b sombra">
+    <header ref={navRef} className="vidro sticky top-0 z-40 border-b borda lg:hidden">
       <div className="mx-auto flex max-w-[1600px] items-center gap-3 px-4 py-2.5">
         <Link href="/" className="flex shrink-0 items-center gap-2.5" aria-label="Ir para o início">
-          <Image src="/dilnor-logo.png" alt="" width={34} height={34} className="rounded-lg bg-white p-0.5" priority />
+          <Image src="/dilnor-logo.png" alt="" width={36} height={36} className="rounded-xl bg-white p-1 ring-1 ring-black/5 sombra" priority />
           <span className="hidden leading-tight sm:block">
-            <span className="block text-[13px] font-bold tracking-tight">Gestão Logística</span>
+            <span className="block text-[13.5px] font-semibold tracking-tight">Gestão Logística</span>
             <span className="block text-[11px] txt-fraco">{usuario?.unidade}</span>
           </span>
         </Link>
 
         {/* ---- abas por grupo ---- */}
-        <nav aria-label="Navegação principal" className="sem-barra -mx-1 flex flex-1 items-center gap-1 overflow-x-auto px-1">
+        <nav aria-label="Navegação principal" className="sem-barra -mx-1 flex flex-1 items-center gap-0.5 overflow-x-auto px-1 sm:ml-3">
           {grupos.map((g) => {
             const unico = g.telas.length === 1;
             const ativo = g.telas.some((t) => t.chave === telaAtual?.chave);
@@ -147,8 +135,8 @@ export function TopNav() {
                   key={g.nome}
                   href={t.rota}
                   className={cn(
-                    'whitespace-nowrap rounded-lg px-3 py-2 text-[13.5px] font-semibold transition-colors',
-                    ativo ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50 hover:text-marinho-800',
+                    'whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-colors',
+                    ativo ? 'aba-ativa' : 'txt-fraco hover:bg-[var(--painel-2)] hover:text-[var(--texto)]',
                   )}
                 >
                   {t.nome}
@@ -169,8 +157,8 @@ export function TopNav() {
                     setAberto(g.nome);
                   }}
                   className={cn(
-                    'flex items-center gap-1 whitespace-nowrap rounded-lg px-3 py-2 text-[13.5px] font-semibold transition-colors',
-                    ativo ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50 hover:text-marinho-800',
+                    'flex items-center gap-1 whitespace-nowrap rounded-full px-3.5 py-1.5 text-[13.5px] font-medium transition-colors',
+                    ativo ? 'aba-ativa' : 'txt-fraco hover:bg-[var(--painel-2)] hover:text-[var(--texto)]',
                   )}
                 >
                   {g.nome}
@@ -181,7 +169,7 @@ export function TopNav() {
                   <div
                     role="menu"
                     style={{ position: 'fixed', left: posMenu.left, top: posMenu.top }}
-                    className="painel sombra-lg z-50 min-w-64 rounded-xl p-1.5 motion-safe:animate-abrir"
+                    className="painel sombra-lg z-50 min-w-72 rounded-2xl p-1.5 motion-safe:animate-abrir"
                   >
                     {g.telas.map((t) => t.migrada ? (
                       <Link
@@ -190,7 +178,7 @@ export function TopNav() {
                         role="menuitem"
                         className={cn(
                           'block rounded-lg px-3 py-2 transition-colors',
-                          t.chave === telaAtual?.chave ? 'bg-marinho-50 text-marinho-800' : 'hover:bg-marinho-50',
+                          t.chave === telaAtual?.chave ? 'aba-ativa' : 'hover:bg-[var(--painel-2)]',
                         )}
                       >
                         <span className="block text-[13.5px] font-semibold">{t.nome}</span>
@@ -222,7 +210,7 @@ export function TopNav() {
           type="button"
           onClick={alternarTema}
           aria-label={escuro ? 'Usar tema claro' : 'Usar tema escuro'}
-          className="flex size-9 shrink-0 items-center justify-center rounded-lg txt-fraco transition-colors hover:bg-marinho-50 hover:text-marinho-800"
+          className="flex size-9 shrink-0 items-center justify-center rounded-full border borda txt-fraco transition-colors hover:bg-[var(--painel-2)] hover:text-[var(--texto)]"
         >
           {escuro ? <Moon aria-hidden className="size-4.5" /> : <Sun aria-hidden className="size-4.5" />}
         </button>
@@ -234,9 +222,9 @@ export function TopNav() {
             aria-expanded={menuUsuario}
             aria-haspopup="menu"
             onClick={() => setMenuUsuario((v) => !v)}
-            className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-marinho-50"
+            className="flex items-center gap-2 rounded-full py-1 pl-1 pr-2.5 transition-colors hover:bg-[var(--painel-2)]"
           >
-            <span className="flex size-8 items-center justify-center rounded-full bg-marinho-800 text-[12px] font-bold text-white">
+            <span className="flex size-8 items-center justify-center rounded-full bg-gradient-to-br from-marinho-500 to-marinho-900 text-[11.5px] font-semibold text-white ring-2 ring-[var(--painel)] sombra">
               {(usuario?.nome ?? '?').slice(0, 2).toUpperCase()}
             </span>
             <span className="hidden text-left leading-tight lg:block">
@@ -247,7 +235,7 @@ export function TopNav() {
           </button>
 
           {menuUsuario && (
-            <div role="menu" className="painel sombra-lg absolute right-0 top-[calc(100%+6px)] z-50 min-w-56 rounded-xl p-1.5 motion-safe:animate-abrir">
+            <div role="menu" className="painel sombra-lg absolute right-0 top-[calc(100%+6px)] z-50 min-w-60 rounded-2xl p-1.5 motion-safe:animate-abrir">
               <div className="border-b borda px-3 py-2">
                 <p className="text-[13.5px] font-semibold">{usuario?.nome}</p>
                 <p className="text-[11.5px] txt-fraco">
@@ -276,7 +264,7 @@ export function TopNav() {
 
       {/* trilha da tela atual — ajuda a não se perder com muitas telas */}
       {telaAtual && (
-        <div className="border-t borda painel-2">
+        <div className="border-t borda">
           <div className="mx-auto flex max-w-[1600px] items-center gap-2 px-4 py-1.5 text-[12px] txt-fraco">
             <span>{telaAtual.grupo}</span>
             <span aria-hidden>›</span>

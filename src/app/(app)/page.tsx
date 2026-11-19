@@ -1,6 +1,9 @@
 'use client';
 
-import { ArrowRight, CalendarClock, Construction, Package, Target, TrendingUp } from 'lucide-react';
+import {
+  ArrowRight, Boxes, CalendarClock, ClipboardList, Construction, LayoutGrid, Package, Settings2, Target,
+  TrendingUp, Users,
+} from 'lucide-react';
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 
@@ -54,7 +57,13 @@ export default function InicioPage() {
   const prontas = liberadas.filter((t) => t.migrada);
   const emBreve = liberadas.filter((t) => !t.migrada);
 
-  const hora = new Date().getHours();
+  const agora = new Date();
+  const hora = agora.getHours();
+  // "quinta-feira, 19 de novembro" -> só a primeira letra maiúscula
+  const hojeExtenso = (() => {
+    const t = agora.toLocaleDateString('pt-BR', { weekday: 'long', day: 'numeric', month: 'long' });
+    return t.charAt(0).toUpperCase() + t.slice(1);
+  })();
   const saudacao = hora < 12 ? 'Bom dia' : hora < 18 ? 'Boa tarde' : 'Boa noite';
 
   // ---------- produtividade por dia ----------
@@ -91,13 +100,32 @@ export default function InicioPage() {
 
   return (
     <div className="motion-safe:animate-entrada">
-      <header className="mb-5">
-        <h1 className="text-2xl font-bold">{saudacao}, {usuario?.nome.split(' ')[0]}</h1>
-        <p className="mt-1 text-sm txt-fraco">
-          {liberadas.length
-            ? `Você tem acesso a ${liberadas.length} tela(s) — ${prontas.length} já disponível(is) aqui.`
-            : 'Você ainda não tem nenhuma tela liberada. Procure o administrador.'}
-        </p>
+      {/* banner de boas-vindas: a peça de maior peso visual da tela */}
+      <header className="relative mb-6 overflow-hidden rounded-3xl px-6 py-7 text-white sm:px-8 sm:py-9"
+        style={{ background: 'linear-gradient(120deg, #141c4d 0%, #2433a6 55%, #3d63f0 100%)' }}>
+        <div aria-hidden className="pointer-events-none absolute -right-16 -top-24 size-80 rounded-full bg-white/10 blur-2xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-28 right-40 size-72 rounded-full bg-ouro-400/25 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.08]"
+          style={{ backgroundImage: 'radial-gradient(white 1px, transparent 1px)', backgroundSize: '18px 18px' }} />
+        <div className="relative">
+          <p className="text-[13px] font-medium text-white/70">{hojeExtenso}</p>
+          <h1 className="mt-1 text-[30px] font-bold leading-tight tracking-tight sm:text-[34px]">
+            {saudacao}, {usuario?.nome.split(' ')[0]} <span aria-hidden>👋</span>
+          </h1>
+          <p className="mt-2 max-w-xl text-[14.5px] text-white/75">
+            {liberadas.length
+              ? `Você tem acesso a ${liberadas.length} telas — ${prontas.length} já disponíveis aqui. Escolha por onde começar.`
+              : 'Você ainda não tem nenhuma tela liberada. Procure o administrador.'}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-2">
+            {prontas.slice(0, 4).map((t) => (
+              <Link key={t.chave} href={t.rota}
+                className="rounded-full bg-white/12 px-3.5 py-1.5 text-[12.5px] font-semibold ring-1 ring-white/20 backdrop-blur transition-colors hover:bg-white/20">
+                {t.nome}
+              </Link>
+            ))}
+          </div>
+        </div>
       </header>
 
       <div className="grid gap-4 lg:grid-cols-3">
@@ -142,18 +170,23 @@ export default function InicioPage() {
 
       {prontas.length > 0 && (
         <>
-          <h2 className="mb-2 mt-6 flex items-center gap-1.5 text-[11.5px] font-bold uppercase tracking-wide txt-fraco">
+          <h2 className="mb-3 mt-8 flex items-center gap-1.5 text-[11.5px] font-semibold uppercase tracking-wider txt-fraco">
             <TrendingUp aria-hidden className="size-3.5" /> Telas disponíveis
           </h2>
           <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             {prontas.map((t) => (
               <li key={t.chave}>
                 <Link href={t.rota}
-                  className="painel sombra group flex h-full flex-col rounded-2xl p-4 transition-shadow hover:sombra-lg">
-                  <span className="text-[11px] font-bold uppercase tracking-wide txt-fraco">{t.grupo}</span>
-                  <span className="mt-1 text-[15px] font-bold">{t.nome}</span>
-                  <span className="mt-1 text-[12.5px] txt-fraco">{t.descricao}</span>
-                  <span className="mt-auto pt-3 text-[12px] font-semibold text-marinho-500">
+                  className="painel sombra elevar group flex h-full flex-col rounded-2xl p-5">
+                  <span className="flex items-center gap-3">
+                    <IconeGrupo grupo={t.grupo} />
+                    <span className="min-w-0">
+                      <span className="block text-[11px] font-semibold uppercase tracking-wider txt-fraco">{t.grupo}</span>
+                      <span className="block text-[15px] font-semibold leading-snug">{t.nome}</span>
+                    </span>
+                  </span>
+                  <span className="mt-3 text-[12.5px] leading-relaxed txt-fraco">{t.descricao}</span>
+                  <span className="mt-auto pt-4 text-[12.5px] font-semibold text-marinho-500">
                     Abrir <ArrowRight aria-hidden className="inline size-3.5 transition-transform group-hover:translate-x-0.5" />
                   </span>
                 </Link>
@@ -164,7 +197,7 @@ export default function InicioPage() {
       )}
 
       {emBreve.length > 0 && (
-        <div className="painel mt-6 flex items-start gap-3 rounded-2xl p-4">
+        <div className="mt-8 flex items-start gap-3 rounded-2xl border border-dashed borda p-5">
           <Construction aria-hidden className="mt-0.5 size-5 shrink-0 text-ouro-500" />
           <div className="min-w-0">
             <p className="text-[13.5px] font-semibold">Sistema em migração</p>
@@ -193,17 +226,38 @@ function Cartao({ titulo, rota, Icone, valor, nota, children }: {
 }) {
   return (
     <Link href={rota} className={cn(
-      'painel sombra group flex flex-col rounded-2xl p-4 transition-shadow hover:sombra-lg',
+      'painel sombra elevar group flex flex-col rounded-2xl p-5',
       'motion-safe:animate-subir',
     )}>
-      <div className="flex items-center gap-2">
-        <Icone aria-hidden className="size-4 text-marinho-500" />
-        <span className="text-[13.5px] font-bold">{titulo}</span>
-        <ArrowRight aria-hidden className="ml-auto size-3.5 txt-fraco transition-transform group-hover:translate-x-0.5" />
+      <div className="flex items-center gap-2.5">
+        <span className="flex size-8 items-center justify-center rounded-lg aba-ativa">
+          <Icone aria-hidden className="size-4" />
+        </span>
+        <span className="text-[13.5px] font-semibold">{titulo}</span>
+        <ArrowRight aria-hidden className="ml-auto size-4 txt-fraco transition-transform group-hover:translate-x-0.5" />
       </div>
-      <p className="mt-1 text-[26px] font-bold leading-tight">{valor}</p>
-      <p className="text-[12px] txt-fraco">{nota}</p>
+      <p className="mt-4 text-[32px] font-semibold leading-none tracking-tight tabular-nums">{valor}</p>
+      <p className="mt-1.5 text-[12.5px] txt-fraco">{nota}</p>
       <div className="mt-2">{children}</div>
     </Link>
+  );
+}
+
+/** Ícone do grupo do menu — dá um ponto de leitura rápida a cada cartão. */
+const ICONE_GRUPO: Record<string, typeof Target> = {
+  'Operação': TrendingUp,
+  'Equipe': Users,
+  'Planejamento': CalendarClock,
+  'Estoque': Boxes,
+  'Administração': Settings2,
+  'Pessoal': ClipboardList,
+};
+
+function IconeGrupo({ grupo }: { grupo: string }) {
+  const Icone = ICONE_GRUPO[grupo] ?? LayoutGrid;
+  return (
+    <span className="flex size-10 shrink-0 items-center justify-center rounded-xl painel-2 border borda text-marinho-500 transition-colors group-hover:border-marinho-300">
+      <Icone aria-hidden className="size-[18px]" />
+    </span>
   );
 }

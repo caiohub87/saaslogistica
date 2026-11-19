@@ -1,7 +1,11 @@
 import type { Metadata, Viewport } from 'next';
+import { Plus_Jakarta_Sans } from 'next/font/google';
 
 import { SessionProvider } from '@/providers/SessionProvider';
 import './globals.css';
+
+// Plus Jakarta Sans: geométrica e atual, boa leitura em tela pequena
+const fonte = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-app', display: 'swap' });
 
 export const metadata: Metadata = {
   title: 'Gestão Logística',
@@ -10,14 +14,14 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#14315b',
+  themeColor: '#0e1430',
   width: 'device-width',
   initialScale: 1,
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="pt-BR">
+    <html lang="pt-BR" className={fonte.variable}>
       <body className="antialiased">
         <a
           href="#conteudo"

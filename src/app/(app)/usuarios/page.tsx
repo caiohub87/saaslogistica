@@ -234,7 +234,7 @@ export default function UsuariosPage() {
                       onClick={() => setSelecionado(u.id)}
                       className={cn(
                         'flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-colors',
-                        selecionado === u.id ? 'bg-marinho-800 text-white' : 'hover:bg-marinho-50',
+                        selecionado === u.id ? 'bg-marinho-800 text-white' : 'hover:bg-[var(--painel-2)]',
                         !u.ativo && 'opacity-55',
                       )}
                     >

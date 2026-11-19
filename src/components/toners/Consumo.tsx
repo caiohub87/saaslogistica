@@ -63,7 +63,7 @@ export function Consumo({ trocas, salas, impressoras }: {
                 key={id} type="button" onClick={() => setVisao(id)} aria-pressed={visao === id}
                 className={cn(
                   'flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-[12px] font-semibold transition-colors',
-                  visao === id ? 'bg-marinho-800 text-white' : 'painel-2 txt-fraco hover:bg-marinho-50',
+                  visao === id ? 'aba aba-on' : 'aba aba-off painel-2 txt-fraco',
                 )}
               >
                 <Icone aria-hidden className="size-3.5" />

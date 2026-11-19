@@ -299,7 +299,7 @@ export default function ValidadePage() {
             key={a.id} type="button" onClick={() => setAba(a.id)}
             className={cn(
               'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
-              aba === a.id ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+              aba === a.id ? 'aba aba-on' : 'aba aba-off txt-fraco',
             )}
           >
             <a.Icone aria-hidden className="size-4" />

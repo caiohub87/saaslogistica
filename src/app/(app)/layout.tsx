@@ -4,6 +4,7 @@ import { FlaskConical, Loader2, ShieldAlert } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
+import { BarraTopo, Sidebar } from '@/components/layout/Sidebar';
 import { TopNav } from '@/components/layout/TopNav';
 import { RelatorioProvider } from '@/providers/RelatorioProvider';
 import { useSessao } from '@/providers/SessionProvider';
@@ -54,17 +55,22 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-dvh">
+      {/* no computador o aviso fica no rodapé do menu lateral */}
       {demo && (
-        <div className="flex items-center justify-center gap-2 bg-ouro-500 px-4 py-1.5 text-center text-[12.5px] font-semibold text-marinho-900">
+        <div className="flex items-center justify-center gap-2 bg-ouro-500 px-4 py-1.5 text-center text-[12.5px] font-semibold text-marinho-950 lg:hidden">
           <FlaskConical aria-hidden className="size-3.5 shrink-0" />
           Modo de demonstração — sem login. Nada aqui é gravado no banco.
         </div>
       )}
       <RelatorioProvider unidade={usuario.unidade}>
-        <TopNav />
-        <main id="conteudo" className="mx-auto max-w-[1600px] px-4 py-5">
-          {children}
-        </main>
+        <Sidebar />
+        <div className="lg:pl-[264px]">
+          <TopNav />
+          <BarraTopo />
+          <main id="conteudo" className="mx-auto max-w-[1600px] px-4 py-6 lg:px-8 lg:py-8">
+            {children}
+          </main>
+        </div>
       </RelatorioProvider>
     </div>
   );

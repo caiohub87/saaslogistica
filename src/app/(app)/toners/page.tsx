@@ -255,7 +255,7 @@ export default function TonersPage() {
             key={a.id} type="button" onClick={() => setAba(a.id)} aria-pressed={aba === a.id}
             className={cn(
               'flex items-center gap-1.5 rounded-xl px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
-              aba === a.id ? 'bg-marinho-800 text-white' : 'painel txt-fraco hover:bg-marinho-50',
+              aba === a.id ? 'aba aba-on' : 'aba aba-off painel txt-fraco',
             )}
           >
             <a.Icone aria-hidden className="size-4" />

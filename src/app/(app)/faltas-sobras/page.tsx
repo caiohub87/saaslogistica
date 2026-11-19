@@ -757,7 +757,7 @@ export default function FaltasSobrasPage() {
             }}
             className={cn(
               'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
-              aba === c.tipo ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+              aba === c.tipo ? 'aba aba-on' : 'aba aba-off txt-fraco',
             )}
           >
             <c.Icone aria-hidden className="size-4" />
@@ -768,7 +768,7 @@ export default function FaltasSobrasPage() {
           type="button" onClick={() => { setAba('equipe'); setMsg(null); setErro(null); }}
           className={cn(
             'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
-            aba === 'equipe' ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+            aba === 'equipe' ? 'aba aba-on' : 'aba aba-off txt-fraco',
           )}
         >
           <Users aria-hidden className="size-4" />

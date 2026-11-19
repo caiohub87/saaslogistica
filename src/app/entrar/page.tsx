@@ -1,6 +1,6 @@
 'use client';
 
-import { Eye, EyeOff, FlaskConical, Loader2, LogIn } from 'lucide-react';
+import { BarChart3, Boxes, Eye, EyeOff, FlaskConical, Loader2, LogIn, ShieldCheck } from 'lucide-react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -49,16 +49,54 @@ export default function EntrarPage() {
   }
 
   return (
-    <div className="flex min-h-dvh items-center justify-center px-4 py-10">
-      <div className="w-full max-w-sm">
-        <div className="mb-6 text-center">
-          <Image src="/dilnor-logo.png" alt="" width={120} height={60}
-            className="mx-auto mb-4 rounded-xl bg-white p-2 sombra" priority />
-          <h1 className="text-xl font-bold">Gestão Logística</h1>
-          <p className="mt-1 text-sm txt-fraco">Entre com seu usuário para continuar.</p>
+    <div className="grid min-h-dvh lg:grid-cols-[1.05fr_1fr]">
+      {/* ---- lado da marca: só em tela larga; no celular o formulário vem direto ---- */}
+      <aside className="relative hidden overflow-hidden bg-marinho-950 p-12 text-white lg:flex lg:flex-col">
+        <div aria-hidden className="pointer-events-none absolute -right-32 -top-32 size-[520px] rounded-full bg-marinho-500/30 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute -bottom-40 -left-24 size-[420px] rounded-full bg-ouro-500/20 blur-3xl" />
+        <div aria-hidden className="pointer-events-none absolute inset-0 opacity-[0.07]"
+          style={{ backgroundImage: 'linear-gradient(white 1px, transparent 1px), linear-gradient(90deg, white 1px, transparent 1px)', backgroundSize: '44px 44px' }} />
+
+        <div className="relative flex items-center gap-3">
+          <Image src="/dilnor-logo.png" alt="" width={44} height={44} className="rounded-xl bg-white p-1" priority />
+          <span className="text-[15px] font-semibold tracking-tight">Gestão Logística</span>
         </div>
 
-        <form onSubmit={entrar} noValidate className="painel sombra rounded-2xl p-5">
+        <div className="relative mt-auto max-w-md">
+          <h2 className="text-[34px] font-semibold leading-[1.15] tracking-tight">
+            A operação inteira, <span className="text-ouro-400">num lugar só.</span>
+          </h2>
+          <p className="mt-4 text-[15px] leading-relaxed text-marinho-100/80">
+            Entregas, produtividade, estoque e agenda — cada pessoa com o seu acesso.
+          </p>
+          <ul className="mt-8 space-y-3 text-[14px] text-marinho-50/90">
+            {[
+              { Icone: BarChart3, txt: 'Produtividade e premiação calculadas na hora' },
+              { Icone: Boxes, txt: 'Inventário, validade, faltas e reentregas' },
+              { Icone: ShieldCheck, txt: 'Permissão por tela e por ação, conferida no banco' },
+            ].map(({ Icone, txt }) => (
+              <li key={txt} className="flex items-center gap-3">
+                <span className="flex size-8 items-center justify-center rounded-lg bg-white/10 ring-1 ring-white/15">
+                  <Icone aria-hidden className="size-4" />
+                </span>
+                {txt}
+              </li>
+            ))}
+          </ul>
+        </div>
+        <p className="relative mt-12 text-[12px] text-marinho-200/60">Dilnor · Nordece</p>
+      </aside>
+
+      <div className="flex items-center justify-center px-4 py-10">
+      <div className="w-full max-w-sm">
+        <div className="mb-7">
+          <Image src="/dilnor-logo.png" alt="" width={56} height={56}
+            className="mb-5 rounded-2xl bg-white p-1.5 ring-1 ring-black/5 sombra lg:hidden" priority />
+          <h1 className="text-[26px] font-semibold tracking-tight">Entrar</h1>
+          <p className="mt-1 text-sm txt-fraco">Use seu usuário para continuar.</p>
+        </div>
+
+        <form onSubmit={entrar} noValidate className="painel sombra-lg rounded-2xl p-6">
           <label htmlFor="email" className="mb-1 block text-[13px] font-semibold">E-mail</label>
           <input
             id="email" type="email" autoComplete="username" required
@@ -122,6 +160,7 @@ export default function EntrarPage() {
         <p className="mt-4 text-center text-[12px] txt-fraco">
           Esqueceu a senha? Procure o administrador do sistema.
         </p>
+      </div>
       </div>
     </div>
   );

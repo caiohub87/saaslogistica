@@ -248,7 +248,7 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
               <button
                 key={v} type="button" onClick={() => setVista(v)}
                 className={cn('flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-[12.5px] font-semibold',
-                  vista === v ? 'bg-marinho-800 text-white' : 'txt-fraco')}
+                  vista === v ? 'aba aba-on' : 'aba aba-off txt-fraco')}
               >
                 {v === 'calendario' ? <CalendarDays aria-hidden className="size-3.5" /> : <List aria-hidden className="size-3.5" />}
                 {v === 'calendario' ? 'Calendário' : 'Tabela'}

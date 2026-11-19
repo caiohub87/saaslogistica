@@ -259,7 +259,7 @@ export default function InventarioPage() {
             key={a.id} type="button" onClick={() => setAba(a.id)}
             className={cn(
               'flex items-center gap-1.5 whitespace-nowrap rounded-lg px-3.5 py-2 text-[13.5px] font-semibold transition-colors',
-              aba === a.id ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+              aba === a.id ? 'aba aba-on' : 'aba aba-off txt-fraco',
             )}
           >
             <a.Icone aria-hidden className="size-4" />
@@ -415,7 +415,7 @@ export default function InventarioPage() {
                     onClick={() => { setFornAtivo(f); setLancAtivo(null); }}
                     className={cn(
                       'whitespace-nowrap rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
-                      f === fornEfetivo ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+                      f === fornEfetivo ? 'aba aba-on' : 'aba aba-off txt-fraco',
                     )}
                   >
                     {f}

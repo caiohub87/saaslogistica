@@ -98,7 +98,7 @@ export function VisaoGeral({ lancamentos, carregando }: {
               onClick={() => { setFornAtivo(f); setBusca(''); }}
               className={cn(
                 'whitespace-nowrap rounded-lg px-3 py-1.5 text-[12.5px] font-semibold transition-colors',
-                f === fornecedor ? 'bg-marinho-800 text-white' : 'txt-fraco hover:bg-marinho-50',
+                f === fornecedor ? 'aba aba-on' : 'aba aba-off txt-fraco',
               )}
             >
               {f}

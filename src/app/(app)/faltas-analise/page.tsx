@@ -223,7 +223,7 @@ export default function AnaliseFaltasPage() {
                   aria-pressed={f.tipo === id}
                   className={cn(
                     'flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-[13px] font-semibold transition-colors',
-                    f.tipo === id ? 'bg-marinho-800 text-white' : 'painel-2 txt-fraco hover:bg-marinho-50',
+                    f.tipo === id ? 'aba aba-on' : 'aba aba-off painel-2 txt-fraco',
                   )}
                 >
                   <Icone aria-hidden className="size-3.5" />

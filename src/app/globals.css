@@ -4,17 +4,20 @@
    Tema — cores da marca Dilnor (azul marinho + dourado do logo)
    ============================================================ */
 @theme {
-  --color-marinho-50:  #eef3fa;
-  --color-marinho-100: #d6e3f3;
-  --color-marinho-200: #adc6e6;
-  --color-marinho-300: #7ba3d5;
-  --color-marinho-400: #4b7cbe;
-  --color-marinho-500: #2b5c9e;
-  --color-marinho-600: #1d4680;
-  --color-marinho-700: #163665;
-  --color-marinho-800: #14315b;
-  --color-marinho-900: #0f2444;
-  --color-marinho-950: #0a1830;
+  /* Visual 2026: o "marinho" virou um azul royal vivo. O nome ficou o mesmo
+     para não mexer em centenas de classes — muda a cor, não o código das telas.
+     O marinho escuro da marca continua no menu lateral (--lateral-*). */
+  --color-marinho-50:  #eef3ff;
+  --color-marinho-100: #dde7ff;
+  --color-marinho-200: #c2d3ff;
+  --color-marinho-300: #96b3fd;
+  --color-marinho-400: #6189f8;
+  --color-marinho-500: #3d63f0;
+  --color-marinho-600: #2a49e0;
+  --color-marinho-700: #2339c4;
+  --color-marinho-800: #2433a6;
+  --color-marinho-900: #1f2d82;
+  --color-marinho-950: #141c4d;
 
   --color-ouro-50:  #fffaeb;
   --color-ouro-100: #fef0c7;
@@ -33,23 +36,36 @@
   --color-erro-600:  #b01d25;
   --color-info-500:  #2779bd;
 
-  --font-sans: "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
+  --font-sans: var(--font-app), "Segoe UI Variable Text", "Segoe UI", system-ui, sans-serif;
 
   --radius-xl2: 1rem;
-  --shadow-suave: 0 1px 2px rgb(15 45 80 / 0.06), 0 8px 24px rgb(15 45 80 / 0.08);
-  --shadow-suave-lg: 0 2px 4px rgb(15 45 80 / 0.08), 0 16px 40px rgb(15 45 80 / 0.14);
+  /* sombras curtas e difusas: o cartão se separa do fundo pela borda fina,
+     a sombra só dá profundidade — sem o "halo" azul de antes */
+  --shadow-suave: 0 1px 2px rgb(16 24 40 / 0.04), 0 1px 3px rgb(16 24 40 / 0.05);
+  --shadow-suave-lg: 0 4px 8px -2px rgb(16 24 40 / 0.06), 0 16px 32px -8px rgb(16 24 40 / 0.14);
 }
 
 /* ============================================================
    Modo claro / escuro — a classe .escuro vai no <html>
    ============================================================ */
 :root {
-  --fundo: #eef2f8;
+  --fundo: #f3f5fb;
   --painel: #ffffff;
-  --painel-2: #f4f7fb;
-  --borda: rgb(15 45 80 / 0.13);
-  --texto: #132c4c;
-  --texto-fraco: #5d7089;
+  --painel-2: #f6f8fc;
+  --borda: rgb(20 28 77 / 0.08);
+  --texto: #111833;
+  --texto-fraco: #646d86;
+  /* cabeçalho translúcido: o conteúdo passa por baixo, desfocado */
+  --vidro: rgb(243 245 251 / 0.8);
+  --anel: rgb(61 99 240 / 0.20);
+  /* item de menu/aba selecionado: tinta suave em vez de bloco escuro */
+  --ativo-bg: rgb(61 99 240 / 0.10);
+  --ativo-txt: #2339c4;
+  /* menu lateral: sempre escuro, nos dois temas — é a "moldura" do sistema */
+  --lateral: #0e1430;
+  --lateral-2: #161e44;
+  --lateral-txt: #aab3d6;
+  --lateral-borda: rgb(255 255 255 / 0.07);
 
   /* ---- marca de dados dos gráficos ----
      Uma cor só: ranking de motorista/placa/produto é categoria nominal, e o
@@ -73,12 +89,20 @@
   --seq-4: #163665;
 }
 .escuro {
-  --fundo: #0a1526;
-  --painel: #111e33;
-  --painel-2: #17263d;
-  --borda: rgb(160 180 205 / 0.20);
-  --texto: #edf5ff;
-  --texto-fraco: #9fb1c8;
+  --fundo: #0a0e22;
+  --painel: #11173a;
+  --painel-2: #161d47;
+  --borda: rgb(170 180 230 / 0.12);
+  --texto: #eef1fb;
+  --texto-fraco: #9aa3c7;
+  --vidro: rgb(10 14 34 / 0.8);
+  --anel: rgb(150 179 253 / 0.25);
+  --ativo-bg: rgb(97 137 248 / 0.18);
+  --ativo-txt: #c2d3ff;
+  --lateral: #070a1c;
+  --lateral-2: #11173a;
+  --lateral-txt: #9aa3c7;
+  --lateral-borda: rgb(255 255 255 / 0.06);
 
   --serie: #4b7cbe;
   --grade: #1d2f4a;
@@ -117,7 +141,17 @@
     color: var(--texto);
     font-family: var(--font-sans);
     font-size: 15px;
+    letter-spacing: -0.005em;
   }
+  h1, h2, h3 { letter-spacing: -0.018em; }
+  /* campos: em vez de só trocar a cor da borda, um anel suave em volta */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]), select, textarea {
+    transition: border-color .15s ease, box-shadow .15s ease;
+  }
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus, select:focus, textarea:focus {
+    box-shadow: 0 0 0 4px var(--anel);
+  }
+  ::selection { background: var(--color-marinho-100); color: var(--color-marinho-900); }
   /* foco sempre visível — exigência de acessibilidade */
   :focus-visible {
     outline: 2px solid var(--color-marinho-500);
@@ -136,7 +170,73 @@
   .txt-fraco   { color: var(--texto-fraco); }
   .sombra      { box-shadow: var(--shadow-suave); }
   .sombra-lg   { box-shadow: var(--shadow-suave-lg); }
+  .aba-ativa   { background: var(--ativo-bg); color: var(--ativo-txt); }
+  .vidro       { background: var(--vidro); backdrop-filter: saturate(180%) blur(14px); -webkit-backdrop-filter: saturate(180%) blur(14px); }
+  /* cartão clicável: sobe um pouco ao passar o mouse */
+  .elevar      { transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease; }
+  .elevar:hover { transform: translateY(-3px); box-shadow: var(--shadow-suave-lg); border-color: rgb(61 99 240 / 0.30); }
+  @media (prefers-reduced-motion: reduce) { .elevar:hover { transform: none; } }
+  /* botão principal (bg-marinho-800 em todo o sistema): degradê royal com
+     sombra colorida — o botão "acende" sem precisar mexer em cada tela */
+  .bg-marinho-800 {
+    background-image: linear-gradient(135deg, var(--color-marinho-500), var(--color-marinho-700));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 0.18), 0 6px 16px -6px rgb(61 99 240 / 0.6);
+  }
   /* faixa rolável sem barra visível (menu no celular) */
   .sem-barra { scrollbar-width: none; -ms-overflow-style: none; }
   .sem-barra::-webkit-scrollbar { display: none; }
 }
+
+/* ============================================================
+   Visual 2026 — padrões repetidos em todas as telas
+   ------------------------------------------------------------
+   Fora de @layer DE PROPÓSITO: CSS sem camada vence as utilities do
+   Tailwind, então estas regras reestilizam as ~15 telas sem editar cada
+   uma. Os seletores miram só padrões que as telas já repetem.
+   ============================================================ */
+
+/* título da tela: <h1 class="... text-xl"><Icone/>Nome</h1> */
+main h1.text-xl {
+  font-size: 26px;
+  font-weight: 700;
+  gap: 14px;
+  letter-spacing: -0.025em;
+}
+main h1.text-xl > svg {
+  box-sizing: content-box;
+  width: 20px; height: 20px;
+  padding: 11px;
+  border-radius: 14px;
+  color: #fff;
+  background: linear-gradient(135deg, var(--color-marinho-400), var(--color-marinho-700));
+  box-shadow: 0 10px 22px -8px rgb(61 99 240 / 0.65);
+}
+/* subtítulo alinhado com o texto do título, não com o ícone */
+main h1.text-xl + p { margin-top: 6px; max-width: 80ch; }
+@media (min-width: 640px) { main h1.text-xl + p { padding-left: 56px; } }
+
+/* abas internas das telas: pílulas num trilho */
+.aba {
+  border-radius: 999px !important;
+  border: 1px solid transparent !important;
+  transition: background-color .15s ease, color .15s ease, border-color .15s ease;
+}
+.aba-off { background: transparent !important; }
+.aba-off:hover { background: var(--painel) !important; border-color: var(--borda) !important; color: var(--texto) !important; }
+.aba-on {
+  background: var(--painel) !important;
+  color: var(--ativo-txt) !important;
+  border-color: rgb(61 99 240 / 0.25) !important;
+  box-shadow: 0 1px 2px rgb(20 28 77 / 0.06), 0 4px 12px -4px rgb(61 99 240 / 0.35);
+}
+.escuro .aba-on { background: var(--ativo-bg) !important; }
+
+/* tabelas: cabeçalho em faixa, linhas que acendem ao passar o mouse */
+main table thead th { background: var(--painel-2); }
+main table thead th:first-child { border-top-left-radius: 10px; border-bottom-left-radius: 10px; }
+main table thead th:last-child  { border-top-right-radius: 10px; border-bottom-right-radius: 10px; }
+main table tbody tr > td { transition: background-color .12s ease; }
+main table tbody tr:hover > td { background-color: var(--ativo-bg); }
+
+/* painéis grandes um pouco mais arredondados */
+main .painel.rounded-2xl { border-radius: 20px; }
