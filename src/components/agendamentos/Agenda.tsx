@@ -1,15 +1,18 @@
 'use client';
 
-import { CalendarDays, List, Loader2, Pencil, Plus, Printer, Save, Trash2, X } from 'lucide-react';
+import {
+  Ban, CalendarDays, List, Loader2, Pencil, Plus, Printer, RotateCcw, Save, Trash2, UserX, X,
+} from 'lucide-react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import {
-  concluido, CONFIG, COR_STATUS, hojeISO, proximoStatus, selo, type ConfigAgenda,
+  atrasoChegadaMin, concluido, CONFIG, COR_STATUS, hojeISO, horaDe, proximoStatus, qtdTexto, selo,
+  type ConfigAgenda,
 } from '@/lib/agendamentos';
 import { fmtData } from '@/lib/inventario';
 import { getSupabase } from '@/lib/supabase';
 import { useSessao } from '@/providers/SessionProvider';
-import type { Agendamento, TipoAgendamento } from '@/types/database';
+import type { Agendamento, StatusAgendamento, TipoAgendamento, UnidadeQtd } from '@/types/database';
 import { cn } from '@/utils/cn';
 
 import { Calendario } from './Calendario';
@@ -19,8 +22,20 @@ const mesDe = (iso: string) => iso.slice(0, 7);
 interface Form {
   id: number | null;
   data: string; hora: string; nome: string; secundario: string; obs: string;
+  // só no receber: quantidade em número (o "secundario" texto fica para o enviar)
+  qtd: string; unidade: UnidadeQtd; peso: string; nf: string;
 }
-const formVazio = (): Form => ({ id: null, data: hojeISO(), hora: '', nome: '', secundario: '', obs: '' });
+const formVazio = (): Form => ({
+  id: null, data: hojeISO(), hora: '', nome: '', secundario: '', obs: '',
+  qtd: '', unidade: 'paletes', peso: '', nf: '',
+});
+
+/** "1.234,5" ou "1234.5" -> 1234.5; vazio ou inválido -> null */
+const numero = (s: string) => {
+  const limpo = s.includes(',') ? s.replace(/\./g, '').replace(',', '.') : s;
+  const n = Number(limpo);
+  return s.trim() && Number.isFinite(n) ? n : null;
+};
 
 export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
   const cfg: ConfigAgenda = CONFIG[tipo];
@@ -93,8 +108,18 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
       hora: cfg.temHora ? (form.hora || null) : null,
       obs: form.obs || null,
       [cfg.campoNome]: form.nome.trim(),
-      [cfg.campoSecundario]: form.secundario || null,
     };
+    if (tipo === 'receber') {
+      const qtd = numero(form.qtd);
+      dados.qtd = qtd;
+      dados.unidade_qtd = qtd != null ? form.unidade : null;
+      dados.peso_kg = numero(form.peso);
+      dados.nf = form.nf.trim() || null;
+      // o sistema antigo só lê "volumes": grava o mesmo número em texto lá
+      dados.volumes = qtd != null ? `${qtd} ${form.unidade}` : (form.secundario || null);
+    } else {
+      dados[cfg.campoSecundario] = form.secundario || null;
+    }
 
     const { error } = form.id
       ? await sb.from('agendamentos').update(dados).eq('id', form.id)
@@ -112,13 +137,38 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
   }
 
   async function avancarStatus(a: Agendamento) {
+    const novo = proximoStatus(tipo, a.status);
+    if (novo) await mudarStatus(a, novo);
+  }
+
+  /**
+   * Troca o status e traz a linha de volta do banco: no receber, as horas de
+   * chegada/descarga/recebido são carimbadas por um gatilho (SQL 31) com o
+   * relógio do servidor — a tela mostra o que ficou gravado, não um palpite.
+   */
+  async function mudarStatus(a: Agendamento, novo: StatusAgendamento) {
     if (!podeEditar || bloqueadoNoDemo()) return;
     const sb = getSupabase();
     if (!sb) return;
-    const novo = proximoStatus(tipo, a.status);
-    const { error } = await sb.from('agendamentos').update({ status: novo }).eq('id', a.id);
-    if (error) { setErro(error.message); return; }
-    setItens((l) => l.map((x) => (x.id === a.id ? { ...x, status: novo } : x)));
+    const { data, error } = await sb.from('agendamentos').update({ status: novo }).eq('id', a.id)
+      .select('*').maybeSingle();
+    if (error) {
+      setErro(error.message + (/check constraint|status_check/i.test(error.message)
+        ? ' — rode o SQL 31_recebimento_chegada.sql no Supabase.' : ''));
+      return;
+    }
+    const linha = (data as Agendamento | null) ?? { ...a, status: novo };
+    setItens((l) => l.map((x) => (x.id === a.id ? linha : x)));
+  }
+
+  /** Desfechos do receber, fora do ciclo — e o "reabrir", que volta ao começo. */
+  async function desfecho(a: Agendamento, novo: 'Cancelado' | 'Não compareceu' | 'Agendado') {
+    const nome = a[cfg.campoNome] ?? '';
+    const pergunta = novo === 'Agendado'
+      ? `Reabrir o recebimento de ${nome}? As horas de chegada e descarga são apagadas.`
+      : `Marcar ${nome} (${fmtData(a.data)}) como "${novo}"?`;
+    if (!confirm(pergunta)) return;
+    await mudarStatus(a, novo);
   }
 
   async function excluir(a: Agendamento) {
@@ -137,6 +187,10 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
     setForm({
       id: a.id, data: a.data, hora: a.hora ?? '',
       nome: a[cfg.campoNome] ?? '', secundario: a[cfg.campoSecundario] ?? '', obs: a.obs ?? '',
+      qtd: a.qtd != null ? String(a.qtd).replace('.', ',') : '',
+      unidade: a.unidade_qtd ?? 'paletes',
+      peso: a.peso_kg != null ? String(a.peso_kg).replace('.', ',') : '',
+      nf: a.nf ?? '',
     });
     setMsg(null); setErro(null);
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -148,7 +202,7 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
     return itens
       .filter((a) => !ocultarConcluidos || !concluido(tipo, a.status))
       .filter((a) => (!ini || a.data >= ini) && (!fim || a.data <= fim))
-      .filter((a) => !q || [a.cliente, a.rota, a.fornecedor, a.volumes, a.obs]
+      .filter((a) => !q || [a.cliente, a.rota, a.fornecedor, a.volumes, a.obs, a.nf]
         .some((x) => (x ?? '').toLowerCase().includes(q)))
       // concluídos vão esmaecidos para o fim — nunca somem
       .sort((a, b) => {
@@ -213,9 +267,33 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
             <Campo rotulo={cfg.rotuloNome}>
               <input value={form.nome} onChange={(e) => setForm({ ...form, nome: e.target.value })} className={ENTRADA} />
             </Campo>
-            <Campo rotulo={cfg.rotuloSecundario}>
-              <input value={form.secundario} onChange={(e) => setForm({ ...form, secundario: e.target.value })} className={ENTRADA} />
-            </Campo>
+            {tipo === 'receber' ? (
+              <>
+                <Campo rotulo="Quantidade">
+                  <div className="flex gap-2">
+                    <input inputMode="decimal" value={form.qtd} placeholder="ex.: 26"
+                      onChange={(e) => setForm({ ...form, qtd: e.target.value })} className={ENTRADA} />
+                    <select value={form.unidade} aria-label="Unidade"
+                      onChange={(e) => setForm({ ...form, unidade: e.target.value as UnidadeQtd })}
+                      className={cn(ENTRADA, 'w-auto')}>
+                      <option value="paletes">paletes</option>
+                      <option value="caixas">caixas</option>
+                      <option value="volumes">volumes</option>
+                    </select>
+                  </div>
+                </Campo>
+                <Campo rotulo="Peso (kg, opcional)">
+                  <input inputMode="decimal" value={form.peso} onChange={(e) => setForm({ ...form, peso: e.target.value })} className={ENTRADA} />
+                </Campo>
+                <Campo rotulo="Nota fiscal (opcional)">
+                  <input value={form.nf} onChange={(e) => setForm({ ...form, nf: e.target.value })} className={ENTRADA} />
+                </Campo>
+              </>
+            ) : (
+              <Campo rotulo={cfg.rotuloSecundario}>
+                <input value={form.secundario} onChange={(e) => setForm({ ...form, secundario: e.target.value })} className={ENTRADA} />
+              </Campo>
+            )}
             <Campo rotulo="Observações">
               <input value={form.obs} onChange={(e) => setForm({ ...form, obs: e.target.value })} className={ENTRADA} />
             </Campo>
@@ -288,14 +366,15 @@ export function Agenda({ tipo }: { tipo: TipoAgendamento }) {
           <Tabela
             cfg={cfg} itens={filtrados}
             podeEditar={podeEditar} podeExcluir={podeExcluir}
-            aoStatus={avancarStatus} aoEditar={editar} aoExcluir={excluir}
+            aoStatus={avancarStatus} aoEditar={editar} aoExcluir={excluir} aoDesfecho={desfecho}
           />
         )}
 
         <p className="mt-3 text-[11.5px] txt-fraco">
           Clique no status para avançar: {CONFIG[tipo].tipo === 'enviar'
             ? 'Agendado → Montado → Enviado → Cancelado'
-            : 'Agendado → Recebido → Cancelado'}. Concluídos ficam esmaecidos no fim — nada é apagado.
+            : 'Agendado → Chegou → Descarregando → Recebido. Cada passo grava a hora; "Não veio" e "Cancelar" ficam ao lado'}.
+          {' '}Concluídos ficam esmaecidos no fim — nada é apagado.
         </p>
       </section>
 
@@ -355,11 +434,13 @@ function Campo({ rotulo, children }: { rotulo: string; children: React.ReactNode
   );
 }
 
-function Tabela({ cfg, itens, podeEditar, podeExcluir, aoStatus, aoEditar, aoExcluir }: {
+function Tabela({ cfg, itens, podeEditar, podeExcluir, aoStatus, aoEditar, aoExcluir, aoDesfecho }: {
   cfg: ConfigAgenda; itens: Agendamento[];
   podeEditar: boolean; podeExcluir: boolean;
   aoStatus: (a: Agendamento) => void; aoEditar: (a: Agendamento) => void; aoExcluir: (a: Agendamento) => void;
+  aoDesfecho: (a: Agendamento, novo: 'Cancelado' | 'Não compareceu' | 'Agendado') => void;
 }) {
+  const receber = cfg.tipo === 'receber';
   if (!itens.length) {
     return <p className="py-10 text-center text-sm txt-fraco">Nenhum agendamento no filtro atual.</p>;
   }
@@ -379,7 +460,11 @@ function Tabela({ cfg, itens, podeEditar, podeExcluir, aoStatus, aoEditar, aoExc
         </thead>
         <tbody>
           {itens.map((a) => {
-            const s = selo(cfg.tipo, a.data, a.status);
+            const s = selo(cfg.tipo, a.data, a.status, a.hora);
+            const fechado = concluido(cfg.tipo, a.status);
+            // no receber o status só anda para frente: no fim (ou num desfecho) não clica
+            const travado = receber && proximoStatus(cfg.tipo, a.status) === null;
+            const clicavel = podeEditar && !travado;
             return (
               <tr key={a.id} className={cn('border-b borda', concluido(cfg.tipo, a.status) && 'opacity-55')}>
                 <td className="whitespace-nowrap px-3 py-2">
@@ -393,19 +478,44 @@ function Tabela({ cfg, itens, podeEditar, podeExcluir, aoStatus, aoEditar, aoExc
                 </td>
                 {cfg.temHora && <td className="whitespace-nowrap px-3 py-2">{a.hora ?? '—'}</td>}
                 <td className="px-3 py-2"><b>{a[cfg.campoNome] || '—'}</b></td>
-                <td className="px-3 py-2">{a[cfg.campoSecundario] || '—'}</td>
+                <td className="px-3 py-2">
+                  {(receber ? qtdTexto(a) : a[cfg.campoSecundario]) || '—'}
+                  {receber && a.nf && <span className="block text-[11px] txt-fraco">NF {a.nf}</span>}
+                </td>
                 <td className="px-3 py-2 txt-fraco">{a.obs || '—'}</td>
                 <td className="px-3 py-2">
                   <button
-                    type="button" disabled={!podeEditar} onClick={() => aoStatus(a)}
-                    title={podeEditar ? 'Clique para avançar o status' : undefined}
-                    className={cn('rounded-md px-2 py-0.5 text-[11px] font-bold', COR_STATUS[a.status],
-                      podeEditar ? 'cursor-pointer' : 'cursor-default')}
+                    type="button" disabled={!clicavel} onClick={() => aoStatus(a)}
+                    title={clicavel ? 'Clique para avançar o status' : undefined}
+                    className={cn('whitespace-nowrap rounded-md px-2 py-0.5 text-[11px] font-bold', COR_STATUS[a.status],
+                      clicavel ? 'cursor-pointer' : 'cursor-default')}
                   >
-                    {a.status}
+                    {a.status}{clicavel && receber && ' →'}
                   </button>
+                  {receber && <Carimbos a={a} />}
                 </td>
                 <td className="whitespace-nowrap px-3 py-2 text-right">
+                  {receber && podeEditar && !fechado && (
+                    <>
+                      <button type="button" onClick={() => aoDesfecho(a, 'Não compareceu')}
+                        aria-label="Não veio" title="Não veio (o fornecedor faltou)"
+                        className="rounded-lg p-1.5 text-erro-600 hover:bg-erro-500/10">
+                        <UserX aria-hidden className="size-3.5" />
+                      </button>
+                      <button type="button" onClick={() => aoDesfecho(a, 'Cancelado')}
+                        aria-label="Cancelar" title="Cancelar (desmarcado com aviso)"
+                        className="rounded-lg p-1.5 txt-fraco hover:bg-[var(--painel-2)]">
+                        <Ban aria-hidden className="size-3.5" />
+                      </button>
+                    </>
+                  )}
+                  {receber && podeEditar && a.status !== 'Agendado' && (
+                    <button type="button" onClick={() => aoDesfecho(a, 'Agendado')}
+                      aria-label="Reabrir" title="Reabrir (volta para Agendado e apaga as horas)"
+                      className="rounded-lg p-1.5 txt-fraco hover:bg-[var(--painel-2)]">
+                      <RotateCcw aria-hidden className="size-3.5" />
+                    </button>
+                  )}
                   {podeEditar && (
                     <button type="button" onClick={() => aoEditar(a)} aria-label="Editar"
                       className="rounded-lg p-1.5 txt-fraco hover:bg-marinho-50">
@@ -425,6 +535,27 @@ function Tabela({ cfg, itens, podeEditar, podeExcluir, aoStatus, aoEditar, aoExc
         </tbody>
       </table>
     </div>
+  );
+}
+
+/** Horas gravadas do recebimento e o atraso da chegada, embaixo do status. */
+function Carimbos({ a }: { a: Agendamento }) {
+  const atraso = atrasoChegadaMin(a);
+  const partes = [
+    a.chegada_em && `chegou ${horaDe(a.chegada_em)}`,
+    a.descarga_em && `doca ${horaDe(a.descarga_em)}`,
+    a.recebido_em && `fim ${horaDe(a.recebido_em)}`,
+  ].filter(Boolean);
+  if (!partes.length) return null;
+  return (
+    <span className="mt-0.5 block whitespace-nowrap text-[10.5px] txt-fraco">
+      {partes.join(' · ')}
+      {atraso != null && (
+        <b className={cn('ml-1', atraso > 15 ? 'text-erro-600' : 'text-ok-600')}>
+          {atraso > 0 ? `+${atraso}` : atraso} min
+        </b>
+      )}
+    </span>
   );
 }
 

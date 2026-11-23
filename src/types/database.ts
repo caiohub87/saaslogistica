@@ -84,7 +84,12 @@ export interface Diaria {
 }
 
 export type TipoAgendamento = 'enviar' | 'receber';
-export type StatusAgendamento = 'Agendado' | 'Montado' | 'Enviado' | 'Recebido' | 'Cancelado';
+export type StatusAgendamento = 'Agendado' | 'Montado' | 'Enviado' | 'Recebido' | 'Cancelado'
+  // só no receber: o caminhão chegou na portaria / está na doca / faltou sem avisar
+  | 'Chegou' | 'Descarregando' | 'Não compareceu';
+
+/** Unidade da quantidade agendada no recebimento. */
+export type UnidadeQtd = 'paletes' | 'caixas' | 'volumes';
 
 export interface Agendamento {
   id: number;
@@ -99,6 +104,19 @@ export interface Agendamento {
   status: StatusAgendamento;
   obs: string | null;
   created_at: string;
+
+  // ---- recebimento (SQL 31). Opcionais: linhas antigas e o "enviar" não têm.
+  /** quando o caminhão chegou na portaria (status Chegou) */
+  chegada_em?: string | null;
+  /** quando começou a descarga (status Descarregando) */
+  descarga_em?: string | null;
+  /** quando terminou (status Recebido) */
+  recebido_em?: string | null;
+  /** quantidade agendada, em número — o texto livre de `volumes` continua para as linhas antigas */
+  qtd?: number | null;
+  unidade_qtd?: UnidadeQtd | null;
+  peso_kg?: number | null;
+  nf?: string | null;
 }
 
 export interface ProdutoInventario {

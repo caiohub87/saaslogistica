@@ -240,3 +240,11 @@ main table tbody tr:hover > td { background-color: var(--ativo-bg); }
 
 /* painéis grandes um pouco mais arredondados */
 main .painel.rounded-2xl { border-radius: 20px; }
+
+/* tema escuro: os selos claros (Agendado, HOJE, avatares) viram tinta
+   translúcida — o fundo claro fixo virava um bloco branco ofuscante */
+.escuro .bg-marinho-100 { background-color: rgb(97 137 248 / 0.18); }
+.escuro .bg-marinho-100.text-marinho-800,
+.escuro .bg-marinho-100 .text-marinho-800 { color: #c2d3ff; }
+.escuro .bg-ouro-100 { background-color: rgb(245 158 11 / 0.16); }
+.escuro .bg-ouro-100.text-ouro-700 { color: #fcca4d; }

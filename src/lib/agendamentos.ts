@@ -11,22 +11,39 @@ import { PackageCheck, Truck, type LucideIcon } from 'lucide-react';
 
 import type { StatusAgendamento, TipoAgendamento } from '@/types/database';
 
-/** O status avanca em ciclo, clicando nele. */
+/**
+ * O status avanca clicando nele.
+ *
+ * Enviar: ciclo antigo, sem mudança. Receber: só ANDA PARA FRENTE, e cada passo
+ * grava a hora (chegada, início e fim da descarga) — é dessas horas que saem a
+ * pontualidade e o tempo de descarga. "Cancelado" e "Não compareceu" saem do
+ * ciclo e viram botões próprios: são desfechos, não etapas.
+ */
 export const CICLO: Record<TipoAgendamento, StatusAgendamento[]> = {
   enviar: ['Agendado', 'Montado', 'Enviado', 'Cancelado'],
-  receber: ['Agendado', 'Recebido', 'Cancelado'],
+  receber: ['Agendado', 'Chegou', 'Descarregando', 'Recebido'],
 };
 
 /** Status que contam como concluidos: esmaecem e vao para o fim — nunca somem. */
 export const CONCLUIDOS: Record<TipoAgendamento, StatusAgendamento[]> = {
   enviar: ['Enviado', 'Cancelado'],
-  receber: ['Recebido', 'Cancelado'],
+  receber: ['Recebido', 'Cancelado', 'Não compareceu'],
 };
 
-export function proximoStatus(tipo: TipoAgendamento, atual: StatusAgendamento): StatusAgendamento {
+/** Próximo status; no receber, null quando já está no fim (ou fora do ciclo). */
+export function proximoStatus(tipo: TipoAgendamento, atual: StatusAgendamento): StatusAgendamento | null {
   const seq = CICLO[tipo];
-  return seq[(seq.indexOf(atual) + 1) % seq.length];
+  const i = seq.indexOf(atual);
+  if (tipo === 'receber') return i >= 0 && i < seq.length - 1 ? seq[i + 1] : null;
+  return seq[(i + 1) % seq.length];
 }
+
+/** Coluna de hora que cada status do receber carimba ao ser alcançado. */
+export const CARIMBO: Partial<Record<StatusAgendamento, 'chegada_em' | 'descarga_em' | 'recebido_em'>> = {
+  Chegou: 'chegada_em',
+  Descarregando: 'descarga_em',
+  Recebido: 'recebido_em',
+};
 
 export const concluido = (tipo: TipoAgendamento, s: StatusAgendamento) => CONCLUIDOS[tipo].includes(s);
 
@@ -37,17 +54,57 @@ export const COR_STATUS: Record<StatusAgendamento, string> = {
   Enviado: 'bg-ok-500/15 text-ok-600',
   Recebido: 'bg-ok-500/15 text-ok-600',
   Cancelado: 'bg-erro-500/15 text-erro-600',
+  Chegou: 'bg-info-500/15 text-info-500',
+  Descarregando: 'bg-ouro-100 text-ouro-700',
+  'Não compareceu': 'bg-erro-500/15 text-erro-600',
 };
 
-export const hojeISO = () => new Date().toISOString().slice(0, 10);
+/**
+ * Data de hoje no horário LOCAL. toISOString() devolve a data em UTC: depois
+ * das 21h no Brasil já é "amanhã", e a agenda marcava o dia errado como HOJE.
+ */
+export const hojeISO = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+};
 
-/** HOJE / ATRASADO — só para o que ainda está pendente. */
-export function selo(tipo: TipoAgendamento, data: string, status: StatusAgendamento) {
+/** Depois de quantos minutos da hora marcada um recebimento sem chegada vira ATRASADO. */
+export const ATRASO_RECEBER_MIN = 30;
+
+/**
+ * HOJE / ATRASADO — só para o que ainda está pendente.
+ *
+ * No receber, hoje com hora marcada: passou a hora + 30 min e o caminhão não
+ * chegou (ainda Agendado) → ATRASADO já no mesmo dia, não só no dia seguinte.
+ */
+export function selo(tipo: TipoAgendamento, data: string, status: StatusAgendamento, hora?: string | null) {
   if (concluido(tipo, status)) return null;
   const h = hojeISO();
-  if (data === h) return 'HOJE' as const;
   if (data < h) return 'ATRASADO' as const;
-  return null;
+  if (data !== h) return null;
+  if (tipo === 'receber' && status === 'Agendado' && hora) {
+    const [hh, mm] = hora.split(':').map(Number);
+    const agora = new Date();
+    if (agora.getHours() * 60 + agora.getMinutes() > hh * 60 + mm + ATRASO_RECEBER_MIN) return 'ATRASADO' as const;
+  }
+  return 'HOJE' as const;
+}
+
+/** "08:42" de um timestamptz, no horário local. */
+export const horaDe = (iso?: string | null) =>
+  iso ? new Date(iso).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' }) : null;
+
+/** Minutos entre a hora marcada e a chegada real (positivo = atrasou). */
+export function atrasoChegadaMin(a: { data: string; hora: string | null; chegada_em?: string | null }) {
+  if (!a.hora || !a.chegada_em) return null;
+  const previsto = new Date(`${a.data}T${a.hora.slice(0, 5)}:00`);
+  return Math.round((new Date(a.chegada_em).getTime() - previsto.getTime()) / 60000);
+}
+
+/** Quantidade para mostrar: o número novo, ou o texto livre das linhas antigas. */
+export function qtdTexto(a: { qtd?: number | null; unidade_qtd?: string | null; volumes: string | null }) {
+  if (a.qtd != null) return `${a.qtd.toLocaleString('pt-BR')} ${a.unidade_qtd ?? 'volumes'}`;
+  return a.volumes;
 }
 
 /** Configuração de cada tela: rótulos e campos mudam, o resto é igual. */

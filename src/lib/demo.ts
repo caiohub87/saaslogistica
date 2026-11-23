@@ -402,14 +402,92 @@ export function agendamentosDemo(tipo: TipoAgendamento): Agendamento[] {
       mk(dia(-8), 'Cancelado', 'VITAO', 'Maceió', 'cliente cancelou'),
     ];
   }
-  return [
-    mk(dia(-2), 'Agendado', 'ENERGIZER', '30 volumes', 'conferir avaria', '09:00'),
-    mk(dia(0), 'Agendado', 'MARILAN', '50 volumes', '', '14:00'),
-    mk(dia(0), 'Recebido', 'GRENDENE', '18 volumes', '', '08:30'),
-    mk(dia(1), 'Agendado', 'ONTEX', '120 volumes', 'carreta fechada', '10:00'),
-    mk(dia(4), 'Agendado', 'CONSERVA ODERICH', '64 volumes', '', '16:00'),
-    mk(dia(-6), 'Recebido', 'SANTA MARIA', '22 volumes', '', '11:00'),
+  // Daqui para baixo é só recebimento. As datas civis acompanham o relógio
+  // local do depósito; o exemplo do enviar acima continua com seus dados.
+  const agora = new Date();
+  const localISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const diaReceber = (n: number) => {
+    const d = new Date(agora.getFullYear(), agora.getMonth(), agora.getDate() + n, 12);
+    return localISO(d);
+  };
+  const antigos = [
+    mk(diaReceber(-2), 'Agendado', 'ENERGIZER', '30 volumes', 'conferir avaria', '09:00'),
+    mk(diaReceber(0), 'Agendado', 'MARILAN', '50 volumes', '', '14:00'),
+    mk(diaReceber(0), 'Recebido', 'GRENDENE', '18 volumes', '', '08:30'),
+    mk(diaReceber(1), 'Agendado', 'ONTEX', '120 volumes', 'carreta fechada', '10:00'),
+    mk(diaReceber(4), 'Agendado', 'CONSERVA ODERICH', '64 volumes', '', '16:00'),
+    mk(diaReceber(-6), 'Recebido', 'SANTA MARIA', '22 volumes', '', '11:00'),
   ];
+  const fornecedores = ['COLGATE', 'NUTRIMENTAL', 'J. MACEDO', 'MARILAN', 'SANTA MARIA', 'ENERGIZER'];
+  const unidades = ['paletes', 'caixas', 'volumes'] as const;
+  // Perfis fixos: COLGATE/J. MACEDO/SANTA MARIA pontuais; NUTRIMENTAL e
+  // ENERGIZER atrasam com frequência. Nenhum sorteio muda o ranking ao atualizar.
+  const atrasos = [-8, 48, 5, 28, -4, 70];
+  const historico: Agendamento[] = [];
+  for (let diasAtras = 56; diasAtras >= 1; diasAtras--) {
+    const data = diaReceber(-diasAtras);
+    const diaSemana = new Date(`${data}T12:00:00`).getDay();
+    if (diaSemana === 0 || diaSemana === 6) continue;
+    for (let j = 0; j < (diasAtras % 3 === 0 ? 3 : 2); j++) {
+      const f = (diasAtras + j) % fornecedores.length;
+      const hora = `${String([8, 10, 14][j]).padStart(2, '0')}:${diasAtras % 4 === 0 ? '30' : '00'}`;
+      const previsto = new Date(`${data}T${hora}:00`).getTime();
+      const naoVeio = (diasAtras + j * 11) % 17 === 0;
+      const qtd = f % 3 === 0 ? 8 + diasAtras % 18 : 40 + (diasAtras * 13 + j * 7) % 180;
+      const unidade_qtd = unidades[f % unidades.length];
+      const chegada = previsto + (atrasos[f] + (diasAtras % 7) - 3) * 60_000;
+      const descarga = chegada + (12 + (diasAtras * 7 + j) % 30) * 60_000;
+      const recebido = descarga + (25 + f * 9 + diasAtras % 23) * 60_000;
+      historico.push({
+        ...mk(data, naoVeio ? 'Não compareceu' : 'Recebido', fornecedores[f], `${qtd} ${unidade_qtd}`,
+          naoVeio ? 'Fornecedor não chegou na janela combinada (demonstração).' : '', hora),
+        qtd, unidade_qtd, peso_kg: qtd * (unidade_qtd === 'paletes' ? 420 : 8),
+        nf: String(120000 + diasAtras * 3 + j),
+        created_at: new Date(previsto - 2 * 86_400_000).toISOString(),
+        chegada_em: naoVeio ? null : new Date(chegada).toISOString(),
+        descarga_em: naoVeio ? null : new Date(descarga).toISOString(),
+        recebido_em: naoVeio ? null : new Date(recebido).toISOString(),
+      });
+    }
+  }
+
+  // Casos operacionais de hoje acompanham o relógio. Abaixo de 00:31 ainda
+  // não existe um horário de hoje que possa estar mais de 30 minutos atrasado.
+  const hoje = diaReceber(0);
+  let minutosAgora = agora.getHours() * 60 + agora.getMinutes();
+  // Mantém os carimbos de hoje estáveis durante a sessão: a atualização de
+  // reserva não pode reiniciar o cronômetro da descarga a cada minuto.
+  if (typeof window !== 'undefined') {
+    try {
+      const chaveRelogio = 'gl:recebimentos-demo:relogio';
+      const salvo = sessionStorage.getItem(chaveRelogio)?.split('|');
+      if (salvo?.[0] === hoje && /^\d+$/.test(salvo[1] ?? '') && Number(salvo[1]) <= 1439) {
+        minutosAgora = Number(salvo[1]);
+      } else sessionStorage.setItem(chaveRelogio, `${hoje}|${minutosAgora}`);
+    } catch { /* A demonstração também funciona com armazenamento bloqueado. */ }
+  }
+  const noDia = (minutos: number) => new Date(agora.getFullYear(), agora.getMonth(), agora.getDate(), 0, Math.max(0, Math.min(1439, minutos)));
+  const horaHoje = (deslocamento: number) => {
+    const d = noDia(minutosAgora + deslocamento);
+    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  };
+  const operacao: Agendamento[] = [
+    { ...mk(hoje, 'Agendado', 'ENERGIZER', '16 paletes', 'Aguardando chegada na portaria.', horaHoje(-95)),
+      qtd: 16, unidade_qtd: 'paletes', nf: '130101' },
+    { ...mk(hoje, 'Chegou', 'SANTA MARIA', '96 caixas', 'Aguardando liberação da doca.', horaHoje(-15)),
+      qtd: 96, unidade_qtd: 'caixas', chegada_em: noDia(minutosAgora - 8).toISOString(), nf: '130102' },
+    { ...mk(hoje, 'Descarregando', 'NUTRIMENTAL', '24 paletes', 'Descarga em andamento.', horaHoje(-85)),
+      qtd: 24, unidade_qtd: 'paletes', chegada_em: noDia(minutosAgora - 65).toISOString(),
+      descarga_em: noDia(minutosAgora - 35).toISOString(), nf: '130103' },
+    { ...mk(hoje, 'Recebido', 'COLGATE', '180 caixas', 'Conferência finalizada.', horaHoje(-180)),
+      qtd: 180, unidade_qtd: 'caixas', chegada_em: noDia(minutosAgora - 185).toISOString(),
+      descarga_em: noDia(minutosAgora - 170).toISOString(), recebido_em: noDia(minutosAgora - 105).toISOString(), nf: '130104' },
+    { ...mk(hoje, 'Não compareceu', 'MARILAN', '75 volumes', 'Não chegou e não avisou (demonstração).', horaHoje(-240)),
+      qtd: 75, unidade_qtd: 'volumes', nf: '130105' },
+    { ...mk(hoje, 'Agendado', 'J. MACEDO', '12 paletes', '', horaHoje(60)),
+      qtd: 12, unidade_qtd: 'paletes', nf: '130106' },
+  ];
+  return [...antigos, ...historico, ...operacao];
 }
 
 /**
